@@ -1,10 +1,18 @@
 import logging
 from pathlib import Path
+import downloader
 
 
 def main(logger: logging.Logger):
-    # Start app
-    logger.debug('Started')
+    # Setup, define variables, assign classes
+    logger.debug('Setting up')
+    db_path: Path = Path(f"{__file__}/../../data/sqlite.db").resolve()
+    omsz_dl = downloader.OMSZ_Downloader(db_path)
+
+    # Start the app
+    logger.info('Started')
+    omsz_dl.update_meta()
+
     logger.info('Finished')
 
 
@@ -28,7 +36,10 @@ if __name__ == '__main__':
 
     # Start loggers
     logger.addHandler(log_fh)
+    downloader.omsz_logger.addHandler(log_fh)
+
     logger.addHandler(log_ch)
+    downloader.omsz_logger.addHandler(log_ch)
 
     main(logger)
 
