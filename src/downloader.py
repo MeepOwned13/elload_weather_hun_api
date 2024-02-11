@@ -67,25 +67,25 @@ class OMSZ_Downloader():
         self._write_meta(self._format_meta(df))
         omsz_logger.info("Metadata updated to database")
 
-    def _format_weather(self, df: pd.DataFrame):
+    def _format_prev_weather(self, df: pd.DataFrame):
         df.columns = df.columns.str.strip()  # remove trailing whitespace
         df.index = df['Time']
         df.drop('Time', axis=1, inplace=True)  # index creates duplicate
         df.dropna(how='all', axis=1, inplace=True)  # remove NaN columns
         return df
 
-    def _download_zipped_csv(self, url: str) -> pd.DataFrame | None:
+    def _download_prev_data(self, url: str) -> pd.DataFrame | None:
         """
-        Downloads given csv in zip at url
+        Downloads given historical/recent data at given url, gets DataFrame from csv inside a zip
         :param url: Url to ZIP
         :return: Downloaded DataFrame
         """
-        omsz_logger.info(f"Requesting zipped csv at '{url}'")
+        omsz_logger.info(f"Requesting historical/recent data at '{url}'")
         request = req_get(url)
         if request.status_code != 200:
-            omsz_logger.error(f"Zipped csv download failed with {request.status_code} | {url}")
+            omsz_logger.error(f"Historical/recent data download failed with {request.status_code} | {url}")
             return
-        omsz_logger.debug(f"Zipped csv recieved from '{url}'")
+        omsz_logger.debug(f"Historical/recent data recieved from '{url}'")
 
         with ZipFile(io.BytesIO(request.content), 'r') as zip_file:
             df: pd.DataFrame = pd.read_csv(zip_file.open(zip_file.namelist()[0]), comment='#',  # skip metadata of csv
@@ -93,5 +93,5 @@ class OMSZ_Downloader():
                                            parse_dates=['Time'], date_format="%Y%m%d%H%M"
                                            )
 
-        return self._format_weather(df)
+        return self._format_prev_weather(df)
 
