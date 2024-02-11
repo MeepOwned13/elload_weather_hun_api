@@ -39,11 +39,11 @@ class OMSZ_Downloader():
         :param meta: DataFrame containing metadata
         :return: Formatted metadata DataFrame
         """
-        meta.columns = meta.columns.str.strip()
+        meta.columns = meta.columns.str.strip()  # remove trailing whitespace
         meta.index = meta["StationNumber"]
-        meta.drop("StationNumber", axis=1, inplace=True)
+        meta.drop("StationNumber", axis=1, inplace=True)  # index definition creates duplicate
         meta.dropna(how="all", axis=1, inplace=True)
-        meta = meta[~meta.index.duplicated(keep="last")]
+        meta = meta[~meta.index.duplicated(keep="last")]  # duplicates
         return meta
 
     def update_meta(self) -> None:
