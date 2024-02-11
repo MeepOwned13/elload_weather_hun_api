@@ -5,18 +5,19 @@ import downloader
 
 def main(logger: logging.Logger):
     # Setup, define variables, assign classes
-    logger.debug('Setting up')
+    logger.debug("Setting up")
     db_path: Path = Path(f"{__file__}/../../data/sqlite.db").resolve()
     omsz_dl = downloader.OMSZ_Downloader(db_path)
 
     # Start the app
-    logger.info('Started')
-    omsz_dl.update_meta()
+    logger.info("Started")
+    # omsz_dl.update_meta()
+    omsz_dl._download_weather("https://odp.met.hu/climate/observations_hungary/hourly/recent/")
 
-    logger.info('Finished')
+    logger.info("Finished")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Set up logging
     log_folder = Path(f"{__file__}/../../logs").resolve()
 
@@ -29,7 +30,7 @@ if __name__ == '__main__':
     log_ch = logging.StreamHandler()
     log_ch.setLevel(logging.INFO)
 
-    log_format = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    log_format = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
     log_fh.setFormatter(log_format)
     log_ch.setFormatter(log_format)

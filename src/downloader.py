@@ -6,7 +6,7 @@ from contextlib import closing
 import pandas as pd
 import io
 
-omsz_logger = logging.getLogger('omsz')
+omsz_logger = logging.getLogger("omsz")
 omsz_logger.setLevel(logging.DEBUG)
 omsz_logger.addHandler(logging.NullHandler())
 
@@ -41,15 +41,15 @@ class OMSZ_Downloader():
         :return: Formatted metadata DataFrame
         """
         meta.columns = meta.columns.str.strip()
-        meta.index = meta['StationNumber']
-        meta.drop('StationNumber', axis=1, inplace=True)
-        meta.dropna(how='all', axis=1, inplace=True)
-        meta = meta[~meta.index.duplicated(keep='last')]
+        meta.index = meta["StationNumber"]
+        meta.drop("StationNumber", axis=1, inplace=True)
+        meta.dropna(how="all", axis=1, inplace=True)
+        meta = meta[~meta.index.duplicated(keep="last")]
         return meta
 
     def update_meta(self):
         # Request metadata
-        url = 'https://odp.met.hu/climate/observations_hungary/hourly/station_meta_auto.csv'
+        url = "https://odp.met.hu/climate/observations_hungary/hourly/station_meta_auto.csv"
         omsz_logger.info("Requesting metadata")
         request = req_get(url)
         if request.status_code != 200:
@@ -58,9 +58,9 @@ class OMSZ_Downloader():
         omsz_logger.debug("Meta data recieved")
 
         # Load data, format and write to DB
-        df: pd.DataFrame = pd.read_csv(io.StringIO(request.content.decode('utf-8')),
-                                       sep=';', skipinitialspace=True, na_values='EOR',
-                                       parse_dates=['StartDate', 'EndDate'], date_format='%Y%m%d')
+        df: pd.DataFrame = pd.read_csv(io.StringIO(request.content.decode("utf-8")),
+                                       sep=";", skipinitialspace=True, na_values="EOR",
+                                       parse_dates=["StartDate", "EndDate"], date_format="%Y%m%d")
         self._write_meta(self._format_meta(df))
         omsz_logger.info("Metadata updated to database")
 
