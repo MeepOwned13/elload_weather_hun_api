@@ -26,15 +26,14 @@ class OMSZ_Downloader():
         return execute
 
     @_db_connection
-    def _write_meta(self, df: pd.DataFrame):
+    def _write_meta(self, df: pd.DataFrame) -> None:
         """
         Write metadata to Database
         :param df: DataFrame to write to Database
-        :return: None
         """
         df.to_sql(name="omsz_meta", con=self._con, if_exists="replace")
 
-    def _format_meta(self, meta: pd.DataFrame):
+    def _format_meta(self, meta: pd.DataFrame) -> pd.DataFrame:
         """
         Formats metadata
         :param meta: DataFrame containing metadata
@@ -47,15 +46,18 @@ class OMSZ_Downloader():
         meta = meta[~meta.index.duplicated(keep="last")]
         return meta
 
-    def update_meta(self):
+    def update_meta(self) -> None:
+        """
+        Downloads metadata and writes it to sqlite Database
+        """
         # Request metadata
         url = "https://odp.met.hu/climate/observations_hungary/hourly/station_meta_auto.csv"
-        omsz_logger.info("Requesting metadata")
+        omsz_logger.info(f"Requesting metadata at '{url}'")
         request = req_get(url)
         if request.status_code != 200:
-            omsz_logger.error(f"Meta data download failed with {request.status_code}")
+            omsz_logger.error(f"Meta data download failed with {request.status_code} | {url}")
             return
-        omsz_logger.debug("Meta data recieved")
+        omsz_logger.debug(f"Meta data recieved from '{url}'")
 
         # Load data, format and write to DB
         df: pd.DataFrame = pd.read_csv(io.StringIO(request.content.decode("utf-8")),

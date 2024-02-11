@@ -12,7 +12,6 @@ def main(logger: logging.Logger):
     # Start the app
     logger.info("Started")
     # omsz_dl.update_meta()
-    omsz_dl._download_weather("https://odp.met.hu/climate/observations_hungary/hourly/recent/")
 
     logger.info("Finished")
 
