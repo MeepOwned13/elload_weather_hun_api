@@ -88,7 +88,7 @@ class OMSZ_Downloader():
         omsz_logger.debug(f"Zipped csv recieved from '{url}'")
 
         with ZipFile(io.BytesIO(request.content), 'r') as zip_file:
-            df: pd.DataFrame = pd.read_csv(zip_file.open(zip_file.namelist()[0]), skiprows=6,  # skip metadata of csv
+            df: pd.DataFrame = pd.read_csv(zip_file.open(zip_file.namelist()[0]), comment='#',  # skip metadata of csv
                                            sep=';', skipinitialspace=True, na_values=['EOR', -999], low_memory=False,
                                            parse_dates=['Time'], date_format="%Y%m%d%H%M"
                                            )
