@@ -77,6 +77,8 @@ class OMSZ_Downloader():
             self._curs.execute(sql)
             self._curs.execute("CREATE INDEX ix_omsz_meta_StationNumber ON omsz_meta (StationNumber)")
             omsz_logger.debug("Created metadata table")
+        else:
+            df.to_sql(name="_temp_meta", con=self._con, if_exists='replace')
 
         # Copy over the data
         cols = "StationNumber, " + str(tuple(df.columns))[1:-1].replace("\'", "")
@@ -224,18 +226,23 @@ class OMSZ_Downloader():
         tables = [t[0] for t in tables]
         if table_name not in tables:
             omsz_logger.info(f"Creating new table {table_name}")
-            df.to_sql(name=table_name, con=self._con)
+            df.to_sql(name="_temp_omsz", con=self._con, if_exists='replace')
+            # I want a primary key for the table
+            sql = self._curs.execute("SELECT sql FROM sqlite_master WHERE tbl_name = \"_temp_omsz\"").fetchone()[0]
+            sql = sql.replace("_temp_omsz", table_name)
+            sql = sql.replace("\"Time\" TIMESTAMP", "\"Time\" TIMESTAMP PRIMARY KEY")
+            self._curs.execute(sql)
+            self._curs.execute(f"CREATE INDEX ix_{table_name}_Time ON {table_name} (Time)")
             omsz_logger.debug(f"Created new table {table_name}")
-            return
-
-        # Idea: create temp table and insert values missing into the actual table
-        omsz_logger.info(f"Table {table_name} already exists, inserting new values")
-        df.to_sql(name="_temp_table", con=self._con, if_exists="replace")
+        else:
+            # Idea: create temp table and insert values missing into the actual table
+            omsz_logger.info(f"Table {table_name} already exists, inserting new values")
+            df.to_sql(name="_temp_omsz", con=self._con, if_exists="replace")
 
         # SQL should look like this:
         # INSERT INTO table ([cols]) SELECT [cols] FROM temp WHERE Time NOT IN (SELECT Time FROM table)
         # Watch the first set of cols need (), but the second don't, also gonna remove ' marks
         cols = "Time, " + str(tuple(df.columns))[1:-1].replace("\'", "")
-        self._curs.execute(f"INSERT INTO {table_name} ({cols}) SELECT {cols} FROM _temp_table "
+        self._curs.execute(f"INSERT INTO {table_name} ({cols}) SELECT {cols} FROM _temp_omsz "
                            f"WHERE Time NOT IN (SELECT Time FROM {table_name})")
 
