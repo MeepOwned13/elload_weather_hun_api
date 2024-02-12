@@ -19,11 +19,13 @@ class OMSZ_Downloader():
         self._curs: sqlite3.Cursor = None
 
     def _db_connection(func):
-        def execute(self, *args, **kwargs):
+        def execute(self,
+                    *args, **kwargs):
             with closing(sqlite3.connect(self._db_path)) as self._con, self._con as self._curs:
                 omsz_logger.debug("Database connection opened")
-                func(self, *args, **kwargs)
+                res = func(self, *args, **kwargs)
             omsz_logger.debug("Database connection closed")
+            return res
         return execute
 
     @_db_connection
