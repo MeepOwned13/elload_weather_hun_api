@@ -63,7 +63,30 @@ class OMSZ_Downloader():
         Write metadata to Database
         :param df: DataFrame to write to Database
         """
-        df.to_sql(name="omsz_meta", con=self._con, if_exists="replace")
+        omsz_logger.info("Starting update to metadata table")
+
+        tables = self._curs.execute("SELECT tbl_name FROM sqlite_master").fetchall()
+        tables = [t[0] for t in tables]
+        if "omsz_meta" not in tables:
+            omsz_logger.info("Creating metadata table")
+            df.to_sql(name="_temp_meta", con=self._con, if_exists='replace')
+            # I want a primary key for the table
+            sql = self._curs.execute("SELECT sql FROM sqlite_master WHERE tbl_name = \"_temp_meta\"").fetchone()[0]
+            sql = sql.replace("_temp_meta", "omsz_meta")
+            sql = sql.replace("\"StationNumber\" INTEGER", "\"StationNumber\" INTEGER PRIMARY KEY")
+            self._curs.execute(sql)
+            self._curs.execute("CREATE INDEX ix_omsz_meta_StationNumber ON omsz_meta (StationNumber)")
+            omsz_logger.debug("Created metadata table")
+
+        # Copy over the data
+        cols = "StationNumber, " + str(tuple(df.columns))[1:-1].replace("\'", "")
+        # SQL should look like this:
+        # INSERT INTO table ([cols]) SELECT [cols] FROM temp WHERE Time NOT IN (SELECT Time FROM table)
+        # Watch the first set of cols need (), but the second don't, also gonna remove ' marks
+        self._curs.execute(f"INSERT INTO omsz_meta ({cols}) SELECT {cols} FROM _temp_meta "
+                           f"WHERE StationNumber NOT IN (SELECT StationNumber FROM omsz_meta)")
+
+        omsz_logger.info("Metadata updated to database")
 
     def _format_meta(self, meta: pd.DataFrame) -> pd.DataFrame:
         """
@@ -96,7 +119,6 @@ class OMSZ_Downloader():
                                        sep=";", skipinitialspace=True, na_values="EOR",
                                        parse_dates=["StartDate", "EndDate"], date_format="%Y%m%d")
         self._write_meta(self._format_meta(df))
-        omsz_logger.info("Metadata updated to database")
 
     def _format_prev_weather(self, df: pd.DataFrame):
         df.columns = df.columns.str.strip()  # remove trailing whitespace
