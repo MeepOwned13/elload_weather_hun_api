@@ -175,4 +175,5 @@ cython_debug/
 logs/
 data/
 *.pdf
+NOTES.md
 

@@ -21,7 +21,7 @@ class OMSZ_Downloader():
         self._con: sqlite3.Connection = None
         self._curs: sqlite3.Cursor = None
         self._RENAME: dict = {"Station Number": "StationNumber",  # Station Number
-                              "Time": "Time",  # Time of data
+                              "Time": "Time",  # Time of data, transformed to UTC+1
                               "r": "Prec",  # Precipitation sum
                               "t": "Temp",  # Momentary temperature
                               "ta": "AvgTemp",  # Average temperature
@@ -49,8 +49,7 @@ class OMSZ_Downloader():
                               }
 
     def _db_connection(func):
-        def execute(self,
-                    *args, **kwargs):
+        def execute(self, *args, **kwargs):
             with closing(sqlite3.connect(self._db_path)) as self._con, self._con as self._curs:
                 omsz_logger.debug("Database connection opened")
                 res = func(self, *args, **kwargs)
@@ -101,7 +100,8 @@ class OMSZ_Downloader():
 
     def _format_prev_weather(self, df: pd.DataFrame):
         df.columns = df.columns.str.strip()  # remove trailing whitespace
-        df.rename()
+        df.rename(columns=self._RENAME, inplace=True)
+        df['Time'] += pd.Timedelta(hours=1)  # move to UTC+1
         df.index = df['Time']
         df.drop('Time', axis=1, inplace=True)  # index creates duplicate
         df.dropna(how='all', axis=1, inplace=True)  # remove NaN columns
@@ -187,4 +187,33 @@ class OMSZ_Downloader():
 
         return [f"{url}{file}" for file in file_downloads]
 
+    @_db_connection
+    def _write_prev_weather(self, df: pd.DataFrame) -> None:
+        """
+        Write historical/recent weather data to corresponding Table
+        :param df: DataFrame to use
+        :return: None
+        """
+        station = df['StationNumber'].iloc[0]
+        table_name = f"OMSZ_{station}"
+
+        omsz_logger.info(f"Starting write to table {table_name}")
+        tables = self._curs.execute("SELECT tbl_name FROM sqlite_master").fetchall()
+        tables = [t[0] for t in tables]
+        if table_name not in tables:
+            omsz_logger.info(f"Creating new table {table_name}")
+            df.to_sql(name=table_name, con=self._con)
+            omsz_logger.debug(f"Created new table {table_name}")
+            return
+
+        # Idea: create temp table and insert values missing into the actual table
+        omsz_logger.info(f"Table {table_name} already exists, inserting new values")
+        df.to_sql(name="_temp_table", con=self._con, if_exists="replace")
+
+        # SQL should look like this:
+        # INSERT INTO table ([cols]) SELECT [cols] FROM temp WHERE Time NOT IN (SELECT Time FROM table)
+        # Watch the first set of cols need (), but the second don't, also gonna remove ' marks
+        cols = "Time, " + str(tuple(df.columns))[1:-1].replace("\'", "")
+        self._curs.execute(f"INSERT INTO {table_name} ({cols}) SELECT {cols} FROM _temp_table "
+                           f"WHERE Time NOT IN (SELECT Time FROM {table_name})")
 
