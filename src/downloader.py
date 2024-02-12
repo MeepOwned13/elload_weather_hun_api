@@ -17,6 +17,33 @@ class OMSZ_Downloader():
         self._db_path: Path = db_path
         self._con: sqlite3.Connection = None
         self._curs: sqlite3.Cursor = None
+        self._RENAME: dict = {"Station Number": "StationNumber",  # Station Number
+                              "Time": "Time",  # Time of data
+                              "r": "Prec",  # Precipitation sum
+                              "t": "Temp",  # Momentary temperature
+                              "ta": "AvgTemp",  # Average temperature
+                              "tn": "MinTemp",  # Minimum temperature
+                              "tx": "MaxTemp",  # Maximum temperature
+                              "v": "View",  # Horizontal sight distance
+                              "p": "Pres",  # Instrument level pressure
+                              "u": "RHum",  # Relative Humidity
+                              "sg": "AvgGamma",  # Average Gamma does
+                              "sr": "GRad",  # Global Radiation
+                              "suv": "AvgUV",  # Average UV radiation
+                              "fs": "AvgWS",  # Average Wind Speed
+                              "fsd": "AvgWD",  # Average Wind Direction
+                              "fx": "MaxWS",  # Maximum Wind gust Speed
+                              "fxd": "MaxWD",  # Maximum Wind gust Direction
+                              "fxm": "MaxWMin",  # Maximum Wind gust Minute
+                              "fxs": "MaxWSec",  # Maximum Wind gust Second
+                              "et5": "STemp5",  # Soil Temperature at 5cm
+                              "et10": "STemp10",  # Soil Temperature at 10cm
+                              "et20": "STemp20",  # Soil Temperature at 20cm
+                              "et50": "STemp50",  # Soil Temperature at 50cm
+                              "et100": "STemp100",  # Soil Temperature at 100cm
+                              "tsn": "MinNSTemp",  # Minimum Near-Surface Temperature
+                              "tviz": "WTemp",  # Water Temperature
+                              }
 
     def _db_connection(func):
         def execute(self,
@@ -71,6 +98,7 @@ class OMSZ_Downloader():
 
     def _format_prev_weather(self, df: pd.DataFrame):
         df.columns = df.columns.str.strip()  # remove trailing whitespace
+        df.rename()
         df.index = df['Time']
         df.drop('Time', axis=1, inplace=True)  # index creates duplicate
         df.dropna(how='all', axis=1, inplace=True)  # remove NaN columns
