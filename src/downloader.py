@@ -6,6 +6,9 @@ from contextlib import closing
 import pandas as pd
 import io
 from zipfile import ZipFile
+import bs4
+import re
+from datetime import datetime
 
 omsz_logger = logging.getLogger("omsz")
 omsz_logger.setLevel(logging.DEBUG)
@@ -124,4 +127,64 @@ class OMSZ_Downloader():
                                            )
 
         return self._format_prev_weather(df)
+
+    @_db_connection
+    def _filter_stations_from_url(self, urls: list[str]) -> list[str]:
+        """
+        Filter given urls/strings where they contain station numbers for stations we have metadata for
+        :param urls: Urls/strings to filter
+        :return: Filtered urls or empty list if Database interaction failed
+        """
+        # get all stations from metadata
+        try:
+            stations = self._curs.execute("SELECT stationnumber FROM omsz_meta").fetchall()
+            stations = [s[0] for s in stations]  # remove them from tuples
+        except sqlite3.OperationalError:
+            omsz_logger.error("Station filtering failed, can't access Database or omsz_meta table doesn't exist")
+            return []
+
+        # filter stations we have metadata for
+        regex_meta = re.compile(r'.*_(\d{5})_.*')
+        regex_hist = re.compile(fr'.*_{datetime.today().year-1}1231_.*')
+        regex_rec = re.compile(r'.*akt.*')
+        filtered = []
+        for url in urls:
+            # first check filters ones we have metadata for and
+            # also filters recent data where station number is not provided if the csv doesn't contain data up to today
+            # second filters ones that don't go until the end of last year for historical (not needed for recent)
+            meta = regex_meta.match(url)
+            station = int(meta.group(1)) if meta else -1
+            if station in stations and (regex_hist.match(url) or regex_rec.match(url)):
+                filtered.append(url)
+
+        return filtered
+
+    def _get_prev_downloads(self, url: str) -> list[str]:
+        """
+        Gather urls at a given site that contain download links for historical/recent data
+        :param url: Site to search
+        :return: List of download urls
+        """
+        omsz_logger.info(f"Requesting historical/recent data urls at '{url}'")
+        request = req_get(url)
+        if request.status_code != 200:
+            omsz_logger.error(f"Historical/recent data url request failed with {request.status_code}")
+            return []
+
+        soup = bs4.BeautifulSoup(request.text, 'html.parser')
+        file_downloads = soup.find_all('a')  # find links
+
+        regex = re.compile(r'.*\.zip')
+        # get all hrefs, and filter recurring ones (most were acquired twice)
+        file_downloads = list(set([link.get('href').strip()
+                              for link in file_downloads if regex.match(link.get('href'))]))
+
+        omsz_logger.info(f"Historical/recent data urls extracted from '{url}'")
+
+        # metadata only contains info about stations currently active
+        # we only want data from stations we had the metadata from
+        file_downloads = self._filter_stations_from_url(file_downloads)
+
+        return [f"{url}{file}" for file in file_downloads]
+
 

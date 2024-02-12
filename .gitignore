@@ -174,4 +174,5 @@ cython_debug/
 *.bat
 logs/
 data/
+*.pdf
 
