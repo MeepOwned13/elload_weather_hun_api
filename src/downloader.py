@@ -50,7 +50,7 @@ class OMSZ_Downloader():
 
     def _db_connection(func):
         def execute(self, *args, **kwargs):
-            with closing(sqlite3.connect(self._db_path)) as self._con, self._con as self._curs:
+            with closing(sqlite3.connect(self._db_path, timeout=60)) as self._con, self._con as self._curs:
                 omsz_logger.debug("Database connection opened")
                 res = func(self, *args, **kwargs)
             omsz_logger.debug("Database connection closed")
@@ -218,7 +218,13 @@ class OMSZ_Downloader():
         :param df: DataFrame to use
         :return: None
         """
-        station = df['StationNumber'].iloc[0]
+        # Check if DataFrame is empty or only has it's index
+        if df.empty or len(tuple(df.columns)) == 0:
+            omsz_logger.warning("Table writing was called with an empty DataFrame")
+            return
+
+        station = df["StationNumber"].iloc[0]
+        df.drop(columns="StationNumber", inplace=True)
         table_name = f"OMSZ_{station}"
 
         omsz_logger.info(f"Starting write to table {table_name}")
@@ -239,10 +245,31 @@ class OMSZ_Downloader():
             omsz_logger.info(f"Table {table_name} already exists, inserting new values")
             df.to_sql(name="_temp_omsz", con=self._con, if_exists="replace")
 
+        # Tuple->String in Python leaves a single ',' if the tuple has 1 element
+        df_cols = tuple(df.columns)
+        if len(df_cols) == 1:
+            cols = "Time, " + str(tuple(df.columns))[1:-2].replace("\'", "")
+        else:
+            cols = "Time, " + str(tuple(df.columns))[1:-1].replace("\'", "")
+
         # SQL should look like this:
         # INSERT INTO table ([cols]) SELECT [cols] FROM temp WHERE Time NOT IN (SELECT Time FROM table)
         # Watch the first set of cols need (), but the second don't, also gonna remove ' marks
-        cols = "Time, " + str(tuple(df.columns))[1:-1].replace("\'", "")
         self._curs.execute(f"INSERT INTO {table_name} ({cols}) SELECT {cols} FROM _temp_omsz "
                            f"WHERE Time NOT IN (SELECT Time FROM {table_name})")
+
+        omsz_logger.info(f"Updated {table_name}")
+
+    def update_prev_weather_data(self):
+        omsz_logger.info("Checking if prev weather data download is necessary")
+        # TODO: implement check (also check if we need historical at all)
+
+        omsz_logger.info("Donwloading prev weather data")
+
+        for horizon in ("historical", "recent"):
+            urls = self._get_prev_downloads(f"https://odp.met.hu/climate/observations_hungary/10_minutes/{horizon}/")
+            for url in urls:
+                self._write_prev_weather(self._download_prev_data(url))
+
+        omsz_logger.info("Downloaded prev weather data")
 
