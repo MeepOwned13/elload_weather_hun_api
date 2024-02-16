@@ -60,10 +60,10 @@ class OMSZ_Downloader():
 
         def execute(self, *args, **kwargs):
             with self._con as self._curs:
-                omsz_logger.debug("Database cursor opened")
+                omsz_logger.debug("Database transaction begin")
                 res = func(self, *args, **kwargs)
                 self._curs.commit()
-            omsz_logger.debug("Database cursor closed")
+            omsz_logger.debug("Database transaction commit")
             return res
         return execute
 
@@ -149,7 +149,7 @@ class OMSZ_Downloader():
         :param url: Url to ZIP
         :return: Downloaded DataFrame
         """
-        omsz_logger.info(f"Requesting historical/recent data at '{url}'")
+        omsz_logger.debug(f"Requesting historical/recent data at '{url}'")
         request = self._sess.get(url)
         if request.status_code != 200:
             omsz_logger.error(f"Historical/recent data download failed with {request.status_code} | {url}")
@@ -281,7 +281,7 @@ class OMSZ_Downloader():
                            f"(EndDate IS NULL OR EndDate < datetime(\"{end_date}\"))"
                            )
 
-        omsz_logger.info(f"Updated {table_name}")
+        omsz_logger.info(f"Updated {table_name}, updated StartDate and EndDate in metadata for StationNumber {station}")
 
     @_db_transaction
     def _is_hist_needed(self, url: str) -> bool:
@@ -309,23 +309,25 @@ class OMSZ_Downloader():
 
         return bool(res.fetchall())
 
-    @_db_transaction
-    def funcs(self):
-        self._curs.execute("DROP TABLE OMSZ_13704")
-
     def update_prev_weather_data(self):
-        omsz_logger.info("Downloading prev weather data")
+        # Historical
+        omsz_logger.info("Downloading historical weather data")
 
         hist_urls = self._get_prev_downloads("https://odp.met.hu/climate/observations_hungary/10_minutes/historical/")
         for url in hist_urls:
             if self._is_hist_needed(url):
                 self._write_prev_weather(self._download_prev_data(url))
             else:
-                omsz_logger.info(f"Historical data not needed at {url}")
+                omsz_logger.debug(f"Historical data not needed at {url}")
+
+        omsz_logger.info("Finished downloading historical weather data")
+
+        # Recent
+        omsz_logger.info("Downloading recent weather data")
 
         rec_urls = self._get_prev_downloads("https://odp.met.hu/climate/observations_hungary/10_minutes/recent/")
         for url in rec_urls:
             self._write_prev_weather(self._download_prev_data(url))
 
-        omsz_logger.info("Downloaded prev weather data")
+        omsz_logger.info("Finished downloading recent weather data")
 
