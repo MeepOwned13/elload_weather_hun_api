@@ -15,12 +15,19 @@ omsz_logger.addHandler(logging.NullHandler())
 
 
 class OMSZ_Downloader():
+    """
+    Class to update OMSZ data inside given Database
+    MAKE SURE TO HAVE OMSZ_META TABLE OR RUN UPDATE_META() BEFORE CALLING OTHER FUNCTIONS
+    Checking for the existence of omsz_meta isn't included to increase performance
+    """
+
     def __init__(self, db_path: Path):
         self._db_path: Path = db_path
         self._con: sqlite3.Connection = sqlite3.connect(self._db_path, timeout=120, autocommit=False)
         self._curs: sqlite3.Cursor = None
         self._sess: Session = Session()
         self._RENAME: dict = {"Station Number": "StationNumber",  # Station Number
+                              "StationNumber": "StationNumber",  # Station Number
                               "Time": "Time",  # Time of data, transformed to UTC+1
                               "r": "Prec",  # Precipitation sum
                               "t": "Temp",  # Momentary temperature
@@ -195,16 +202,17 @@ class OMSZ_Downloader():
 
         return filtered
 
-    def _get_prev_downloads(self, url: str) -> list[str]:
+    def _get_weather_downloads(self, url: str, current: bool = False) -> list[str]:
         """
-        Gather urls at a given site that contain download links for historical/recent data
+        Gather urls at a given site that contain download links for weather data
         :param url: Site to search
+        :param current: Extracting current weather data or not? Used for filtering
         :return: List of download urls
         """
-        omsz_logger.info(f"Requesting historical/recent data urls at '{url}'")
+        omsz_logger.info(f"Requesting weather data urls at '{url}'")
         request = self._sess.get(url)
         if request.status_code != 200:
-            omsz_logger.error(f"Historical/recent data url request failed with {request.status_code}")
+            omsz_logger.error(f"Weather data url request failed with {request.status_code}")
             return []
 
         soup = bs4.BeautifulSoup(request.text, 'html.parser')
@@ -215,16 +223,34 @@ class OMSZ_Downloader():
         file_downloads = list(set([link.get('href').strip()
                               for link in file_downloads if regex.match(link.get('href'))]))
 
-        omsz_logger.info(f"Historical/recent data urls extracted from '{url}'")
+        omsz_logger.info(f"Weather data urls extracted from '{url}'")
 
         # metadata only contains info about stations currently active
         # we only want data from stations we had the metadata from
-        file_downloads = self._filter_stations_from_url(file_downloads)
+        if current:
+            # This filter is short, so I will leave it in this function
+            file_downloads = [file for file in file_downloads if file.find("LATEST") == -1]
+            # LATEST leads to duplicates here, will use it in a different function
+        else:
+            file_downloads = self._filter_stations_from_url(file_downloads)
 
         return [f"{url}{file}" for file in file_downloads]
 
+    def _update_end_date_meta(self, station: int) -> None:
+        """
+        Updates the EndDate inside omsz_meta for given station
+        THIS FUNCTION ASSUMES THERE IS AN ONGOING TRANSACTION
+        :param station: Station Number to update
+        :return: None
+        """
+        end_date = self._curs.execute(f"SELECT MAX(Time) FROM OMSZ_{station}").fetchone()[0]
+        self._curs.execute(f"UPDATE omsz_meta SET EndDate = datetime(\"{end_date}\") "
+                           f"WHERE StationNumber = {station} AND "
+                           f"(EndDate IS NULL OR EndDate < datetime(\"{end_date}\"))"
+                           )
+
     @_db_transaction
-    def _write_prev_weather(self, df: pd.DataFrame) -> None:
+    def _write_prev_weather_data(self, df: pd.DataFrame) -> None:
         """
         Write historical/recent weather data to corresponding Table
         :param df: DataFrame to use
@@ -271,15 +297,11 @@ class OMSZ_Downloader():
                            f"WHERE Time NOT IN (SELECT Time FROM {table_name})")
 
         start_date = self._curs.execute(f"SELECT MIN(Time) FROM OMSZ_{station}").fetchone()[0]
-        end_date = self._curs.execute(f"SELECT MAX(Time) FROM OMSZ_{station}").fetchone()[0]
         self._curs.execute(f"UPDATE omsz_meta SET StartDate = datetime(\"{start_date}\") "
                            f"WHERE StationNumber = {station} AND "
                            f"(StartDate IS NULL OR StartDate > datetime(\"{start_date}\"))"
                            )
-        self._curs.execute(f"UPDATE omsz_meta SET EndDate = datetime(\"{end_date}\") "
-                           f"WHERE StationNumber = {station} AND "
-                           f"(EndDate IS NULL OR EndDate < datetime(\"{end_date}\"))"
-                           )
+        self._update_end_date_meta(station)
 
         omsz_logger.info(f"Updated {table_name}, updated StartDate and EndDate in metadata for StationNumber {station}")
 
@@ -288,7 +310,7 @@ class OMSZ_Downloader():
         """
         Checks if given historical url would contain data we need
         :param url: url to check
-        :return: Should this url be downloaded?
+        :return: Should this data be downloaded?
         """
         # Technically, urls are pre-filtered to contain stations which are still active,
         # but this method will check the year for safety
@@ -309,31 +331,157 @@ class OMSZ_Downloader():
 
         return bool(res.fetchall())
 
-    def update_prev_weather_data(self):
+    def update_prev_weather_data(self) -> None:
         # Historical
-        omsz_logger.info("Downloading historical weather data")
+        omsz_logger.info("Downloading and updating with historical weather data")
 
-        hist_urls = self._get_prev_downloads("https://odp.met.hu/climate/observations_hungary/10_minutes/historical/")
+        hist_urls = self._get_weather_downloads(
+            "https://odp.met.hu/climate/observations_hungary/10_minutes/historical/")
         for url in hist_urls:
             if self._is_hist_needed(url):
                 data = self._download_prev_data(url)
                 if data is None:
                     continue
-                self._write_prev_weather(data)
+                self._write_prev_weather_data(data)
             else:
                 omsz_logger.debug(f"Historical data not needed at {url}")
 
-        omsz_logger.info("Finished downloading historical weather data")
+        omsz_logger.info("Finished downloading and updating with historical weather data")
 
         # Recent
-        omsz_logger.info("Downloading recent weather data")
+        omsz_logger.info("Downloading and updating with recent weather data")
 
-        rec_urls = self._get_prev_downloads("https://odp.met.hu/climate/observations_hungary/10_minutes/recent/")
+        rec_urls = self._get_weather_downloads("https://odp.met.hu/climate/observations_hungary/10_minutes/recent/")
         for url in rec_urls:
             data = self._download_prev_data(url)
             if data is None:
                 continue
-            self._write_prev_weather(data)
+            self._write_prev_weather_data(data)
 
-        omsz_logger.info("Finished downloading recent weather data")
+        omsz_logger.info("Finished downloading and updating with recent weather data")
+
+    def _format_past24h_weather(self, df: pd.DataFrame):
+        df.columns = df.columns.str.strip()  # remove trailing whitespace
+        df.drop(["StationName", "Latitude", "Longitude", "Elevation"], axis="columns", inplace=True)
+        df.rename(columns=self._RENAME, inplace=True)
+        df['Time'] += pd.Timedelta(hours=1)  # move to UTC+1
+        df.dropna(how='all', axis=1, inplace=True)  # remove NaN columns
+        # We don't need indexing, only going to iterate this DataFrame once
+        return df
+
+    def _download_curr_data(self, url: str) -> pd.DataFrame | None:
+        """
+        Downloads given current data at given url, gets DataFrame from csv inside a zip
+        :param url: Url to ZIP
+        :return: Downloaded DataFrame
+        """
+        omsz_logger.debug(f"Requesting current data at '{url}'")
+        request = self._sess.get(url)
+        if request.status_code != 200:
+            omsz_logger.error(f"Current data download failed with {request.status_code} | {url}")
+            return
+        omsz_logger.debug(f"Current data recieved from '{url}'")
+
+        with ZipFile(io.BytesIO(request.content), 'r') as zip_file:
+            df: pd.DataFrame = pd.read_csv(zip_file.open(zip_file.namelist()[0]), comment='#',  # skip metadata of csv
+                                           sep=';', skipinitialspace=True, na_values=['EOR', -999], low_memory=False,
+                                           parse_dates=['Time'], date_format="%Y%m%d%H%M"
+                                           )
+
+        return self._format_past24h_weather(df)
+
+    def _insert_curr_weather_row(self, ser: pd.Series) -> None:
+        """
+        Inserts current weather data row to corresponding Table
+        This function assumes there is an ongoing transaction
+        :param ser: Series (row) to use
+        :return: None
+        """
+        station = ser["StationNumber"]
+        # Check if the time was already inserted into the table
+        exists = self._curs.execute(f"SELECT Time FROM OMSZ_{station} "
+                                    f"WHERE Time = datetime(\"{ser['Time']}\")").fetchone()
+        if exists:
+            return
+
+        cols = self._curs.execute(f"SELECT name FROM PRAGMA_TABLE_INFO(\"OMSZ_{station}\")").fetchall()
+        # Extract query result and remove NaN values,
+        # also remove Time column because we have to handle datetime conversion
+        cols = [c[0] for c in cols if not pd.isna(ser[c[0]]) and c[0] != "Time"]
+        val_str = tuple(ser[cols].astype(str))
+
+        # Formatting the sql command, not using (?,?,?) because amount of columns change from query to query
+        if len(cols) == 1:
+            col_str = str(cols)[1:-2].replace("\'", "")
+            val_str = str(val_str)[1:-2].replace("\'", "")
+        else:
+            col_str = str(cols)[1:-1].replace("\'", "")
+            val_str = str(val_str)[1:-1].replace("\'", "")
+
+        self._curs.execute(f"INSERT INTO OMSZ_{station} (Time, {col_str}) "
+                           f"VALUES(datetime(\"{ser['Time']}\"), {val_str})")
+
+    def _write_curr_weather_data(self, df: pd.DataFrame) -> None:
+        """
+        Write current weather data to corresponding Tables
+        THIS FUNCTION ASSUMES THERE IS AN ONGOING TRANSACTION
+        :param df: DataFrame to use
+        :return: None
+        """
+        # Check if DataFrame is empty or only has it's index
+        if df.empty or len(tuple(df.columns)) == 0:
+            omsz_logger.warning("Table writing was called with an empty DataFrame")
+            return
+
+        for _, row in df.iterrows():
+            self._insert_curr_weather_row(row)
+
+        stations = self._curs.execute("SELECT StationNumber FROM omsz_meta "
+                                      "WHERE StartDate IS NOT NULL AND EndDate IS NOT NULL").fetchall()
+        for station in stations:
+            station = station[0]  # results are always tuples (inside of a list)
+            self._update_end_date_meta(station)
+
+        omsz_logger.info("Updated EndDate in omsz_meta for all stations")
+
+    @_db_transaction
+    def update_past24h_weather_data(self) -> None:
+        """
+        Updates weather data with the last 24 hours
+        :return: None
+        """
+        # WHILE UPDATING, THIS FUNCTION DOES A SINGLE TRANSACTION,
+        # THIS IS TO PREVENT PROBLEMS ARISING FROM NOT INSERTING EACH TIME IN AN ORDERED MANNER
+        omsz_logger.info("Downloading and updating with the past 24h of weather data")
+
+        curr_urls = self._get_weather_downloads(
+            "https://odp.met.hu/weather/weather_reports/synoptic/hungary/10_minutes/csv/", current=True)
+
+        for url in curr_urls:
+            data = self._download_curr_data(url)
+            omsz_logger.info(f"Past 24h of weather data recieved from '{url}'")
+            if data is None:
+                continue
+            self._write_curr_weather_data(data)
+
+        omsz_logger.info("Finished downloading and updating with the past 24h of weather data")
+
+    @_db_transaction
+    def update_curr_weather_data(self) -> None:
+        """
+        Updates weather data with the current LATEST entries
+        Useful if data is being requested every time there are new entries
+        :return: None
+        """
+        # WHILE UPDATING, THIS FUNCTION DOES A SINGLE TRANSACTION,
+        # THIS IS BECAUSE FUNCTIONS USED EXPECT AN ONGOING TRANSACTION
+        # see also: self.update_past24h_weather_data()
+        omsz_logger.info("Downloading and updating with the most recent weather data")
+
+        data = self._download_curr_data(
+            "https://odp.met.hu/weather/weather_reports/synoptic/hungary/10_minutes/csv/HABP_10M_SYNOP_LATEST.csv.zip")
+        omsz_logger.info("Most recent weather data recieved")
+        self._write_curr_weather_data(data)
+
+        omsz_logger.info("Finished downloading and updating with the most recent weather data")
 
