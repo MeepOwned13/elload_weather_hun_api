@@ -1,4 +1,4 @@
-from requests import get as req_get
+from requests import Session
 from pathlib import Path
 import logging
 import sqlite3
@@ -20,6 +20,7 @@ class OMSZ_Downloader():
         self._db_path: Path = db_path
         self._con: sqlite3.Connection = None
         self._curs: sqlite3.Cursor = None
+        self._sess: Session = Session()
         self._RENAME: dict = {"Station Number": "StationNumber",  # Station Number
                               "Time": "Time",  # Time of data, transformed to UTC+1
                               "r": "Prec",  # Precipitation sum
@@ -110,7 +111,7 @@ class OMSZ_Downloader():
         # Request metadata
         url = "https://odp.met.hu/climate/observations_hungary/hourly/station_meta_auto.csv"
         omsz_logger.info(f"Requesting metadata at '{url}'")
-        request = req_get(url)
+        request = self._sess.get(url)
         if request.status_code != 200:
             omsz_logger.error(f"Meta data download failed with {request.status_code} | {url}")
             return
@@ -138,7 +139,7 @@ class OMSZ_Downloader():
         :return: Downloaded DataFrame
         """
         omsz_logger.info(f"Requesting historical/recent data at '{url}'")
-        request = req_get(url)
+        request = self._sess.get(url)
         if request.status_code != 200:
             omsz_logger.error(f"Historical/recent data download failed with {request.status_code} | {url}")
             return
@@ -190,7 +191,7 @@ class OMSZ_Downloader():
         :return: List of download urls
         """
         omsz_logger.info(f"Requesting historical/recent data urls at '{url}'")
-        request = req_get(url)
+        request = self._sess.get(url)
         if request.status_code != 200:
             omsz_logger.error(f"Historical/recent data url request failed with {request.status_code}")
             return []
