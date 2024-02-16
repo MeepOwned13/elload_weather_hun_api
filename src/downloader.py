@@ -2,7 +2,6 @@ from requests import Session
 from pathlib import Path
 import logging
 import sqlite3
-from contextlib import closing
 import pandas as pd
 import io
 from zipfile import ZipFile
@@ -18,7 +17,7 @@ omsz_logger.addHandler(logging.NullHandler())
 class OMSZ_Downloader():
     def __init__(self, db_path: Path):
         self._db_path: Path = db_path
-        self._con: sqlite3.Connection = None
+        self._con: sqlite3.Connection = sqlite3.connect(self._db_path, timeout=120, autocommit=False)
         self._curs: sqlite3.Cursor = None
         self._sess: Session = Session()
         self._RENAME: dict = {"Station Number": "StationNumber",  # Station Number
@@ -49,22 +48,34 @@ class OMSZ_Downloader():
                               "tviz": "WTemp",  # Water Temperature
                               }
 
-    def _db_connection(func):
+    def __del__(self):
+        if self._con:
+            self._con.close()
+
+    def _db_transaction(func):
+        """
+        This function opens a cursor at self._curs and makes sure the decorated function is a single transaction.
+        Exceptions to this rule are pd.df.to_sql() table creations, so they should only be used for temporary tables.
+        """
+
         def execute(self, *args, **kwargs):
-            with closing(sqlite3.connect(self._db_path, timeout=60)) as self._con, self._con as self._curs:
-                omsz_logger.debug("Database connection opened")
+            with self._con as self._curs:
+                omsz_logger.debug("Database cursor opened")
                 res = func(self, *args, **kwargs)
-            omsz_logger.debug("Database connection closed")
+                self._curs.commit()
+            omsz_logger.debug("Database cursor closed")
             return res
         return execute
 
-    @_db_connection
+    @_db_transaction
     def _write_meta(self, df: pd.DataFrame) -> None:
         """
         Write metadata to Database
         :param df: DataFrame to write to Database
         """
         omsz_logger.info("Starting update to metadata table")
+        # StarDate and EndDate is maintained based on actual, inserted data
+        df.loc[:, ["StartDate", "EndDate"]] = pd.NaT
 
         tables = self._curs.execute("SELECT tbl_name FROM sqlite_master").fetchall()
         tables = [t[0] for t in tables]
@@ -153,7 +164,7 @@ class OMSZ_Downloader():
 
         return self._format_prev_weather(df)
 
-    @_db_connection
+    @_db_transaction
     def _filter_stations_from_url(self, urls: list[str]) -> list[str]:
         """
         Filter given urls/strings where they contain station numbers for stations we have metadata for
@@ -169,9 +180,9 @@ class OMSZ_Downloader():
             return []
 
         # filter stations we have metadata for
-        regex_meta = re.compile(r'.*_(\d{5})_.*')
-        regex_hist = re.compile(fr'.*_{datetime.today().year-1}1231_.*')
-        regex_rec = re.compile(r'.*akt.*')
+        regex_meta = re.compile(r".*_(\d{5})_.*")
+        regex_hist = re.compile(fr".*_{datetime.today().year-1}1231_.*")
+        regex_rec = re.compile(r".*akt.*")
         filtered = []
         for url in urls:
             # first check filters ones we have metadata for and
@@ -212,7 +223,7 @@ class OMSZ_Downloader():
 
         return [f"{url}{file}" for file in file_downloads]
 
-    @_db_connection
+    @_db_transaction
     def _write_prev_weather(self, df: pd.DataFrame) -> None:
         """
         Write historical/recent weather data to corresponding Table
@@ -259,18 +270,62 @@ class OMSZ_Downloader():
         self._curs.execute(f"INSERT INTO {table_name} ({cols}) SELECT {cols} FROM _temp_omsz "
                            f"WHERE Time NOT IN (SELECT Time FROM {table_name})")
 
+        start_date = self._curs.execute(f"SELECT MIN(Time) FROM OMSZ_{station}").fetchone()[0]
+        end_date = self._curs.execute(f"SELECT MAX(Time) FROM OMSZ_{station}").fetchone()[0]
+        self._curs.execute(f"UPDATE omsz_meta SET StartDate = datetime(\"{start_date}\") "
+                           f"WHERE StationNumber = {station} AND "
+                           f"(StartDate IS NULL OR StartDate > datetime(\"{start_date}\"))"
+                           )
+        self._curs.execute(f"UPDATE omsz_meta SET EndDate = datetime(\"{end_date}\") "
+                           f"WHERE StationNumber = {station} AND "
+                           f"(EndDate IS NULL OR EndDate < datetime(\"{end_date}\"))"
+                           )
+
         omsz_logger.info(f"Updated {table_name}")
 
+    @_db_transaction
+    def _is_hist_needed(self, url: str) -> bool:
+        """
+        Checks if given historical url would contain data we need
+        :param url: url to check
+        :return: Should this url be downloaded?
+        """
+        # Technically, urls are pre-filtered to contain stations which are still active,
+        # but this method will check the year for safety
+        year = datetime.today().year
+        regex = re.compile(fr".*_(\d{{5}})_.*{year-1}1231_.*")
+        match = regex.match(url)
+        if not match:
+            return False
+
+        station = match.group(1)
+        # Historical csv-s contain data up to currentyear-01-01 00:50:00
+        # Need to request it, if no EndDate is specified (meaning no data yet) or
+        # The EndDate is from before this year => res.fetchall() will return a non-empty list
+        res = self._curs.execute(f"SELECT * FROM omsz_meta "
+                                 f"WHERE StationNumber = {station} AND "
+                                 f"(EndDate IS NULL OR EndDate < datetime(\"{year}-01-01 00:50:00\"))"
+                                 )
+
+        return bool(res.fetchall())
+
+    @_db_transaction
+    def funcs(self):
+        self._curs.execute("DROP TABLE OMSZ_13704")
+
     def update_prev_weather_data(self):
-        omsz_logger.info("Checking if prev weather data download is necessary")
-        # TODO: implement check (also check if we need historical at all)
+        omsz_logger.info("Downloading prev weather data")
 
-        omsz_logger.info("Donwloading prev weather data")
-
-        for horizon in ("historical", "recent"):
-            urls = self._get_prev_downloads(f"https://odp.met.hu/climate/observations_hungary/10_minutes/{horizon}/")
-            for url in urls:
+        hist_urls = self._get_prev_downloads("https://odp.met.hu/climate/observations_hungary/10_minutes/historical/")
+        for url in hist_urls:
+            if self._is_hist_needed(url):
                 self._write_prev_weather(self._download_prev_data(url))
+            else:
+                omsz_logger.info(f"Historical data not needed at {url}")
+
+        rec_urls = self._get_prev_downloads("https://odp.met.hu/climate/observations_hungary/10_minutes/recent/")
+        for url in rec_urls:
+            self._write_prev_weather(self._download_prev_data(url))
 
         omsz_logger.info("Downloaded prev weather data")
 
