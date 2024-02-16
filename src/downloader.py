@@ -316,7 +316,10 @@ class OMSZ_Downloader():
         hist_urls = self._get_prev_downloads("https://odp.met.hu/climate/observations_hungary/10_minutes/historical/")
         for url in hist_urls:
             if self._is_hist_needed(url):
-                self._write_prev_weather(self._download_prev_data(url))
+                data = self._download_prev_data(url)
+                if data is None:
+                    continue
+                self._write_prev_weather(data)
             else:
                 omsz_logger.debug(f"Historical data not needed at {url}")
 
@@ -327,7 +330,10 @@ class OMSZ_Downloader():
 
         rec_urls = self._get_prev_downloads("https://odp.met.hu/climate/observations_hungary/10_minutes/recent/")
         for url in rec_urls:
-            self._write_prev_weather(self._download_prev_data(url))
+            data = self._download_prev_data(url)
+            if data is None:
+                continue
+            self._write_prev_weather(data)
 
         omsz_logger.info("Finished downloading recent weather data")
 
