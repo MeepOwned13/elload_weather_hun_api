@@ -8,10 +8,14 @@ def main(logger: logging.Logger):
     logger.debug("Setting up")
     db_path: Path = Path(f"{__file__}/../../data/sqlite.db").resolve()
     omsz_dl = downloader.OMSZ_Downloader(db_path)
+    omsz_dl.update_meta()
+    omsz_dl.update_prev_weather_data()
+    omsz_dl.update_past24h_weather_data()
 
     # Start the app
     logger.info("Started")
-    # omsz_dl.update_meta()
+
+    omsz_dl.update_curr_weather_data()
 
     logger.info("Finished")
 
