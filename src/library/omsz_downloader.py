@@ -144,8 +144,7 @@ class OMSZ_Downloader():
     def _format_prev_weather(self, df: pd.DataFrame):
         df.columns = df.columns.str.strip()  # remove trailing whitespace
         df.rename(columns=self._RENAME, inplace=True)
-        df['Time'] += pd.Timedelta(hours=1)  # move to UTC+1
-        df.index = df['Time']
+        df.index = df['Time']  # Time is stored in UTC
         df.drop('Time', axis=1, inplace=True)  # index creates duplicate
         df.dropna(how='all', axis=1, inplace=True)  # remove NaN columns
         return df
@@ -314,19 +313,19 @@ class OMSZ_Downloader():
         """
         # Technically, urls are pre-filtered to contain stations which are still active,
         # but this method will check the year for safety
-        year = datetime.today().year
-        regex = re.compile(fr".*_(\d{{5}})_.*{year-1}1231_.*")
+        last_year = datetime.today().year - 1
+        regex = re.compile(fr".*_(\d{{5}})_.*{last_year}1231_.*")
         match = regex.match(url)
         if not match:
             return False
 
         station = match.group(1)
-        # Historical csv-s contain data up to currentyear-01-01 00:50:00
+        # Historical csv-s contain data up to lastyear-12-31 23:50:00 UTC
         # Need to request it, if no EndDate is specified (meaning no data yet) or
         # The EndDate is from before this year => res.fetchall() will return a non-empty list
         res = self._curs.execute(f"SELECT * FROM omsz_meta "
                                  f"WHERE StationNumber = {station} AND "
-                                 f"(EndDate IS NULL OR EndDate < datetime(\"{year}-01-01 00:50:00\"))"
+                                 f"(EndDate IS NULL OR EndDate < datetime(\"{last_year}-12-31 23:50:00\"))"
                                  )
 
         return bool(res.fetchall())
@@ -364,9 +363,9 @@ class OMSZ_Downloader():
         df.columns = df.columns.str.strip()  # remove trailing whitespace
         df.drop(["StationName", "Latitude", "Longitude", "Elevation"], axis="columns", inplace=True)
         df.rename(columns=self._RENAME, inplace=True)
-        df['Time'] += pd.Timedelta(hours=1)  # move to UTC+1
         df.dropna(how='all', axis=1, inplace=True)  # remove NaN columns
         # We don't need indexing, only going to iterate this DataFrame once
+        # Time is in UTC
         return df
 
     def _download_curr_data(self, url: str) -> pd.DataFrame | None:
