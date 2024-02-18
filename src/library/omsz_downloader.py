@@ -18,7 +18,7 @@ class OMSZ_Downloader():
     """
     Class to update OMSZ data inside given Database
     MAKE SURE TO HAVE OMSZ_META TABLE OR RUN UPDATE_META() BEFORE CALLING OTHER FUNCTIONS
-    Checking for the existence of omsz_meta isn't included to increase performance
+    Checking for the existence of OMSZ_meta isn't included to increase performance
     """
 
     def __init__(self, db_path: Path):
@@ -93,15 +93,15 @@ class OMSZ_Downloader():
 
         tables = self._curs.execute("SELECT tbl_name FROM sqlite_master").fetchall()
         tables = [t[0] for t in tables]
-        if "omsz_meta" not in tables:
+        if "OMSZ_meta" not in tables:
             omsz_downloader_logger.info("Creating metadata table")
             df.to_sql(name="_temp_meta", con=self._con, if_exists='replace')
             # I want a primary key for the table
             sql = self._curs.execute("SELECT sql FROM sqlite_master WHERE tbl_name = \"_temp_meta\"").fetchone()[0]
-            sql = sql.replace("_temp_meta", "omsz_meta")
+            sql = sql.replace("_temp_meta", "OMSZ_meta")
             sql = sql.replace("\"StationNumber\" INTEGER", "\"StationNumber\" INTEGER PRIMARY KEY")
             self._curs.execute(sql)
-            self._curs.execute("CREATE INDEX ix_omsz_meta_StationNumber ON omsz_meta (StationNumber)")
+            self._curs.execute("CREATE INDEX ix_omsz_meta_StationNumber ON OMSZ_meta (StationNumber)")
             omsz_downloader_logger.debug("Created metadata table")
         else:
             df.to_sql(name="_temp_meta", con=self._con, if_exists='replace')
@@ -111,8 +111,8 @@ class OMSZ_Downloader():
         # SQL should look like this:
         # INSERT INTO table ([cols]) SELECT [cols] FROM temp WHERE Time NOT IN (SELECT Time FROM table)
         # Watch the first set of cols need (), but the second don't, also gonna remove ' marks
-        self._curs.execute(f"INSERT INTO omsz_meta ({cols}) SELECT {cols} FROM _temp_meta "
-                           f"WHERE StationNumber NOT IN (SELECT StationNumber FROM omsz_meta)")
+        self._curs.execute(f"INSERT INTO OMSZ_meta ({cols}) SELECT {cols} FROM _temp_meta "
+                           f"WHERE StationNumber NOT IN (SELECT StationNumber FROM OMSZ_meta)")
 
         omsz_downloader_logger.info("Metadata updated to database")
 
@@ -186,11 +186,11 @@ class OMSZ_Downloader():
         """
         # get all stations from metadata
         try:
-            stations = self._curs.execute("SELECT stationnumber FROM omsz_meta").fetchall()
+            stations = self._curs.execute("SELECT stationnumber FROM OMSZ_meta").fetchall()
             stations = [s[0] for s in stations]  # remove them from tuples
         except sqlite3.OperationalError:
             omsz_downloader_logger.error(
-                "Station filtering failed, can't access Database or omsz_meta table doesn't exist")
+                "Station filtering failed, can't access Database or OMSZ_meta table doesn't exist")
             return []
 
         # filter stations we have metadata for
@@ -245,13 +245,13 @@ class OMSZ_Downloader():
 
     def _update_end_date_meta(self, station: int) -> None:
         """
-        Updates the EndDate inside omsz_meta for given station
+        Updates the EndDate inside OMSZ_meta for given station
         THIS FUNCTION ASSUMES THERE IS AN ONGOING TRANSACTION
         :param station: Station Number to update
         :return: None
         """
         end_date = self._curs.execute(f"SELECT MAX(Time) FROM OMSZ_{station}").fetchone()[0]
-        self._curs.execute(f"UPDATE omsz_meta SET EndDate = datetime(\"{end_date}\") "
+        self._curs.execute(f"UPDATE OMSZ_meta SET EndDate = datetime(\"{end_date}\") "
                            f"WHERE StationNumber = {station} AND "
                            f"(EndDate IS NULL OR EndDate < datetime(\"{end_date}\"))"
                            )
@@ -304,7 +304,7 @@ class OMSZ_Downloader():
                            f"WHERE Time NOT IN (SELECT Time FROM {table_name})")
 
         start_date = self._curs.execute(f"SELECT MIN(Time) FROM OMSZ_{station}").fetchone()[0]
-        self._curs.execute(f"UPDATE omsz_meta SET StartDate = datetime(\"{start_date}\") "
+        self._curs.execute(f"UPDATE OMSZ_meta SET StartDate = datetime(\"{start_date}\") "
                            f"WHERE StationNumber = {station} AND "
                            f"(StartDate IS NULL OR StartDate > datetime(\"{start_date}\"))"
                            )
@@ -332,7 +332,7 @@ class OMSZ_Downloader():
         # Historical csv-s contain data up to lastyear-12-31 23:50:00 UTC
         # Need to request it, if no EndDate is specified (meaning no data yet) or
         # The EndDate is from before this year => res.fetchall() will return a non-empty list
-        res = self._curs.execute(f"SELECT * FROM omsz_meta "
+        res = self._curs.execute(f"SELECT * FROM OMSZ_meta "
                                  f"WHERE StationNumber = {station} AND "
                                  f"(EndDate IS NULL OR EndDate < datetime(\"{last_year}-12-31 23:50:00\"))"
                                  )
@@ -448,13 +448,13 @@ class OMSZ_Downloader():
         for _, row in df.iterrows():
             self._insert_curr_weather_row(row)
 
-        stations = self._curs.execute("SELECT StationNumber FROM omsz_meta "
+        stations = self._curs.execute("SELECT StationNumber FROM OMSZ_meta "
                                       "WHERE StartDate IS NOT NULL AND EndDate IS NOT NULL").fetchall()
         for station in stations:
             station = station[0]  # results are always tuples (inside of a list)
             self._update_end_date_meta(station)
 
-        omsz_downloader_logger.info("Updated EndDate in omsz_meta for all stations")
+        omsz_downloader_logger.info("Updated EndDate in OMSZ_meta for all stations")
 
     @_db_transaction
     def update_past24h_weather_data(self) -> None:
