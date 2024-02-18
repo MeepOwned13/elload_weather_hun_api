@@ -40,10 +40,10 @@ if __name__ == "__main__":
 
     # Start loggers
     logger.addHandler(log_fh)
-    o_dl.logger.addHandler(log_fh)
+    o_dl.omsz_downloader_logger.addHandler(log_fh)
 
     logger.addHandler(log_ch)
-    o_dl.logger.addHandler(log_ch)
+    o_dl.omsz_downloader_logger.addHandler(log_ch)
 
     main(logger)
 
