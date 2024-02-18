@@ -6,7 +6,6 @@ import pandas as pd
 import io
 import re
 import warnings
-from datetime import datetime
 
 mavir_downloader_logger = logging.getLogger("mavir")
 mavir_downloader_logger.setLevel(logging.DEBUG)
@@ -36,12 +35,14 @@ class MAVIR_Downloader():
 
     def __del__(self):
         if self._con:
+            self._drop_temp()
             self._con.close()
 
     def _db_transaction(func):
         """
         This function opens a cursor at self._curs and makes sure the decorated function is a single transaction.
         Exceptions to this rule are pd.df.to_sql() table creations, so they should only be used for temporary tables.
+        Using pd.df.to_sql() commits it's own contribuiton as per the documentation.
         """
 
         def execute(self, *args, **kwargs):
@@ -52,6 +53,52 @@ class MAVIR_Downloader():
             mavir_downloader_logger.debug("Database transaction commit")
             return res
         return execute
+
+    @_db_transaction
+    def _drop_temp(self) -> None:
+        self._curs.execute("DROP TABLE IF EXISTS _temp_mavir")
+        mavir_downloader_logger.debug("Dropped temporary tables if they existed")
+
+    @_db_transaction
+    def _create_meta(self) -> None:
+        """
+        Creates metadata table if it doesn't exist yet
+        :return: None
+        """
+        self._curs.execute("""CREATE TABLE IF NOT EXISTS MAVIR_meta(
+            Column TEXT PRIMARY KEY,
+            StartDate TIMESTAMP,
+            EndDate TIMESTAMP
+            )""")
+
+        self._curs.executemany("INSERT OR IGNORE INTO MAVIR_meta (Column, StartDate, EndDate) VALUES (?, ?, ?)",
+                               [(key, None, None) for key in set(self._RENAME.values()) - set(["Time"])])
+        # Don't need to store StarDate and EndDate for time
+
+    def _update_meta(self) -> None:
+        """
+        Updates metadata if MAVIR_meta and MAVIR_electricity exist
+        This function assumes there is an ongoing transaction
+        :return: None
+        """
+        exists = self._curs.execute("SELECT name FROM sqlite_master WHERE type=\"table\" AND "
+                                    "(name=\"MAVIR_electricity\" OR name=\"MAVIR_meta\")").fetchall()
+        if len(exists) < 2:
+            return
+
+        records = [rec for rec in self._curs.execute("SELECT * FROM MAVIR_meta").fetchall()]
+
+        mavir_downloader_logger.info("Started metadata update")
+        for col, start, end in records:
+            # SELECT the minimum for the column, then update meta
+            self._curs.execute(f"UPDATE MAVIR_meta SET StartDate = ("
+                               f"SELECT MIN(Time) FROM MAVIR_electricity WHERE {col} IS NOT NULL"
+                               f") WHERE Column = \"{col}\"")
+
+            # SELECT the maximum for the column, then update meta
+            self._curs.execute(f"UPDATE MAVIR_meta SET EndDate = ("
+                               f"SELECT MAX(Time) FROM MAVIR_electricity WHERE {col} IS NOT NULL"
+                               f") WHERE Column = \"{col}\"")
 
     def _format_data(self, df: pd.DataFrame) -> pd.DataFrame:
         df.columns = df.columns.str.strip()  # remove trailing whitespace
@@ -120,4 +167,78 @@ class MAVIR_Downloader():
             start = new_start
 
         return pd.concat(ls_df)
+
+    @_db_transaction
+    def _write_electricity_data(self, df: pd.DataFrame) -> None:
+        """
+        Insert electricity data, doesn't update, only inserts Times that don't exist yet
+        :param df: DataFrame to use
+        :return: None
+        """
+        table_name = "MAVIR_electricity"
+        mavir_downloader_logger.info("Starting write to table MAVIR_electricity")
+        exists = self._curs.execute(
+            f"SELECT name FROM sqlite_master WHERE type=\"table\" AND name=\"{table_name}\"").fetchone()
+        if not exists:
+            mavir_downloader_logger.info(f"Creating new table {table_name}")
+            df.to_sql(name="_temp_mavir", con=self._con, if_exists='replace')
+            # I want a primary key for the table
+            sql = self._curs.execute("SELECT sql FROM sqlite_master WHERE tbl_name = \"_temp_mavir\"").fetchone()[0]
+            sql = sql.replace("_temp_mavir", table_name)
+            sql = sql.replace("\"Time\" TIMESTAMP", "\"Time\" TIMESTAMP PRIMARY KEY")
+            self._curs.execute(sql)
+            self._curs.execute(f"CREATE INDEX ix_{table_name}_Time ON {table_name} (Time)")
+            mavir_downloader_logger.debug(f"Created new table {table_name}")
+        else:
+            # Idea: create temp table and insert values missing into the actual table
+            mavir_downloader_logger.info(f"Table {table_name} already exists, inserting new values")
+            df.to_sql(name="_temp_mavir", con=self._con, if_exists="replace")
+
+        # Tuple->String in Python leaves a single ',' if the tuple has 1 element
+        df_cols = tuple(df.columns)
+        if len(df_cols) == 1:
+            cols = "Time, " + str(tuple(df.columns))[1:-2].replace("\'", "")
+        else:
+            cols = "Time, " + str(tuple(df.columns))[1:-1].replace("\'", "")
+
+        # SQL should look like this:
+        # INSERT INTO table ([cols]) SELECT [cols] FROM temp WHERE Time NOT IN (SELECT Time FROM table)
+        # Watch the first set of cols need (), but the second don't, also gonna remove ' marks
+        self._curs.execute(f"INSERT OR REPLACE INTO {table_name} ({cols}) SELECT {cols} FROM _temp_mavir ")
+
+        self._update_meta()
+
+        mavir_downloader_logger.info(
+            f"Updated {table_name}, updated StartDate and EndDate in metadata for Columns")
+
+    @_db_transaction
+    def _get_min_end_date(self) -> pd.Timestamp | None:
+        """
+        Get MIN EndDate from MAVIR_meta, useful to know which Times need downloading
+        :return: minimum of EndDate as pd.Timestamp or None is all rows are NULL
+        """
+        exists = self._curs.execute("SELECT name FROM sqlite_master WHERE type=\"table\" AND "
+                                    "name=\"MAVIR_meta\"").fetchone()
+        if not exists:
+            return
+
+        date = self._curs.execute("SELECT MIN(EndDate) FROM MAVIR_meta").fetchone()[0]
+
+        # Pandas.to_datetime becomes None if date is None
+        return pd.to_datetime(date, format="%Y-%m-%d %H:%M:%S")
+
+    def update_electricity_data(self) -> None:
+        """
+        Update electricity data taking metadata into account
+        Updates by using the minimal EndDate from the MAVIR_meta and replaces/inserts the downloaded data
+        :return: None
+        """
+        self._create_meta()
+
+        now: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
+        # First available data is at 2007-01-01 00:00:00 UTC
+        self._write_electricity_data(self._download_data_range(
+            self._get_min_end_date() or pd.to_datetime("2007-01-01 00:00:00", format="%Y-%m-%d %H:%M:%S"),
+            now.round(freq="10min") + pd.Timedelta(hours=24)))
+
 
