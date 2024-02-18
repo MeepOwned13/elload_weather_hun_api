@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 import library.omsz_downloader as o_dl
+import library.mavir_downloader as m_dl
 
 
 def main(logger: logging.Logger):
@@ -41,9 +42,11 @@ if __name__ == "__main__":
     # Start loggers
     logger.addHandler(log_fh)
     o_dl.omsz_downloader_logger.addHandler(log_fh)
+    m_dl.mavir_downloader_logger.addHandler(log_fh)
 
     logger.addHandler(log_ch)
     o_dl.omsz_downloader_logger.addHandler(log_ch)
+    m_dl.mavir_downloader_logger.addHandler(log_ch)
 
     main(logger)
 
