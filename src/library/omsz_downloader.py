@@ -153,6 +153,7 @@ class OMSZ_Downloader():
         df.rename(columns=self._RENAME, inplace=True)
         df.index = df['Time']  # Time is stored in UTC
         df.drop('Time', axis=1, inplace=True)  # index creates duplicate
+        df.dropna(how='all', axis=1, inplace=True)  # remove NaN columns
         return df
 
     def _download_prev_data(self, url: str) -> pd.DataFrame | None:
@@ -272,9 +273,9 @@ class OMSZ_Downloader():
         table_name = f"OMSZ_{station}"
 
         omsz_downloader_logger.info(f"Starting write to table {table_name}")
-        tables = self._curs.execute("SELECT tbl_name FROM sqlite_master").fetchall()
-        tables = [t[0] for t in tables]
-        if table_name not in tables:
+        exists = self._curs.execute(
+            f"SELECT name FROM sqlite_master WHERE type=\"table\" AND name=\"{table_name}\"").fetchone()
+        if not exists:
             omsz_downloader_logger.info(f"Creating new table {table_name}")
             df.to_sql(name="_temp_omsz", con=self._con, if_exists='replace')
             # I want a primary key for the table
@@ -339,6 +340,10 @@ class OMSZ_Downloader():
         return bool(res.fetchall())
 
     def update_prev_weather_data(self) -> None:
+        """
+        Update historical/recent weather data
+        :return: None
+        """
         # Historical
         omsz_downloader_logger.info("Downloading and updating with historical weather data")
 
