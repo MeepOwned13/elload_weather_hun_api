@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
-@repeat_every(seconds=10)
+@repeat_every(seconds=30)
 async def update_check():
     logger.info("Checking for updates to data sources")
     omsz_dl.choose_curr_update()
