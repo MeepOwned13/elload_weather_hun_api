@@ -10,9 +10,7 @@ def main(logger: logging.Logger):
     db_path: Path = Path(f"{__file__}/../../data/sqlite.db").resolve()
     # OMSZ init
     omsz_dl = o_dl.OMSZ_Downloader(db_path)
-    omsz_dl.update_meta()
-    omsz_dl.update_prev_weather_data()
-    omsz_dl.update_past24h_weather_data()
+    omsz_dl.startup_sequence()
     # MAVIR init
     mavir_dl = m_dl.MAVIR_Downloader(db_path)
     mavir_dl.update_electricity_data()
@@ -20,8 +18,8 @@ def main(logger: logging.Logger):
     # Start the app
     logger.info("Started")
 
-    omsz_dl.update_curr_weather_data()
-    mavir_dl.update_electricity_data()
+    omsz_dl.choose_curr_update()
+    mavir_dl.choose_update()
 
     logger.info("Finished")
 
