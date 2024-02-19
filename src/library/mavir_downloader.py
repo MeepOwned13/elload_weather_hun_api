@@ -257,6 +257,6 @@ class MAVIR_Downloader():
         """
         end: pd.Timestamp = self._get_end_date_netload()
         now: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
-        if now > end:
+        if now > (end + pd.Timedelta(minutes=10)):
             self.update_electricity_data()
 
