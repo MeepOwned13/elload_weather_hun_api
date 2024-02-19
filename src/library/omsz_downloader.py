@@ -497,3 +497,36 @@ class OMSZ_Downloader():
 
         omsz_downloader_logger.info("Finished downloading and updating with the most recent weather data")
 
+    @_db_transaction
+    def _get_max_end_date(self) -> pd.Timestamp | None:
+        """
+        Gets the maximum of EndDate in omsz_meta
+        :return: pandas.Timestamp for max end date
+        """
+        date = self._curs.execute("SELECT MAX(EndDate) FROM omsz_meta").fetchone()[0]
+        return pd.to_datetime(date, format="%Y-%m-%d %H:%M:%S")
+
+    def choose_curr_update(self) -> None:
+        """
+        Chooses to do a current weather data update if necessary
+        This function assumes that hist/recent data are already updated
+        :return: None
+        """
+        now: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
+        end: pd.Timestamp = self._get_max_end_date()
+        if now > (end + pd.Timedelta(minutes=20)):
+            if now < (end + pd.Timedelta(minutes=30)):
+                self.update_curr_weather_data()
+            else:
+                self.update_past24h_weather_data()
+
+    def startup_sequence(self) -> None:
+        """
+        Calls meta, historical/recent and past24h updates
+        :return: None
+        """
+        self.update_meta()
+        self.update_prev_weather_data()
+        self.update_past24h_weather_data()
+
+
