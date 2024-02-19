@@ -8,7 +8,7 @@ def main(logger: logging.Logger):
     # Setup, define variables, assign classes
     logger.debug("Setting up")
     db_path: Path = Path(f"{__file__}/../../data/sqlite.db").resolve()
-    (db_path / "..").mkdir(exist_ok=True)
+    (db_path / "..").resolve().mkdir(exist_ok=True)
     # OMSZ init
     omsz_dl = o_dl.OMSZ_Downloader(db_path)
     omsz_dl.startup_sequence()
