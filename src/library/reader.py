@@ -40,3 +40,9 @@ class Reader():
         df = pd.read_sql("SELECT * FROM OMSZ_meta", con=self._con)
         return df
 
+    @_db_transaction
+    def get_electricity_meta(self) -> pd.DataFrame:
+        reader_logger.info("Reading MAVIR_meta")
+        df = pd.read_sql("SELECT * FROM MAVIR_meta", con=self._con)
+        return df
+

@@ -46,6 +46,11 @@ async def get_omsz_meta():
     df = reader.get_weather_meta()
     return {"Message": OMSZ_MESSAGE, "data": df.to_json()}
 
+@app.get("/mavir_meta/")
+async def get_mavir_meta():
+    df = reader.get_electricity_meta()
+    return {"Message": MAVIR_MESSAGE, "data": df.to_json()}
+
 
 def main(logger: logging.Logger, skip_checks: bool):
     # Setup, define variables, assign classes
