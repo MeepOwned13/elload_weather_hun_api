@@ -241,4 +241,22 @@ class MAVIR_Downloader():
             self._get_min_end_date() or pd.to_datetime("2007-01-01 00:00:00", format="%Y-%m-%d %H:%M:%S"),
             now.round(freq="10min") + pd.Timedelta(hours=24)))
 
+    @_db_transaction
+    def _get_end_date_netload(self) -> pd.Timestamp | None:
+        """
+        Gets the end date for NetSystemLoad from MAVIR_meta
+        :return: pandas.Timestamp for end date
+        """
+        date = self._curs.execute("SELECT EndDate FROM MAVIR_meta WHERE Column=\"NetSystemLoad\"").fetchone()[0]
+        return pd.to_datetime(date, format="%Y-%m-%d %H:%M:%S")
+
+    def choose_update(self) -> None:
+        """
+        Chooses to electricity data update if necessary, based on NetSystemLoad
+        :return: None
+        """
+        end: pd.Timestamp = self._get_end_date_netload()
+        now: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
+        if now > (end + pd.Timedelta(hours=1)):
+            self.update_electricity_data()
 
