@@ -63,7 +63,7 @@ class MAVIR_Downloader():
     def _create_meta(self) -> None:
         """
         Creates metadata table if it doesn't exist yet
-        :return: None
+        :returns: None
         """
         self._curs.execute("""CREATE TABLE IF NOT EXISTS MAVIR_meta(
             Column TEXT PRIMARY KEY,
@@ -79,7 +79,7 @@ class MAVIR_Downloader():
         """
         Updates metadata if MAVIR_meta and MAVIR_electricity exist
         This function assumes there is an ongoing transaction
-        :return: None
+        :returns: None
         """
         exists = self._curs.execute("SELECT name FROM sqlite_master WHERE type=\"table\" AND "
                                     "(name=\"MAVIR_electricity\" OR name=\"MAVIR_meta\")").fetchall()
@@ -108,8 +108,7 @@ class MAVIR_Downloader():
         # Using apply here because day/night saving transition doesn't translate well to datetime types
         df["Time"] = df["Time"].apply(
             lambda o: pd.to_datetime(o, format="%Y.%m.%d %H:%M:%S %z").tz_convert("UTC").tz_localize(None))
-        df.index = df['Time']  # Time is stored in UTC
-        df.drop('Time', axis=1, inplace=True)  # index creates duplicate
+        df.set_index("Time", drop=True, inplace=True)  # Time is stored in UTC
         # Dropping last row, since it always contained NaN values
         df.drop(df.tail(1).index, inplace=True)
         return df
@@ -121,7 +120,7 @@ class MAVIR_Downloader():
         WARNING: don't call this function in a loop, call _download_data_range instead
         :param start: Start time in UTC, non-inclusive
         :param end: End time in UTC, inclusive
-        :return: Downloaded DataFrame
+        :returns: Downloaded DataFrame
         """
         mavir_downloader_logger.debug(f"Requesting electricity data from {start} to {end}")
         url = (f"https://www.mavir.hu/rtdwweb/webuser/chart/7678/export"
@@ -153,7 +152,7 @@ class MAVIR_Downloader():
         WARNING: don't call this function in a loop, MAVIR API limits request amounts per minute
         :param start: Start time in UTC, inclusive
         :param end: End time in UTC, inclusive
-        :return: Downloaded DataFrame
+        :returns: Downloaded DataFrame
         """
         ls_df = []
         # Removing 10 minutes to get inlcusive start
@@ -173,7 +172,7 @@ class MAVIR_Downloader():
         """
         Insert electricity data, doesn't update, only inserts Times that don't exist yet
         :param df: DataFrame to use
-        :return: None
+        :returns: None
         """
         table_name = "MAVIR_electricity"
         mavir_downloader_logger.info("Starting write to table MAVIR_electricity")
@@ -215,7 +214,7 @@ class MAVIR_Downloader():
     def _get_min_end_date(self) -> pd.Timestamp | None:
         """
         Get MIN EndDate from MAVIR_meta, useful to know which Times need downloading
-        :return: minimum of EndDate as pd.Timestamp or None is all rows are NULL
+        :returns: minimum of EndDate as pd.Timestamp or None is all rows are NULL
         """
         exists = self._curs.execute("SELECT name FROM sqlite_master WHERE type=\"table\" AND "
                                     "name=\"MAVIR_meta\"").fetchone()
@@ -231,7 +230,7 @@ class MAVIR_Downloader():
         """
         Update electricity data taking metadata into account
         Updates by using the minimal EndDate from the MAVIR_meta and replaces/inserts the downloaded data
-        :return: None
+        :returns: None
         """
         self._create_meta()
 
@@ -245,7 +244,7 @@ class MAVIR_Downloader():
     def _get_end_date_netload(self) -> pd.Timestamp | None:
         """
         Gets the end date for NetSystemLoad from MAVIR_meta
-        :return: pandas.Timestamp for end date
+        :returns: pandas.Timestamp for end date
         """
         date = self._curs.execute("SELECT EndDate FROM MAVIR_meta WHERE Column=\"NetSystemLoad\"").fetchone()[0]
         return pd.to_datetime(date, format="%Y-%m-%d %H:%M:%S")
@@ -253,7 +252,7 @@ class MAVIR_Downloader():
     def choose_update(self) -> None:
         """
         Chooses to electricity data update if necessary, based on NetSystemLoad
-        :return: None
+        :returns: None
         """
         end: pd.Timestamp = self._get_end_date_netload()
         now: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
