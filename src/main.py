@@ -7,16 +7,20 @@ import library.reader as rd
 import pandas as pd
 import uvicorn
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi_utils.tasks import repeat_every
 from datetime import datetime
 import numpy as np
+from typing import Annotated
 
 logger = logging.getLogger("app")
 db_path = Path(f"{__file__}/../../data/sqlite.db").resolve()
 omsz_dl = o_dl.OMSZ_Downloader(db_path)
 mavir_dl = m_dl.MAVIR_Downloader(db_path)
 reader = rd.Reader(db_path)
+last_weather_update: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
+last_electricity_update: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
+
 
 DEV_MODE = False
 OMSZ_MESSAGE = "Weather data is from OMSZ, source: (https://odp.met.hu/)"
@@ -33,7 +37,10 @@ async def lifespan(app: FastAPI):
     yield
     logger.info("Finished")
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    title="Hungary Electricity Load and Weather API",
+    description="Get live updates of Hungarys Electricity Load and Weather stations",
+    lifespan=lifespan)
 
 
 @repeat_every(seconds=30)
@@ -41,43 +48,73 @@ async def update_check():
     if DEV_MODE:
         return
     logger.info("Checking for updates to data sources")
-    omsz_dl.choose_curr_update()
-    mavir_dl.choose_update()
+    if omsz_dl.choose_curr_update():
+        global last_weather_update
+        last_weather_update = pd.Timestamp.now("UTC").tz_localize(None)
+    if mavir_dl.choose_update():
+        global last_electricity_update
+        last_electricity_update = pd.Timestamp.now("UTC").tz_localize(None)
 
 
 @app.get("/")
 async def index():
-    return {"Message": f"{OMSZ_MESSAGE}, {MAVIR_MESSAGE}"}
+    return {"Message": f"{OMSZ_MESSAGE}, {MAVIR_MESSAGE}", "last_omsz_update": last_weather_update,
+            "last_mavir_update": last_electricity_update}
 
 
-@app.get("/omsz/meta/")
+@app.get("/omsz/meta")
 async def get_omsz_meta():
     df: pd.DataFrame = reader.get_weather_meta()
     return {"Message": OMSZ_MESSAGE, "data": df.to_dict(**DEFAULT_TO_DICT)}
 
 
-@app.get("/omsz/station")
-async def get_weather_station(station: int, start_date: datetime, end_date: datetime):
+@app.get("/omsz/columns")
+async def get_omsz_columns(station: int | None = None):
     try:
-        df: pd.DataFrame = reader.get_weather_station(station, start_date, end_date)
-    except (LookupError, ValueError) as error:
-        raise HTTPException(status_code=400, detail=str(error))
-    return {"Message": OMSZ_MESSAGE, "data": df.replace({np.nan: None}).to_dict(**DEFAULT_TO_DICT)}
-
-
-@app.get("/omsz/all")
-async def get_weather_time(start_date: datetime, end_date: datetime):
-    try:
-        result: dict = reader.get_weather_time(start_date, end_date, df_to_dict=DEFAULT_TO_DICT)
+        if station:
+            result = reader.get_weather_station_columns(station)
+        else:
+            result = reader.get_weather_all_columns()
     except (LookupError, ValueError) as error:
         raise HTTPException(status_code=400, detail=str(error))
     return {"Message": OMSZ_MESSAGE, "data": result}
 
 
-@app.get("/mavir/meta/")
+@app.get("/omsz/weather")
+async def get_weather_station(start_date: datetime, end_date: datetime, station: int | None = None,
+                              col: Annotated[list[str] | None, Query()] = None):
+    try:
+        if station:
+            df: pd.DataFrame = reader.get_weather_station(station, start_date, end_date, cols=col)
+            result = df.replace({np.nan: None}).to_dict(**DEFAULT_TO_DICT)
+        else:
+            result: dict = reader.get_weather_time(start_date, end_date, cols=col, df_to_dict=DEFAULT_TO_DICT)
+    except (LookupError, ValueError) as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    return {"Message": OMSZ_MESSAGE, "data": result}
+
+
+@app.get("/mavir/meta")
 async def get_mavir_meta():
     df: pd.DataFrame = reader.get_electricity_meta()
     return {"Message": MAVIR_MESSAGE, "data": df.to_dict(**DEFAULT_TO_DICT)}
+
+
+@app.get("mavir/columns")
+async def get_electricity_columns():
+    result = reader.get_electricity_columns()
+    return {"Message": MAVIR_MESSAGE, "data": result}
+
+
+@app.get("/mavir/load")
+async def get_electricity_load(start_date: datetime, end_date: datetime,
+                               col: Annotated[list[str] | None, Query()] = None):
+    try:
+        df: pd.DataFrame = reader.get_electricity_load(start_date, end_date, cols=col)
+        result = df.replace({np.nan: None}).to_dict(**DEFAULT_TO_DICT)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    return {"Message": MAVIR_MESSAGE, "data": result}
 
 
 def main(logger: logging.Logger, skip_checks: bool):

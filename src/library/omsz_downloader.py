@@ -504,11 +504,11 @@ class OMSZ_Downloader():
         date = self._curs.execute("SELECT MAX(EndDate) FROM omsz_meta").fetchone()[0]
         return pd.to_datetime(date, format="%Y-%m-%d %H:%M:%S")
 
-    def choose_curr_update(self) -> None:
+    def choose_curr_update(self) -> bool:
         """
         Chooses to do a current weather data update if necessary
         This function assumes that hist/recent data are already updated
-        :returns: None
+        :returns: did an update happen?
         """
         now: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
         end: pd.Timestamp = self._get_max_end_date()
@@ -517,6 +517,8 @@ class OMSZ_Downloader():
                 self.update_curr_weather_data()
             else:
                 self.update_past24h_weather_data()
+            return True
+        return False
 
     def startup_sequence(self) -> None:
         """

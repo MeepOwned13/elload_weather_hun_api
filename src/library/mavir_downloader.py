@@ -249,13 +249,15 @@ class MAVIR_Downloader():
         date = self._curs.execute("SELECT EndDate FROM MAVIR_meta WHERE Column=\"NetSystemLoad\"").fetchone()[0]
         return pd.to_datetime(date, format="%Y-%m-%d %H:%M:%S")
 
-    def choose_update(self) -> None:
+    def choose_update(self) -> bool:
         """
         Chooses to electricity data update if necessary, based on NetSystemLoad
-        :returns: None
+        :returns: did an update happen?
         """
         end: pd.Timestamp = self._get_end_date_netload()
         now: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
         if now > (end + pd.Timedelta(minutes=10)):
             self.update_electricity_data()
+            return True
+        return False
 
