@@ -17,6 +17,8 @@ class Reader():
         self._con: sqlite3.Connection = sqlite3.connect(
             self._db_path, timeout=120, autocommit=False, check_same_thread=False)
         self._curs: sqlite3.Cursor = None
+        self._SINGLE_TABLE_LIMIT = (3 * 365 + 2 * 366) * 24 * 60  # at least 5 years
+        self._WEATHER_ALL_STATIONS_LIMIT = 7 * 24 * 60  # 1 week
 
     def __del__(self):
         if self._con:
@@ -75,10 +77,10 @@ class Reader():
         THIS FUNCTION ASSUMES THERE IS AN ONGOING TRANSACTION
         :param table: Table to check for columns
         :param cols: List of columns, None -> returns None
-        :returns: List of valid columns in correct Case present in table, None if cols was None
+        :returns: List of valid columns in correct Case present in table, None if cols was None or []
         :raises LookupError: if no columns are valid
         """
-        if cols is None:
+        if not cols:
             return None
 
         table_cols = self._curs.execute(f"SELECT name FROM PRAGMA_TABLE_INFO(\"{table}\")").fetchall()
@@ -139,7 +141,7 @@ class Reader():
         self._check_date(start_date, "start_date")
         self._check_date(end_date, "end_date")
 
-        self._limit_timeframe(start_date, end_date, (3 * 365 + 2 * 366) * 24 * 60)  # (at least) 5 years
+        self._limit_timeframe(start_date, end_date, self._SINGLE_TABLE_LIMIT)
 
         columns = self._cols_to_str(self._get_valid_cols("MAVIR_electricity", cols))
 
@@ -209,7 +211,7 @@ class Reader():
         self._check_date(start_date, "start_date")
         self._check_date(end_date, "end_date")
 
-        self._limit_timeframe(start_date, end_date, (3 * 365 + 2 * 366) * 24 * 60)  # (at least) 5 years
+        self._limit_timeframe(start_date, end_date, self._SINGLE_TABLE_LIMIT)
 
         exists = self._curs.execute(f"SELECT StationNumber FROM OMSZ_meta WHERE StationNumber = {station}").fetchone()
         if not exists:
@@ -231,29 +233,39 @@ class Reader():
 
     @_db_transaction
     def get_weather_time(self, start_date: pd.Timestamp | datetime, end_date: pd.Timestamp | datetime,
-                         cols: list[str] | None, df_to_dict: dict | None = None) -> dict:
+                         cols: list[str] | None, df_to_dict: dict | None = None,
+                         stations: list[int] | None = None) -> dict:
         """
         Get weather for all stations in given timeframe
         :param start_date: Date to start at in UTC
         :param end_date: Date to end on in UTC
-        :param cols: Which columns to SELECT
+        :param cols: Which columns to SELECT, None or [] means all
+        :param stations: Which stations to SELECT, None or [] means all
         :returns: dict{StationNumber: {Time: data}}, skips entries where none of the specified columns exist
         :raises ValueError: if param types or timeframe length wrong
         """
         self._check_date(start_date, "start_date")
         self._check_date(end_date, "end_date")
 
-        self._limit_timeframe(start_date, end_date, 7 * 24 * 60)  # 1 week
+        if not stations:
+            stations = []
+        for i, station in enumerate(stations):
+            self._check_int(station, f"Station{i}")
+
+        self._limit_timeframe(start_date, end_date, self._WEATHER_ALL_STATIONS_LIMIT)
 
         df_to_dict = df_to_dict or {"orient": "index"}
 
-        stations = pd.read_sql("SELECT StationNumber, StartDate, EndDate FROM OMSZ_meta",
-                               con=self._con, parse_dates=["StartDate", "EndDate"])
+        station_df = pd.read_sql("SELECT StationNumber, StartDate, EndDate FROM OMSZ_meta",
+                                 con=self._con, parse_dates=["StartDate", "EndDate"])
 
-        reader_logger.info(f"Reading all stations from {start_date} to {end_date}")
+        reader_logger.info(f"Reading {'all' if not stations else len(stations)}"
+                           f"stations from {start_date} to {end_date}")
 
         result = dict()
-        for _, row in stations.iterrows():
+        for _, row in station_df.iterrows():
+            if stations and row["StationNumber"] not in stations:
+                continue
             if row["StartDate"] is not pd.NaT and row["EndDate"] is not pd.NaT:
                 try:
                     columns = self._cols_to_str(self._get_valid_cols(f"OMSZ_{row['StationNumber']}", cols))
@@ -265,6 +277,8 @@ class Reader():
                                  con=self._con)
                 df.set_index("Time", drop=True, inplace=True)
                 result[row["StationNumber"]] = df.replace({np.nan: None}).to_dict(**df_to_dict)
+
+        reader_logger.info("DONE")
 
         return result
 

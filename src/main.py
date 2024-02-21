@@ -81,14 +81,18 @@ async def get_omsz_columns(station: int | None = None):
 
 
 @app.get("/omsz/weather")
-async def get_weather_station(start_date: datetime, end_date: datetime, station: int | None = None,
+async def get_weather_station(start_date: datetime, end_date: datetime,
+                              station: Annotated[list[int] | None, Query()] = None,
                               col: Annotated[list[str] | None, Query()] = None):
+    if not station:
+        station = []
     try:
-        if station:
-            df: pd.DataFrame = reader.get_weather_station(station, start_date, end_date, cols=col)
+        if len(station) == 1:
+            df: pd.DataFrame = reader.get_weather_station(station[0], start_date, end_date, cols=col)
             result = df.replace({np.nan: None}).to_dict(**DEFAULT_TO_DICT)
         else:
-            result: dict = reader.get_weather_time(start_date, end_date, cols=col, df_to_dict=DEFAULT_TO_DICT)
+            result = reader.get_weather_time(start_date, end_date, cols=col,
+                                             stations=station, df_to_dict=DEFAULT_TO_DICT)
     except (LookupError, ValueError) as error:
         raise HTTPException(status_code=400, detail=str(error))
     return {"Message": OMSZ_MESSAGE, "data": result}
