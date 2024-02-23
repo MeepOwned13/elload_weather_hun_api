@@ -123,6 +123,8 @@ class OMSZ_Downloader():
         :returns: Formatted metadata DataFrame
         """
         meta.columns = meta.columns.str.strip()  # remove trailing whitespace
+        meta["StationName"] = meta["StationName"].str.strip()
+        meta["RegioName"] = meta["RegioName"].str.strip()
         meta.set_index("StationNumber", drop=True, inplace=True)
         meta.dropna(how="all", axis=1, inplace=True)
         meta = meta[~meta.index.duplicated(keep="last")]  # duplicates
