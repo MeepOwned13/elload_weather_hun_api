@@ -269,7 +269,7 @@ class Reader():
             if row["StartDate"] is not pd.NaT and row["EndDate"] is not pd.NaT:
                 try:
                     columns = self._cols_to_str(self._get_valid_cols(f"OMSZ_{row['StationNumber']}", cols))
-                except ValueError:
+                except LookupError:
                     continue
 
                 df = pd.read_sql(f"SELECT {columns} FROM OMSZ_{row['StationNumber']} "
