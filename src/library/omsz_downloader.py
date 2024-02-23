@@ -120,11 +120,12 @@ class OMSZ_Downloader():
         """
         Formats metadata
         :param meta: DataFrame containing metadata
-        :return: Formatted metadata DataFrame
+        :returns: Formatted metadata DataFrame
         """
         meta.columns = meta.columns.str.strip()  # remove trailing whitespace
-        meta.index = meta["StationNumber"]
-        meta.drop("StationNumber", axis=1, inplace=True)  # index definition creates duplicate
+        meta["StationName"] = meta["StationName"].str.strip()
+        meta["RegioName"] = meta["RegioName"].str.strip()
+        meta.set_index("StationNumber", drop=True, inplace=True)
         meta.dropna(how="all", axis=1, inplace=True)
         meta = meta[~meta.index.duplicated(keep="last")]  # duplicates
         return meta
@@ -151,8 +152,7 @@ class OMSZ_Downloader():
     def _format_prev_weather(self, df: pd.DataFrame):
         df.columns = df.columns.str.strip()  # remove trailing whitespace
         df.rename(columns=self._RENAME, inplace=True)
-        df.index = df['Time']  # Time is stored in UTC
-        df.drop('Time', axis=1, inplace=True)  # index creates duplicate
+        df.set_index("Time", drop=True, inplace=True)  # Time is stored in UTC
         df.dropna(how='all', axis=1, inplace=True)  # remove NaN columns
         return df
 
@@ -160,7 +160,7 @@ class OMSZ_Downloader():
         """
         Downloads given historical/recent data at given url, gets DataFrame from csv inside a zip
         :param url: Url to ZIP
-        :return: Downloaded DataFrame
+        :returns: Downloaded DataFrame
         """
         omsz_downloader_logger.debug(f"Requesting historical/recent data at '{url}'")
         request = self._sess.get(url)
@@ -182,7 +182,7 @@ class OMSZ_Downloader():
         """
         Filter given urls/strings where they contain station numbers for stations we have metadata for
         :param urls: Urls/strings to filter
-        :return: Filtered urls or empty list if Database interaction failed
+        :returns: Filtered urls or empty list if Database interaction failed
         """
         # get all stations from metadata
         try:
@@ -214,7 +214,7 @@ class OMSZ_Downloader():
         Gather urls at a given site that contain download links for weather data
         :param url: Site to search
         :param current: Extracting current weather data or not? Used for filtering
-        :return: List of download urls
+        :returns: List of download urls
         """
         omsz_downloader_logger.info(f"Requesting weather data urls at '{url}'")
         request = self._sess.get(url)
@@ -248,7 +248,7 @@ class OMSZ_Downloader():
         Updates the EndDate inside OMSZ_meta for given station
         THIS FUNCTION ASSUMES THERE IS AN ONGOING TRANSACTION
         :param station: Station Number to update
-        :return: None
+        :returns: None
         """
         end_date = self._curs.execute(f"SELECT MAX(Time) FROM OMSZ_{station}").fetchone()[0]
         self._curs.execute(f"UPDATE OMSZ_meta SET EndDate = datetime(\"{end_date}\") "
@@ -261,7 +261,7 @@ class OMSZ_Downloader():
         """
         Write historical/recent weather data to corresponding Table
         :param df: DataFrame to use
-        :return: None
+        :returns: None
         """
         # Check if DataFrame is empty or only has it's index
         if df.empty or len(tuple(df.columns)) == 0:
@@ -318,7 +318,7 @@ class OMSZ_Downloader():
         """
         Checks if given historical url would contain data we need
         :param url: url to check
-        :return: Should this data be downloaded?
+        :returns: Should this data be downloaded?
         """
         # Technically, urls are pre-filtered to contain stations which are still active,
         # but this method will check the year for safety
@@ -342,7 +342,7 @@ class OMSZ_Downloader():
     def update_prev_weather_data(self) -> None:
         """
         Update historical/recent weather data
-        :return: None
+        :returns: None
         """
         # Historical
         omsz_downloader_logger.info("Downloading and updating with historical weather data")
@@ -385,7 +385,7 @@ class OMSZ_Downloader():
         """
         Downloads given current data at given url, gets DataFrame from csv inside a zip
         :param url: Url to ZIP
-        :return: Downloaded DataFrame
+        :returns: Downloaded DataFrame
         """
         omsz_downloader_logger.debug(f"Requesting current data at '{url}'")
         request = self._sess.get(url)
@@ -407,7 +407,7 @@ class OMSZ_Downloader():
         Inserts current weather data row to corresponding Table
         This function assumes there is an ongoing transaction
         :param ser: Series (row) to use
-        :return: None
+        :returns: None
         """
         station = ser["StationNumber"]
         # Check if the time was already inserted into the table
@@ -438,7 +438,7 @@ class OMSZ_Downloader():
         Write current weather data to corresponding Tables
         THIS FUNCTION ASSUMES THERE IS AN ONGOING TRANSACTION
         :param df: DataFrame to use
-        :return: None
+        :returns: None
         """
         # Check if DataFrame is empty or only has it's index
         if df.empty or len(tuple(df.columns)) == 0:
@@ -460,7 +460,7 @@ class OMSZ_Downloader():
     def update_past24h_weather_data(self) -> None:
         """
         Updates weather data with the last 24 hours
-        :return: None
+        :returns: None
         """
         # WHILE UPDATING, THIS FUNCTION DOES A SINGLE TRANSACTION,
         # THIS IS TO PREVENT PROBLEMS ARISING FROM NOT INSERTING EACH TIME IN AN ORDERED MANNER
@@ -483,7 +483,7 @@ class OMSZ_Downloader():
         """
         Updates weather data with the current LATEST entries
         Useful if data is being requested every time there are new entries
-        :return: None
+        :returns: None
         """
         # WHILE UPDATING, THIS FUNCTION DOES A SINGLE TRANSACTION,
         # THIS IS BECAUSE FUNCTIONS USED EXPECT AN ONGOING TRANSACTION
@@ -501,16 +501,16 @@ class OMSZ_Downloader():
     def _get_max_end_date(self) -> pd.Timestamp | None:
         """
         Gets the maximum of EndDate in omsz_meta
-        :return: pandas.Timestamp for max end date
+        :returns: pandas.Timestamp for max end date
         """
         date = self._curs.execute("SELECT MAX(EndDate) FROM omsz_meta").fetchone()[0]
         return pd.to_datetime(date, format="%Y-%m-%d %H:%M:%S")
 
-    def choose_curr_update(self) -> None:
+    def choose_curr_update(self) -> bool:
         """
         Chooses to do a current weather data update if necessary
         This function assumes that hist/recent data are already updated
-        :return: None
+        :returns: did an update happen?
         """
         now: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
         end: pd.Timestamp = self._get_max_end_date()
@@ -519,11 +519,13 @@ class OMSZ_Downloader():
                 self.update_curr_weather_data()
             else:
                 self.update_past24h_weather_data()
+            return True
+        return False
 
     def startup_sequence(self) -> None:
         """
         Calls meta, historical/recent and past24h updates
-        :return: None
+        :returns: None
         """
         self.update_meta()
         self.update_prev_weather_data()
