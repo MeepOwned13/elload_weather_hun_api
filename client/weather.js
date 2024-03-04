@@ -254,9 +254,17 @@ async function updateOmszMap(datetime, column) {
     if (reRequest) {
         setNavButtonsDisabled(true)
 
+        let cols = []
+        for(let key in omszMapFormat) {
+            cols.push(key)
+            if(omszMapFormat[key].directionFeature) {
+                cols.push(omszMapFormat[key].directionFeature)
+            }
+        }
+
         omszData = await fetchData(
             apiUrl + 'omsz/weather?start_date=' + omszRequestedMinDate + '&end_date=' + omszRequestedMaxDate +
-            '&col=' + Object.keys(omszMapFormat).join('&col=')
+            '&col=' + cols.join('&col=')
         )
 
         setNavButtonsDisabled(false)
