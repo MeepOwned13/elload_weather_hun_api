@@ -21,7 +21,7 @@ async function updateOmszMeta() {
     omszMeta = meta
 }
 
-function makeMap(stationMeta, stationData, datetime, plotElementId, msgDiv) {
+function makeOmszMap(stationMeta, stationData, datetime, plotElementId, msgDiv) {
     // Construct the stationMap
     msgDiv.innerHTML = "<p>" + stationMeta.Message + "</p>"
     // TODO: Make sure to display message from OMSZ
@@ -124,7 +124,7 @@ function makeMap(stationMeta, stationData, datetime, plotElementId, msgDiv) {
     Plotly.newPlot(plotElementId, data, layout, config);
 }
 
-async function updateMap(datetime) {
+async function updateOmszMap(datetime) {
     // update of map on given datetime
     const dataUrl = apiUrl + 'omsz/weather?start_date=' + datetime + '&end_date=' + datetime + '&col=temp'
 
@@ -134,7 +134,7 @@ async function updateMap(datetime) {
 
     let stationData = await fetchData(dataUrl)
 
-    makeMap(omszMeta, stationData, datetime.replace('T', ' '), omszMapDivId, omszMsgDiv)
+    makeOmszMap(omszMeta, stationData, datetime.replace('T', ' '), omszMapDivId, omszMsgDiv)
 }
 
 function updateOmszPlot() {
@@ -152,7 +152,7 @@ function updateOmszPlot() {
 
     let datetime = localToUtcString(rounded)
 
-    updateMap(datetime).then()
+    updateOmszMap(datetime).then()
 }
 
 async function updateOmsz() {
@@ -172,21 +172,19 @@ async function updateOmsz() {
 
 // construct elements
 function setupOmsz() {
+    // setup function, assumes that meta is set
+    updateOmsz()
     omszDateInput.value = omszDateInput.max
+
     updateOmszPlot()
+
     omszUpdateButton.addEventListener("click", updateOmszPlot)
     omszForwardButton.addEventListener("click", () => {
-        let rounded = floorTo10Min(omszDateInput.value + ":00")
-        rounded.setHours(rounded.getHours() - rounded.getTimezoneOffset() / 60)
-        rounded.setMinutes(rounded.getMinutes() + 10)
-        omszDateInput.value = localToUtcString(rounded)
+        addMinutesToInputRounded10(omszDateInput, 10)
         updateOmszPlot()
     })
     omszBackwardButton.addEventListener("click", () => {
-        let rounded = floorTo10Min(omszDateInput.value + ":00")
-        rounded.setHours(rounded.getHours() - rounded.getTimezoneOffset() / 60)
-        rounded.setMinutes(rounded.getMinutes() - 10)
-        omszDateInput.value = localToUtcString(rounded)
+        addMinutesToInputRounded10(omszDateInput, -10)
         updateOmszPlot()
     })
 }

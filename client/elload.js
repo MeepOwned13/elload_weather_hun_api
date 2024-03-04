@@ -15,7 +15,7 @@ async function updateMavirMeta() {
     mavirMeta = meta
 }
 
-function makeLines(loadData, plotElementId, msgDiv) {
+function makeMavirLines(loadData, plotElementId, msgDiv) {
     // construct lineplot from elload data
     msgDiv.innerHTML = "<p>" + loadData.Message + "</p>"
     let data = loadData.data
@@ -26,7 +26,11 @@ function makeLines(loadData, plotElementId, msgDiv) {
     for (let key in data) {
         let item = data[key]
 
-        x.push(key)
+        // display date in local time
+        let date = new Date(key)
+        date.setHours(date.getHours() - 2 * date.getTimezoneOffset() / 60)
+        x.push(localToUtcString(date).replace('T', ' '))
+
         y_load.push(item["NetSystemLoad"])
         y_plan.push(item["NetPlanSystemLoad"])
     }
@@ -77,24 +81,25 @@ function makeLines(loadData, plotElementId, msgDiv) {
     Plotly.newPlot(plotElementId, plotData, layout, config)
 }
 
-async function updateElLoad(datetime) {
+async function updateMavirLines(datetime) {
     // update elload on given datetime
     let date = new Date(datetime)
 
     let start = new Date(date.getTime())
-    start.setHours(start.getHours() - 1)
+    start.setHours(start.getHours() - 5)
     start_date = localToUtcString(start)
 
     let end = new Date(date.getTime())
-    end.setHours(end.getHours() + 1)
+    end.setHours(end.getHours() + 5)
     end_date = localToUtcString(end)
+    console.log(start, end)
 
     const dataUrl = apiUrl + "mavir/load?col=netsystemload&col=netplansystemload&start_date=" +
         start_date + "&end_date=" + end_date
 
     const data = await fetchData(dataUrl)
 
-    makeLines(data, mavirPlotDivId, mavirMsgDiv)
+    makeMavirLines(data, mavirPlotDivId, mavirMsgDiv)
 }
 
 function updateMavirPlot() {
@@ -112,7 +117,7 @@ function updateMavirPlot() {
 
     let datetime = localToUtcString(rounded)
 
-    updateElLoad(datetime).then()
+    updateMavirLines(datetime).then()
 }
 
 async function updateMavir() {
@@ -132,21 +137,19 @@ async function updateMavir() {
 
 // construct elements
 function setupMavir() {
+    // setup function, assumes that meta is set
+    updateMavir()
     mavirDateInput.value = mavirDateInput.max
+    addMinutesToInputRounded10(mavirDateInput, -60 * 24)
+
     updateMavirPlot()
     mavirUpdateButton.addEventListener("click", updateMavirPlot)
     mavirForwardButton.addEventListener("click", () => {
-        let rounded = floorTo10Min(mavirDateInput.value + ":00")
-        rounded.setHours(rounded.getHours() - rounded.getTimezoneOffset() / 60)
-        rounded.setMinutes(rounded.getMinutes() + 10)
-        mavirDateInput.value = localToUtcString(rounded)
+        addMinutesToInputRounded10(mavirDateInput, 10)
         updateMavirPlot()
     })
     mavirBackwardButton.addEventListener("click", () => {
-        let rounded = floorTo10Min(mavirDateInput.value + ":00")
-        rounded.setHours(rounded.getHours() - rounded.getTimezoneOffset() / 60)
-        rounded.setMinutes(rounded.getMinutes() - 10)
-        mavirDateInput.value = localToUtcString(rounded)
+        addMinutesToInputRounded10(mavirDateInput, -10)
         updateMavirPlot()
     })
 }

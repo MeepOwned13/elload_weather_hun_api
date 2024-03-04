@@ -96,3 +96,12 @@ function localToUtcString(localDate) {
     const utcDatetime = localDate.toISOString().replace(/.\d{3}Z$/, '') // Remove milliseconds and append 'Z'
     return utcDatetime
 }
+
+function addMinutesToInputRounded10(dateInput, minutes) {
+    // rounds input value to 10 Min before addition 
+    let rounded = floorTo10Min(dateInput.value + ":00")
+    rounded.setHours(rounded.getHours() - rounded.getTimezoneOffset() / 60)
+    rounded.setMinutes(rounded.getMinutes() + minutes)
+    dateInput.value = localToUtcString(rounded)
+
+}
