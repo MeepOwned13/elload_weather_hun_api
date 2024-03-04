@@ -19,6 +19,7 @@ async function update() {
     if (!(index.last_mavir_update === mavirLastUpdate)) {
         await updateMavirMeta()
         mavirLastUpdate = index.last_mavir_update
+        updateMavirPlot()
     }
 
     updateOmsz()

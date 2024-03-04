@@ -36,7 +36,7 @@ function makeMavirLines(loadData, plotElementId, msgDiv) {
     }
 
 
-    let load = {
+    let plotLoad = {
         type: 'scatter',
         x: x,
         y: y_load,
@@ -48,7 +48,7 @@ function makeMavirLines(loadData, plotElementId, msgDiv) {
         }
     }
 
-    let pred = {
+    let plotPred = {
         type: 'scatter',
         x: x,
         y: y_plan,
@@ -60,9 +60,9 @@ function makeMavirLines(loadData, plotElementId, msgDiv) {
         }
     }
 
-    let plotData = [load, pred]
+    let plotData = [plotLoad, plotPred]
 
-    let layout = {
+    let plotLayout = {
         title: 'MAVIR data',
         font: {
             family: 'Droid Serif, serif',
@@ -74,11 +74,11 @@ function makeMavirLines(loadData, plotElementId, msgDiv) {
         height: 600,
     }
 
-    let config = {
+    let plotConfig = {
         responsive: true
     }
 
-    Plotly.newPlot(plotElementId, plotData, layout, config)
+    Plotly.newPlot(plotElementId, plotData, plotLayout, plotConfig)
 }
 
 async function updateMavirLines(datetime) {
@@ -92,7 +92,6 @@ async function updateMavirLines(datetime) {
     let end = new Date(date.getTime())
     end.setHours(end.getHours() + 5)
     end_date = localToUtcString(end)
-    console.log(start, end)
 
     const dataUrl = apiUrl + "mavir/load?col=netsystemload&col=netplansystemload&start_date=" +
         start_date + "&end_date=" + end_date
@@ -143,6 +142,7 @@ function setupMavir() {
     addMinutesToInputRounded10(mavirDateInput, -60 * 24)
 
     updateMavirPlot()
+
     mavirUpdateButton.addEventListener("click", updateMavirPlot)
     mavirForwardButton.addEventListener("click", () => {
         addMinutesToInputRounded10(mavirDateInput, 10)
