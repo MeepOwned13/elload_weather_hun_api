@@ -94,6 +94,11 @@ const omszMapFormat = {
 }
 
 // functions
+function setNavButtonsDisabled(disabled) {
+    omszForwardButton.disabled = disabled
+    omszBackwardButton.disabled = disabled
+}
+
 async function updateOmszMeta() {
     let meta = await fetchData(apiUrl + 'omsz/meta')
     omszMeta = meta
@@ -229,24 +234,32 @@ async function updateOmszMap(datetime, column) {
         await updateOmszMeta()
     }
 
+    let reRequest = false
     if (omszRequestedMinDate === null || omszRequestedMaxDate === null) {
         omszRequestedMaxDate = datetime // first request is always current time
         // let's set it 1 hour back for the first time to reduce traffic
         omszRequestedMinDate = addHoursToISODate(datetime, -1)
 
-        omszData = await fetchData(
-            apiUrl + 'omsz/weather?start_date=' + omszRequestedMinDate + '&end_date=' + omszRequestedMaxDate
-        )
+        reRequest = true
     } else if (!validDate(datetime, omszRequestedMinDate, omszRequestedMaxDate)) {
-        omszRequestedMinDate = addHoursToISODate(datetime, -2)
-        omszRequestedMaxDate = addHoursToISODate(datetime, 2)
+        omszRequestedMinDate = addHoursToISODate(datetime, -3)
+        omszRequestedMaxDate = addHoursToISODate(datetime, 3)
         if (omszRequestedMaxDate > omszMaxDate) {
             omszRequestedMaxDate = omszMaxDate
         }
 
+        reRequest = true
+    }
+
+    if (reRequest) {
+        setNavButtonsDisabled(true)
+
         omszData = await fetchData(
-            apiUrl + 'omsz/weather?start_date=' + omszRequestedMinDate + '&end_date=' + omszRequestedMaxDate
+            apiUrl + 'omsz/weather?start_date=' + omszRequestedMinDate + '&end_date=' + omszRequestedMaxDate +
+            '&col=' + Object.keys(omszMapFormat).join('&col=')
         )
+
+        setNavButtonsDisabled(false)
     }
 
     makeOmszMap(datetime.replace('T', ' '), column)
