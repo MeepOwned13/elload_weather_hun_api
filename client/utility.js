@@ -101,6 +101,13 @@ function localToUtcString(localDate) {
     return utcDatetime
 }
 
+function addHoursToISODate(date, hours) {
+    let datetime = new Date(date)
+    // let's set it 1 hour back for the first time to reduce traffic
+    datetime.setHours(datetime.getHours() + hours - datetime.getTimezoneOffset() / 60)
+    return localToUtcString(datetime)
+}
+
 function addMinutesToInputRounded10(dateInput, minutes) {
     // rounds input value to 10 Min before addition 
     let rounded = floorTo10Min(dateInput.value + ":00")

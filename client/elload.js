@@ -1,3 +1,4 @@
+// global constants
 const mavirUpdateButton = document.getElementById("mavirUpdateButton")
 const mavirForwardButton = document.getElementById("mavirForwardButton")
 const mavirBackwardButton = document.getElementById("mavirBackwardButton")
@@ -5,11 +6,13 @@ const mavirDateInput = document.getElementById("mavirDateInput")
 const mavirMsgDiv = document.getElementById("mavirMsgDiv")
 const mavirPlotDivId = "mavirPlotDiv"
 
+// global variables
 let mavirMinDate = "2022-01-01T00:00:00"
 let mavirMaxDate = "2024-03-02T15:00:00"
 let mavirMeta = null
 let mavirLastUpdate = null
 
+// functions
 async function updateMavirMeta() {
     let meta = await fetchData(apiUrl + 'mavir/meta')
     mavirMeta = meta

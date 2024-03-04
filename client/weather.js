@@ -1,3 +1,4 @@
+// global constants
 const omszMsgDiv = document.getElementById("omszMsgDiv")
 const omszMapDivId = "omszStationMapDiv"
 const omszUpdateButton = document.getElementById("omszUpdateButton")
@@ -6,12 +7,16 @@ const omszBackwardButton = document.getElementById("omszBackwardButton")
 const omszDateInput = document.getElementById("omszDateInput")
 const omszDropdown = document.getElementById("omszDropdown")
 
-let omszMinDate = "2018-01-01T00:00:00"
-let omszMaxDate = "2024-03-02T15:00:00"
+// globals variables
+let omszMinDate = null
+let omszMaxDate = null
+let omszRequestedMinDate = null
+let omszRequestedMaxDate = null
 let omszMeta = null
 let omszData = null
 let omszLastUpdate = null
 
+// map formatting Object
 const omszMapFormat = {
     Temp: {
         name: 'Temperature',
@@ -88,6 +93,7 @@ const omszMapFormat = {
     }
 }
 
+// functions
 async function updateOmszMeta() {
     let meta = await fetchData(apiUrl + 'omsz/meta')
     omszMeta = meta
@@ -136,7 +142,7 @@ function makeOmszMap(datetime, column) {
         if (format.directionFeature) {
             if (value === 0) {
                 continue // if windstrength is 0, then skip it
-            } 
+            }
             angle = station[datetime][format.directionFeature]
             symbol = "arrow-up"
             size = 22
@@ -166,7 +172,7 @@ function makeOmszMap(datetime, column) {
             ],
         })
     }
-   
+
     let plotLayout = {
         title: 'OMSZ stations',
         font: {
@@ -218,14 +224,30 @@ function makeOmszMap(datetime, column) {
 }
 
 async function updateOmszMap(datetime, column) {
-    // update of map on given datetime
-    const dataUrl = apiUrl + 'omsz/weather?start_date=' + datetime + '&end_date=' + datetime
-
+    // update of map on given datetime, requests data on it's own
     if (omszMeta === null) {
         await updateOmszMeta()
     }
 
-    omszData = await fetchData(dataUrl)
+    if (omszRequestedMinDate === null || omszRequestedMaxDate === null) {
+        omszRequestedMaxDate = datetime // first request is always current time
+        // let's set it 1 hour back for the first time to reduce traffic
+        omszRequestedMinDate = addHoursToISODate(datetime, -1)
+
+        omszData = await fetchData(
+            apiUrl + 'omsz/weather?start_date=' + omszRequestedMinDate + '&end_date=' + omszRequestedMaxDate
+        )
+    } else if (!validDate(datetime, omszRequestedMinDate, omszRequestedMaxDate)) {
+        omszRequestedMinDate = addHoursToISODate(datetime, -2)
+        omszRequestedMaxDate = addHoursToISODate(datetime, 2)
+        if (omszRequestedMaxDate > omszMaxDate) {
+            omszRequestedMaxDate = omszMaxDate
+        }
+
+        omszData = await fetchData(
+            apiUrl + 'omsz/weather?start_date=' + omszRequestedMinDate + '&end_date=' + omszRequestedMaxDate
+        )
+    }
 
     makeOmszMap(datetime.replace('T', ' '), column)
 }
