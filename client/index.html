@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="hu">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Test</title>
+    <script src="https://cdn.plot.ly/plotly-2.29.1.min.js" charset="UTF-8"></script>
+</head>
+
+<body>
+    <div id="omszMsgDiv"></div>
+    <div id="omszStationMapDiv"></div>
+    <div>
+        <input id="omszDateInput" type="datetime-local" name="observedate" min="2018-01-01T00:00:00"
+            max="2024-03-02T15:00:00" step="600" />
+        <button id="omszUpdateButton">Update</button>
+        <button id="omszForwardButton">Up</button>
+        <button id="omszBackwardButton">Down</button>
+    </div>
+    <div id="mavirMsgDiv"></div>
+    <div id="mavirPlotDiv"></div>
+    <div>
+        <input id="mavirDateInput" type="datetime-local" name="observedate" min="2018-01-01T00:00:00"
+            max="2024-03-02T15:00:00" step="600" />
+        <button id="mavirUpdateButton">Update</button>
+        <button id="mavirForwardButton">Up</button>
+        <button id="mavirBackwardButton">Down</button>
+    </div>
+</body>
+
+<script src="utility.js" charset="UTF-8"></script>
+<script src="weather.js" charset="UTF-8"></script>
+<script src="elload.js" charset="UTF-8"></script>
+<script src="updater.js" charset="UTF-8"></script>
+
+</html>
