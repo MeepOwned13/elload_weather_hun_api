@@ -4,79 +4,170 @@ const omszUpdateButton = document.getElementById("omszUpdateButton")
 const omszForwardButton = document.getElementById("omszForwardButton")
 const omszBackwardButton = document.getElementById("omszBackwardButton")
 const omszDateInput = document.getElementById("omszDateInput")
+const omszDropdown = document.getElementById("omszDropdown")
 
 let omszMinDate = "2018-01-01T00:00:00"
 let omszMaxDate = "2024-03-02T15:00:00"
-const gradientStops = [
-    [0, 212, 255],
-    [254, 255, 0],
-    [255, 128, 0],
-    [255, 0, 0],
-]
 let omszMeta = null
+let omszData = null
 let omszLastUpdate = null
+
+const omszMapFormat = {
+    Temp: {
+        name: 'Temperature',
+        min: -10,
+        max: 35,
+        gradient: [
+            [0, 212, 255, 1],
+            [254, 255, 0, 1],
+            [255, 128, 0, 1],
+            [255, 0, 0, 1],
+        ],
+        measurement: '°C',
+    },
+    AvgTemp: {
+        name: 'Average Temperature',
+        min: -10,
+        max: 35,
+        gradient: [
+            [0, 212, 255, 1],
+            [254, 255, 0, 1],
+            [255, 128, 0, 1],
+            [255, 0, 0, 1],
+        ],
+        measurement: '°C',
+    },
+    MinTemp: {
+        name: 'Minimum Temperature',
+        min: -10,
+        max: 35,
+        gradient: [
+            [0, 212, 255, 1],
+            [254, 255, 0, 1],
+            [255, 128, 0, 1],
+            [255, 0, 0, 1],
+        ],
+        measurement: '°C',
+    },
+    MaxTemp: {
+        name: 'Maximum Temperature',
+        min: -10,
+        max: 35,
+        gradient: [
+            [0, 212, 255, 1],
+            [254, 255, 0, 1],
+            [255, 128, 0, 1],
+            [255, 0, 0, 1],
+        ],
+        measurement: '°C',
+    },
+    Prec: {
+        name: 'Precipitation',
+        min: 0,
+        max: 0.3,
+        gradient: [
+            [255, 255, 255, 0.05],
+            [28, 189, 227, 1],
+            [24, 0, 255, 1]
+        ],
+        measurement: 'mm'
+    },
+    AvgWS: {
+        name: 'Average Wind',
+        min: 0,
+        max: 25,
+        gradient: [
+            [28, 189, 227, 1],
+            [0, 255, 68, 1],
+            [253, 255, 0, 1],
+            [255, 203, 0, 1],
+            [255, 0, 0, 1]
+        ],
+        measurement: 'm/s',
+        directionFeature: "AvgWD"
+    }
+}
 
 async function updateOmszMeta() {
     let meta = await fetchData(apiUrl + 'omsz/meta')
     omszMeta = meta
 }
 
-function makeOmszMap(stationMeta, stationData, datetime, plotElementId, msgDiv) {
+function makeOmszMap(datetime, column) {
     // Construct the stationMap
-    msgDiv.innerHTML = "<p>" + stationMeta.Message + "</p>"
-    // TODO: Make sure to display message from OMSZ
-    stationMeta = stationMeta.data
-    stationData = stationData.data
-    let texts = []
-    let lons = []
-    let lats = []
-    let colors = []
-    let gradientColors = []
-    let customData = []
+    omszMsgDiv.innerHTML = "<p>" +
+        omszMeta.Message.replace('OMSZ, source: (', '<a href=').replace(')', '>OMSZ</a>') +
+        "</p>"
 
-    for (let key in stationMeta) {
-        let item = stationMeta[key]
-        let station = stationData[key]
+    let meta = omszMeta.data
+    let data = omszData.data
+    let format = omszMapFormat[column]
 
+    let plotData = []
+
+    for (let key in meta) {
+        let item = meta[key]
+        let station = data[key]
+
+        let gradientColor = null
+        let color = null
         let value = null
         // station may be not retrieved, not have respective column or not have data for given time
         if (!(station === undefined) &&
             datetime in station &&
-            !((value = station[datetime].Temp) === null)
+            !((value = station[datetime][column]) === null) &&
+            !(value === undefined)
         ) {
-            let color = linearGradient(gradientStops, getPercentageInRange(0, 30, value))
-            colors.push(arrToRGBA(color, 0))
-            gradientColors.push(arrToRGBA(color, 1))
+            let interpol = linearGradient(format.gradient, getPercentageInRange(format.min, format.max, value))
+            gradientColor = arrToRGBA(interpol) // in the middle
+            color = arrToRGBA(interpol, 0) // rest
         } else {
             continue
         }
 
-        texts.push(value.toString() + '°C ' + item.StationName)
-        customData.push(value)
-        lons.push(item.Longitude)
-        lats.push(item.Latitude)
-    }
+        let text = value.toString() + format.measurement + ' ' + item.StationName.trim()
+        let lon = item.Longitude
+        let lat = item.Latitude
 
-    let data = [{
-        type: 'scattergeo',
-        mode: 'markers',
-        text: texts,
-        lon: lons,
-        lat: lats,
-        hoverinfo: "text",
-        marker: {
-            size: 50,
-            color: colors,
-            gradient: {
-                color: gradientColors,
-                type: "radial"
-            }
-        },
-        textposition: [
-            'top right', 'top left'
-        ],
-    }];
-    let layout = {
+        let angle = 0
+        let symbol = "circle"
+        let size = 50
+
+        if (format.directionFeature) {
+            if (value === 0) {
+                continue // if windstrength is 0, then skip it
+            } 
+            angle = station[datetime][format.directionFeature]
+            symbol = "arrow-up"
+            size = 22
+            color = gradientColor
+        }
+
+        plotData.push({
+            type: 'scattergeo',
+            mode: 'markers',
+            text: [text],
+            lon: [lon],
+            lat: [lat],
+            hoverinfo: "text",
+            marker: {
+                angle: angle,
+                angleref: "up",
+                symbol: symbol,
+                size: size,
+                color: color,
+                gradient: {
+                    color: gradientColor,
+                    type: "radial"
+                }
+            },
+            textposition: [
+                'top right', 'top left'
+            ],
+        })
+    }
+   
+    let plotLayout = {
         title: 'OMSZ stations',
         font: {
             family: 'Droid Serif, serif',
@@ -115,26 +206,28 @@ function makeOmszMap(stationMeta, stationData, datetime, plotElementId, msgDiv) 
             b: 10,
             t: 40,
         },
-        height: 600
-    };
-    let config = {
+        height: 600,
+        showlegend: false
+    }
+
+    let plotConfig = {
         responsive: true
     }
 
-    Plotly.newPlot(plotElementId, data, layout, config);
+    Plotly.newPlot(omszMapDivId, plotData, plotLayout, plotConfig);
 }
 
-async function updateOmszMap(datetime) {
+async function updateOmszMap(datetime, column) {
     // update of map on given datetime
-    const dataUrl = apiUrl + 'omsz/weather?start_date=' + datetime + '&end_date=' + datetime + '&col=temp'
+    const dataUrl = apiUrl + 'omsz/weather?start_date=' + datetime + '&end_date=' + datetime
 
     if (omszMeta === null) {
         await updateOmszMeta()
     }
 
-    let stationData = await fetchData(dataUrl)
+    omszData = await fetchData(dataUrl)
 
-    makeOmszMap(omszMeta, stationData, datetime.replace('T', ' '), omszMapDivId, omszMsgDiv)
+    makeOmszMap(datetime.replace('T', ' '), column)
 }
 
 function updateOmszPlot() {
@@ -152,7 +245,12 @@ function updateOmszPlot() {
 
     let datetime = localToUtcString(rounded)
 
-    updateOmszMap(datetime).then()
+    let column = omszDropdown.value
+    if (!(column in omszMapFormat)) {
+        throw new Error("Selected option (" + column + ") unavailable")
+    }
+
+    updateOmszMap(datetime, column).then()
 }
 
 async function updateOmsz() {
@@ -176,15 +274,26 @@ function setupOmsz() {
     updateOmsz()
     omszDateInput.value = omszDateInput.max
 
+    let dropdownOptions = []
+    for (let key in omszMapFormat) {
+        dropdownOptions.push(
+            '<option value="' + key + '">' + omszMapFormat[key].name + '</option>'
+        )
+    }
+    omszDropdown.innerHTML = dropdownOptions.join('\n')
+
     updateOmszPlot()
 
     omszUpdateButton.addEventListener("click", updateOmszPlot)
     omszForwardButton.addEventListener("click", () => {
+        omszForwardButton.disabled = true
         addMinutesToInputRounded10(omszDateInput, 10)
         updateOmszPlot()
+        omszForwardButton.disabled = false
     })
     omszBackwardButton.addEventListener("click", () => {
         addMinutesToInputRounded10(omszDateInput, -10)
         updateOmszPlot()
     })
+
 }

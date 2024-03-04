@@ -34,8 +34,11 @@ function getPercentageInRange(min, max, value) {
     return position / length
 }
 
-function arrToRGBA(arr, alpha) {
+function arrToRGBA(arr, alpha = null) {
     // transform 3 element array to rgba color with given alpha
+    if (alpha === null || alpha === undefined) {
+        alpha = arr[3]
+    }
     return "rgba(" + arr[0] + "," + arr[1] + "," + arr[2] + "," + alpha + ")"
 }
 
@@ -58,6 +61,7 @@ function lerp(pointA, pointB, normalValue) {
         pointA[0] + (pointB[0] - pointA[0]) * normalValue,
         pointA[1] + (pointB[1] - pointA[1]) * normalValue,
         pointA[2] + (pointB[2] - pointA[2]) * normalValue,
+        pointA[3] + (pointB[3] - pointA[3]) * normalValue,
     ]
 }
 
