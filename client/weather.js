@@ -149,8 +149,8 @@ function makeOmszMap(datetime, column) {
                 continue // if windstrength is 0, then skip it
             }
             angle = station[datetime][format.directionFeature]
-            symbol = "arrow-up"
-            size = 22
+            symbol = "arrow-wide"
+            size = 27
             color = gradientColor
         }
 
@@ -170,7 +170,7 @@ function makeOmszMap(datetime, column) {
                 gradient: {
                     color: gradientColor,
                     type: "radial"
-                }
+                },
             },
             textposition: [
                 'top right', 'top left'
@@ -329,10 +329,8 @@ function setupOmsz() {
 
     omszUpdateButton.addEventListener("click", updateOmszPlot)
     omszForwardButton.addEventListener("click", () => {
-        omszForwardButton.disabled = true
         addMinutesToInputRounded10(omszDateInput, 10)
         updateOmszPlot()
-        omszForwardButton.disabled = false
     })
     omszBackwardButton.addEventListener("click", () => {
         addMinutesToInputRounded10(omszDateInput, -10)
