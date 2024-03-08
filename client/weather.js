@@ -218,7 +218,9 @@ function makeOmszMap(datetime, column) {
             t: 40,
         },
         height: 600,
-        showlegend: false
+        showlegend: false,
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)'
     }
 
     let plotConfig = {

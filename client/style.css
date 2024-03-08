@@ -1,0 +1,68 @@
+:root {
+    --background: rgb(255, 255, 255);
+    --basecolor: rgb(0, 0, 0);
+    --containercolor: rgb(200, 50, 50);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    color: var(--basecolor);
+}
+
+body {
+    background-color: var(--background);
+    font-size: medium;
+}
+
+main, footer {
+    max-width: 1100px;
+    margin: auto;
+    padding: 0 20px;
+}
+
+p {
+    text-align: justify;
+    margin-bottom: 5px;
+}
+
+header {
+    position: fixed;
+    height: fit-content;
+    padding: 5px 1%;
+    width: 98%;
+}
+
+header div {
+    float: left;
+}
+
+header nav {
+    float: right;
+}
+
+div.block {
+    margin: auto;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    padding: 10px;
+    background-color: rgb(40,40,40);
+}
+
+div.text {
+    max-width: 900px;
+}
+
+div.container {
+    background-color: var(--containercolor);
+    border-radius: 20px;
+}
+
+div.inputs {
+    width: 60%;
+    margin: auto;
+}
+
+.main-svg {
+    border-radius: 10px;
+}

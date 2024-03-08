@@ -4,30 +4,50 @@
 <head>
     <meta charset="UTF-8">
     <title>Test</title>
+    <link rel="stylesheet" href="style.css">
     <script src="https://cdn.plot.ly/plotly-2.29.1.min.js" charset="UTF-8"></script>
 </head>
 
 <body>
-    <div id="omszMsgDiv"></div>
-    <div id="omszStationMapDiv"></div>
-    <div>
-        <input id="omszDateInput" type="datetime-local" min="2018-01-01T00:00:00" max="2024-03-02T15:00:00"
-            step="600" />
-        <button id="omszUpdateButton">Update</button>
-        <button id="omszForwardButton">Up</button>
-        <button id="omszBackwardButton">Down</button>
-        <select id="omszDropdown">
-        </select>
-    </div>
-    <div id="mavirMsgDiv"></div>
-    <div id="mavirPlotDiv"></div>
-    <div>
-        <input id="mavirDateInput" type="datetime-local" name="observedate" min="2018-01-01T00:00:00"
-            max="2024-03-02T15:00:00" step="600" />
-        <button id="mavirUpdateButton">Update</button>
-        <button id="mavirForwardButton">Up</button>
-        <button id="mavirBackwardButton">Down</button>
-    </div>
+    <header>
+        <div>
+            <h1>Title text</h1>
+        </div>
+        <nav>
+            <a>OMSZ page</a>
+            <a>MAVIR page</a>
+        </nav>
+    </header>
+    <main>
+        <div class="block container">
+            <div id="omszStationMapDiv"></div>
+            <div class="inputs">
+                <input id="omszDateInput" type="datetime-local" min="2018-01-01T00:00:00" max="2024-03-02T15:00:00"
+                    step="600" />
+                <button id="omszUpdateButton">Update</button>
+                <button id="omszForwardButton">Up</button>
+                <button id="omszBackwardButton">Down</button>
+                <select id="omszDropdown">
+                </select>
+            </div>
+        </div>
+        <div class="block text">
+            <div id="omszMsgDiv"></div>
+        </div>
+        <div class="block text">
+            <div id="mavirMsgDiv"></div>
+        </div>
+        <div class="block container">
+            <div id="mavirPlotDiv"></div>
+            <div class="inputs">
+                <input id="mavirDateInput" type="datetime-local" name="observedate" min="2018-01-01T00:00:00"
+                    max="2024-03-02T15:00:00" step="600" />
+                <button id="mavirUpdateButton">Update</button>
+                <button id="mavirForwardButton">Up</button>
+                <button id="mavirBackwardButton">Down</button>
+            </div>
+        </div>
+    </main>
 </body>
 
 <script src="utility.js" charset="UTF-8"></script>
