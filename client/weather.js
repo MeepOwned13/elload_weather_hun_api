@@ -1,14 +1,15 @@
 // global constants
 const omszMsgDiv = document.getElementById("omszMsgDiv")
 const omszMapDivId = "omszStationMapDiv"
-const omszUpdateButton = document.getElementById("omszUpdateButton")
 const omszForwardButton = document.getElementById("omszForwardButton")
 const omszBackwardButton = document.getElementById("omszBackwardButton")
 const omszDateInput = document.getElementById("omszDateInput")
 const omszDropdown = document.getElementById("omszDropdown")
 const omszLogoImg = document.getElementById("omszLogo")
-const omszMapBaseLotAxis = [15.7, 23.3]
-
+const omszMapBaseLotAxis = {
+    "min": 15.7,
+    "max": 23.3
+} // Longitude to fit Hungary map
 const omszMapBaseWidth = 1080 // maximal width defined via css
 const omszMapHeight = 672 // adjusted for width of 1080 that is maximal in the css (1100 - 2*10)
 
@@ -20,7 +21,7 @@ let omszRequestedMaxDate = null
 let omszMeta = null
 let omszData = null
 let omszLastUpdate = null
-let omszMapLotAxis =  omszMapBaseLotAxis.map((x) => x)
+let omszMapLotAxis =  [omszMapBaseLotAxis.min, omszMapBaseLotAxis.max]
 let omszResizeTimeout = null
 
 // map formatting Object
@@ -101,7 +102,8 @@ const omszMapFormat = {
 }
 
 // functions
-function setNavButtonsDisabled(disabled) {
+function setMapNavDisabled(disabled) {
+    omszDropdown.disabled = disabled
     omszForwardButton.disabled = disabled
     omszBackwardButton.disabled = disabled
 }
@@ -260,7 +262,7 @@ async function updateOmszMap(datetime, column) {
     }
 
     if (reRequest) {
-        setNavButtonsDisabled(true)
+        setMapNavDisabled(true)
 
         let cols = []
         for (let key in omszMapFormat) {
@@ -275,7 +277,7 @@ async function updateOmszMap(datetime, column) {
             '&col=' + cols.join('&col=')
         )
 
-        setNavButtonsDisabled(false)
+        setMapNavDisabled(false)
     }
 
     makeOmszMap(datetime.replace('T', ' '), column)
@@ -322,8 +324,8 @@ async function updateOmsz() {
 function updateMapDimensions() {
     const width = window.getComputedStyle(document.getElementById(mavirPlotDivId)).getPropertyValue("width").slice(0, -2)
     const part = width / omszMapBaseWidth
-    const newLotRange = (omszMapBaseLotAxis[1] - omszMapBaseLotAxis[0]) * part
-    const centerLot = (omszMapBaseLotAxis[1] + omszMapBaseLotAxis[0]) / 2
+    const newLotRange = (omszMapBaseLotAxis.max - omszMapBaseLotAxis.min) * part
+    const centerLot = (omszMapBaseLotAxis.max + omszMapBaseLotAxis.min) / 2
     omszMapLotAxis[0] = centerLot - newLotRange / 2
     omszMapLotAxis[1] = centerLot + newLotRange / 2
 }
@@ -349,7 +351,9 @@ function setupOmsz() {
     updateMapDimensions()
     updateOmszPlot()
 
-    omszUpdateButton.addEventListener("click", updateOmszPlot)
+    omszDateInput.addEventListener("change", updateOmszPlot) 
+    omszDropdown.addEventListener("change", updateOmszPlot) 
+
     omszForwardButton.addEventListener("click", () => {
         addMinutesToInputRounded10(omszDateInput, 10)
         updateOmszPlot()
@@ -361,6 +365,6 @@ function setupOmsz() {
 
     window.addEventListener('resize', function() {
         clearTimeout(omszResizeTimeout)
-        omszResizeTimeout = this.setTimeout(updateMapDimensions, 100)
+        omszResizeTimeout = this.setTimeout(updateMapDimensions, 50)
     })
 }
