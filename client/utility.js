@@ -24,7 +24,7 @@ function calcMinMaxDate(meta) {
 
 function validDate(date, minDate, maxDate) {
     // validate date based on minDate and maxDate
-    return minDate < date && date < maxDate
+    return minDate <= date && date <= maxDate
 }
 
 function getPercentageInRange(min, max, value) {
