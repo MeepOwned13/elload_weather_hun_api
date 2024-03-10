@@ -68,7 +68,6 @@ function makeMavirLines(loadData, plotElementId, msgDiv) {
     let plotLayout = {
         title: 'MAVIR data',
         font: {
-            family: 'Droid Serif, serif',
             size: 12
         },
         titlefont: {

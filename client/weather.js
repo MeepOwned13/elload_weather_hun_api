@@ -189,11 +189,7 @@ function makeOmszMap(datetime, column) {
 
     let plotLayout = {
         font: {
-            family: 'Droid Serif, serif',
-            size: 6
-        },
-        titlefont: {
-            size: 16
+            size: 12
         },
         geo: {
             scope: 'europe',
