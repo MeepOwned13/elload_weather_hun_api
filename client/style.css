@@ -15,9 +15,10 @@ body {
     font-size: medium;
 }
 
-main, footer {
+main {
     max-width: 1100px;
     margin: auto;
+    margin-top: 50px;
     padding: 0 20px;
 }
 
@@ -28,9 +29,12 @@ p {
 
 header {
     position: fixed;
-    height: fit-content;
-    padding: 5px 1%;
+    z-index: 4000;
+    height: 40px;
+    padding: 5px 1% 0;
+    top: 0;
     width: 98%;
+    background-color: var(--background);
 }
 
 header div {
@@ -51,6 +55,7 @@ div.block {
 
 div.text {
     max-width: 900px;
+    width: fit-content;
 }
 
 div.container {

@@ -179,7 +179,6 @@ function makeOmszMap(datetime, column) {
     }
 
     let plotLayout = {
-        title: 'OMSZ stations',
         font: {
             family: 'Droid Serif, serif',
             size: 6
