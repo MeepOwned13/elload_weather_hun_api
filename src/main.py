@@ -74,7 +74,7 @@ async def update_check():
 @app.get("/",
          responses={
              200: {
-                 "description": "Succesful Respone",
+                 "description": "Succesful Response",
                  "content": {
                      "application/json": {
                          "example": {
@@ -94,10 +94,30 @@ async def index():
             "last_mavir_update": last_electricity_update}
 
 
+@app.get("/omsz/logo",
+         responses={
+             200: {
+                 "description": "Succesful Response",
+                 "content": {
+                     "application/json": {
+                         "example": {
+                             "https://www.met.hu/images/logo/omsz_logo_1362x492_300dpi.png"
+                         }
+                     }
+                 }
+             }
+         })
+async def get_omsz_logo():
+    """
+    Get url to OMSZ logo required when displaying OMSZ data visually.
+    """
+    return "https://www.met.hu/images/logo/omsz_logo_1362x492_300dpi.png"
+
+
 @app.get("/omsz/meta",
          responses={
              200: {
-                 "description": "Succesful Respone",
+                 "description": "Succesful Response",
                  "content": {
                      "application/json": {
                          "example": {
@@ -133,7 +153,7 @@ async def get_omsz_meta():
 @app.get("/omsz/columns",
          responses={
              200: {
-                 "description": "Succesful Respone",
+                 "description": "Succesful Response",
                  "content": {
                      "application/json": {
                          "examples": {
@@ -194,7 +214,7 @@ async def get_omsz_columns(station: int | None = None):
 @app.get("/omsz/weather",
          responses={
              200: {
-                 "description": "Succesful Respone",
+                 "description": "Succesful Response",
                  "content": {
                      "application/json": {
                          "examples": {
@@ -287,7 +307,7 @@ async def get_weather_station(start_date: datetime, end_date: datetime,
 @app.get("/mavir/meta",
          responses={
              200: {
-                 "description": "Succesful Respone",
+                 "description": "Succesful Response",
                  "content": {
                      "application/json": {
                          "example": {
@@ -319,7 +339,7 @@ async def get_mavir_meta():
 @app.get("/mavir/columns",
          responses={
              200: {
-                 "description": "Succesful Respone",
+                 "description": "Succesful Response",
                  "content": {
                      "application/json": {
                          "example": {
@@ -345,7 +365,7 @@ async def get_electricity_columns():
 @app.get("/mavir/load",
          responses={
              200: {
-                 "description": "Succesful Respone",
+                 "description": "Succesful Response",
                  "content": {
                      "application/json": {
                          "example": {
