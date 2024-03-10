@@ -6,6 +6,11 @@ const omszForwardButton = document.getElementById("omszForwardButton")
 const omszBackwardButton = document.getElementById("omszBackwardButton")
 const omszDateInput = document.getElementById("omszDateInput")
 const omszDropdown = document.getElementById("omszDropdown")
+const omszLogoImg = document.getElementById("omszLogo")
+const omszMapBaseLotAxis = [15.7, 23.3]
+
+const omszMapBaseWidth = 1080 // maximal width defined via css
+const omszMapHeight = 672 // adjusted for width of 1080 that is maximal in the css (1100 - 2*10)
 
 // globals variables
 let omszMinDate = null
@@ -15,6 +20,8 @@ let omszRequestedMaxDate = null
 let omszMeta = null
 let omszData = null
 let omszLastUpdate = null
+let omszMapLotAxis =  omszMapBaseLotAxis.map((x) => x)
+let omszResizeTimeout = null
 
 // map formatting Object
 const omszMapFormat = {
@@ -193,10 +200,10 @@ function makeOmszMap(datetime, column) {
                 type: 'mercator'
             },
             lonaxis: {
-                'range': [15.5, 23.5]
+                'range': omszMapLotAxis
             },
             lataxis: {
-                'range': [45.5, 49]
+                'range': [45.6, 48.8]
             },
             showrivers: true,
             rivercolor: '#00f',
@@ -211,15 +218,15 @@ function makeOmszMap(datetime, column) {
         },
         autosize: true,
         margin: {
-            l: 10,
-            r: 10,
-            b: 10,
-            t: 40,
+            l: 0,
+            r: 0,
+            b: 0,
+            t: 0,
         },
-        height: 600,
+        height: omszMapHeight,
         showlegend: false,
         paper_bgcolor: 'rgba(0,0,0,0)',
-        plot_bgcolor: 'rgba(0,0,0,0)'
+        plot_bgcolor: 'rgba(0,0,0,0)',
     }
 
     let plotConfig = {
@@ -256,9 +263,9 @@ async function updateOmszMap(datetime, column) {
         setNavButtonsDisabled(true)
 
         let cols = []
-        for(let key in omszMapFormat) {
+        for (let key in omszMapFormat) {
             cols.push(key)
-            if(omszMapFormat[key].directionFeature) {
+            if (omszMapFormat[key].directionFeature) {
                 cols.push(omszMapFormat[key].directionFeature)
             }
         }
@@ -312,6 +319,15 @@ async function updateOmsz() {
     omszDateInput.max = localToUtcString(inMax)
 }
 
+function updateMapDimensions() {
+    const width = window.getComputedStyle(document.getElementById(mavirPlotDivId)).getPropertyValue("width").slice(0, -2)
+    const part = width / omszMapBaseWidth
+    const newLotRange = (omszMapBaseLotAxis[1] - omszMapBaseLotAxis[0]) * part
+    const centerLot = (omszMapBaseLotAxis[1] + omszMapBaseLotAxis[0]) / 2
+    omszMapLotAxis[0] = centerLot - newLotRange / 2
+    omszMapLotAxis[1] = centerLot + newLotRange / 2
+}
+
 // construct elements
 function setupOmsz() {
     // setup function, assumes that meta is set
@@ -326,6 +342,11 @@ function setupOmsz() {
     }
     omszDropdown.innerHTML = dropdownOptions.join('\n')
 
+    fetchData(apiUrl + 'omsz/logo').then((resp) => {
+        omszLogo.src = resp
+    })
+
+    updateMapDimensions()
     updateOmszPlot()
 
     omszUpdateButton.addEventListener("click", updateOmszPlot)
@@ -338,4 +359,8 @@ function setupOmsz() {
         updateOmszPlot()
     })
 
+    window.addEventListener('resize', function() {
+        clearTimeout(omszResizeTimeout)
+        omszResizeTimeout = this.setTimeout(updateMapDimensions, 100)
+    })
 }

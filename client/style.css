@@ -46,6 +46,7 @@ header nav {
 }
 
 div.block {
+    position: relative;
     margin: auto;
     margin-top: 10px;
     margin-bottom: 10px;
@@ -69,5 +70,20 @@ div.inputs {
 }
 
 .main-svg {
-    border-radius: 10px;
+    border-radius: 20px;
 }
+
+.js-plotly-plot .plotly .modebar {
+    transform: translateX(-10px)
+} /* to accomodate modebar with border-radius set in .main-svg */
+
+img#omszLogo {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    width: 20%;
+    max-width: 150px;
+    min-width: 80px;
+    z-index: 2000;
+}
+
