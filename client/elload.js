@@ -12,19 +12,80 @@ let mavirMaxDate = "2024-03-02T15:00:00"
 let mavirMeta = null
 let mavirLastUpdate = null
 
+// plot format
+const mavirPlotFormat = {
+    // net load
+    NetSystemLoad: {
+        name: 'Nettó rendszertehelés',
+        color: 'rgb(51, 34, 136)',
+        dash: 'solid'
+    },
+    NetSystemLoadFactPlantManagment: {
+        name: 'Nettó tény rendszertehelés - üzemirányítási',
+        color: 'rgb(136, 204, 238)',
+        dash: 'solid'
+    },
+    NetSystemLoadNetTradeSettlement: {
+        name: 'Nettó tény rendszertehelés - net.ker.elsz.meres',
+        color: 'rgb(68, 170, 153)',
+        dash: 'solid'
+    },
+    NetPlanSystemLoad: {
+        name: 'Nettó terv rendszertehelés',
+        color: 'rgb(17, 119, 51)',
+        dash: 'solid'
+    },
+    NetSystemLoadDayAheadEstimate: {
+        name: 'Nettó rendszerterhelés becslés (dayahead)',
+        color: 'rgb(153, 153, 51)',
+        dash: 'solid'
+    },
+    // production
+    NetPlanSystemProduction: {
+        name: 'Nettó terv rendszertermelés',
+        color: 'rgb(0, 0, 0)',
+        dash: 'dashdot'
+    },
+    // gross load
+    GrossSystemLoad: {
+        name: 'Bruttó rendszertehelés',
+        color: 'rgb(204, 102, 119)',
+        dash: 'dash'
+    },
+    GrossCertifiedSystemLoad: {
+        name: 'Bruttó hitelesített rendszertehelés',
+        color: 'rgb(136, 34, 85)',
+        dash: 'dash'
+    },
+    GrossPlanSystemLoad: {
+        name: 'Bruttó terv rendszertehelés',
+        color: 'rgb(170, 68, 153)',
+        dash: 'dash'
+    },
+    GrossSystemLoadDayAheadEstimate: {
+        name: 'Bruttó rendszertehelés becslés (dayahead)',
+        color: 'rgb(221, 204, 119)',
+        dash: 'dash'
+    },
+}
+
 // functions
 async function updateMavirMeta() {
     let meta = await fetchData(apiUrl + 'mavir/meta')
     mavirMeta = meta
 }
 
-function makeMavirLines(loadData, plotElementId, msgDiv) {
-    // construct lineplot from elload data
-    msgDiv.innerHTML = "<p>" + loadData.Message + "</p>"
+function makeMavirLines(loadData) {
+    mavirMsgDiv.innerHTML = "<p>" +
+        loadData.Message.replace('MAVIR, source: (', '<a href=').replace(')', '>MAVIR</a>') +
+        "</p>"
     let data = loadData.data
     let x = []
-    let y_load = []
-    let y_plan = []
+    let ys = {}
+
+    for (let key in mavirPlotFormat) {
+        ys[key] = []
+    }
 
     for (let key in data) {
         let item = data[key]
@@ -34,53 +95,69 @@ function makeMavirLines(loadData, plotElementId, msgDiv) {
         date.setHours(date.getHours() - 2 * date.getTimezoneOffset() / 60)
         x.push(localToUtcString(date).replace('T', ' '))
 
-        y_load.push(item["NetSystemLoad"])
-        y_plan.push(item["NetPlanSystemLoad"])
-    }
-
-
-    let plotLoad = {
-        type: 'scatter',
-        x: x,
-        y: y_load,
-        mode: 'lines',
-        name: 'Load',
-        line: {
-            color: 'rgb(219, 64, 82)',
-            width: 4
+        for (let fet in mavirPlotFormat) {
+            ys[fet].push(item[fet])
         }
     }
 
-    let plotPred = {
-        type: 'scatter',
-        x: x,
-        y: y_plan,
-        mode: 'lines',
-        name: 'Plan',
-        line: {
-            color: 'rgb(55, 128, 191)',
-            width: 2
-        }
-    }
+    let plotData = []
 
-    let plotData = [plotLoad, plotPred]
+    for (let fet in mavirPlotFormat) {
+        format = mavirPlotFormat[fet]
+        plotData.push({
+            type: 'scatter',
+            x: x,
+            y: ys[fet],
+            mode: 'lines',
+            name: format.name,
+            line: {
+                dash: format.dash,
+                color: format.color,
+                width: 2
+            }
+        })
+    }
 
     let plotLayout = {
-        title: 'MAVIR data',
         font: {
-            size: 12
+            size: 12,
+            color: 'rgb(255,255,255)'
         },
-        titlefont: {
-            size: 16
+        autosize: true,
+        margin: {
+            l: 40,
+            r: 10,
+            b: 30,
+            t: 20,
+        },
+        xaxis: {
+            gridcolor: 'rgb(255,255,255)',
+        },
+        yaxis: {
+            gridcolor: 'rgb(255,255,255)',
+        },
+        showlegend: true,
+        legend: {
+            orientation: 'h'
         },
         height: 600,
+        paper_bgcolor: 'rgba(75, 75, 75, 1)',
+        plot_bgcolor: 'rgba(0, 0, 0, 0)',
     }
 
     let plotConfig = {
-        responsive: true
+        responsive: true,
+        modeBarButtonsToRemove: [
+            'pan2d',
+            'zoom2d',
+            'zoomIn2d',
+            'zoomOut2d',
+            'autoScale2d',
+            'resetScale2d'
+        ]
     }
 
-    Plotly.newPlot(plotElementId, plotData, plotLayout, plotConfig)
+    Plotly.newPlot(mavirPlotDivId, plotData, plotLayout, plotConfig)
 }
 
 async function updateMavirLines(datetime) {
@@ -95,12 +172,11 @@ async function updateMavirLines(datetime) {
     end.setHours(end.getHours() + 5)
     end_date = localToUtcString(end)
 
-    const dataUrl = apiUrl + "mavir/load?col=netsystemload&col=netplansystemload&start_date=" +
-        start_date + "&end_date=" + end_date
+    const dataUrl = apiUrl + "mavir/load?start_date=" + start_date + "&end_date=" + end_date
 
     const data = await fetchData(dataUrl)
 
-    makeMavirLines(data, mavirPlotDivId, mavirMsgDiv)
+    makeMavirLines(data)
 }
 
 function updateMavirPlot() {
@@ -145,7 +221,8 @@ function setupMavir() {
 
     updateMavirPlot()
 
-    mavirUpdateButton.addEventListener("click", updateMavirPlot)
+    mavirDateInput.addEventListener("change", updateMavirPlot)
+
     mavirForwardButton.addEventListener("click", () => {
         addMinutesToInputRounded10(mavirDateInput, 10)
         updateMavirPlot()

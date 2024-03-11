@@ -25,6 +25,15 @@
     </header>
     <main>
         <div id="omszPage" class="page">
+            <div class="block text">
+                <h2>OMSZ page title</h2>
+            </div>
+            <div class="block text">
+                <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent a dictum nunc. Praesent sit amet
+                    nisi vitae odio interdum dignissim molestie eu massa. Aenean rhoncus sodales elementum. Aenean
+                    auctor, lacus eu ornare euismod, erat mi interdum purus, euismod vestibulum tortor nisi nec erat.
+                    Fusce mollis sagittis dui. Duis auctor dolor id lorem volutpat, quis imperdiet nisi auctor.</p>
+            </div>
             <div class="block container">
                 <img id="omszLogo" src="">
                 <div id="omszStationMapDiv"></div>
@@ -37,24 +46,29 @@
                     </select>
                 </div>
             </div>
-            <div class="block text">
-                <div id="omszMsgDiv"></div>
-            </div>
+            <div id="omszMsgDiv" class="block text"> </div>
         </div>
         <div id="mavirPage" class="page" style="display: none;">
+            <div class="block text">
+                <h2>MAVIR page title</h2>
+            </div>
+            <div class="block text">
+                <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent a dictum nunc. Praesent sit amet
+                    nisi vitae odio interdum dignissim molestie eu massa. Aenean rhoncus sodales elementum. Aenean
+                    auctor, lacus eu ornare euismod, erat mi interdum purus, euismod vestibulum tortor nisi nec erat.
+                    Fusce mollis sagittis dui. Duis auctor dolor id lorem volutpat, quis imperdiet nisi auctor.</p>
+            </div>
             <div class="block container">
+                <img id="mavirLogo" src="https://www.mavir.hu/o/mavir-portal-theme/images/mavir_logo_white.png">
                 <div id="mavirPlotDiv"></div>
                 <div class="inputs">
                     <input id="mavirDateInput" type="datetime-local" name="observedate" min="2018-01-01T00:00:00"
                         max="2024-03-02T15:00:00" step="600" />
-                    <button id="mavirUpdateButton">Update</button>
                     <button id="mavirForwardButton">Up</button>
                     <button id="mavirBackwardButton">Down</button>
                 </div>
             </div>
-            <div class="block text">
-                <div id="mavirMsgDiv"></div>
-            </div>
+            <div id="mavirMsgDiv" class="block text"></div>
         </div>
     </main>
 </body>

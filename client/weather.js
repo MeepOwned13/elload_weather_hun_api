@@ -228,7 +228,11 @@ function makeOmszMap(datetime, column) {
     }
 
     let plotConfig = {
-        responsive: true
+        responsive: true,
+        modeBarButtonsToRemove: [
+            'select2d',
+            'lasso2d'
+        ]
     }
 
     Plotly.newPlot(omszMapDivId, plotData, plotLayout, plotConfig);
@@ -320,7 +324,6 @@ async function updateOmsz() {
 
 function updateMapDimensions() {
     const width = window.getComputedStyle(document.getElementById(omszMapDivId)).getPropertyValue("width").slice(0, -2)
-    console.log(width)
     if(width == "au") return; // means width was auto, it isn't displayed
     const part = width / omszMapBaseWidth
     const newLotRange = (omszMapBaseLotAxis.max - omszMapBaseLotAxis.min) * part
