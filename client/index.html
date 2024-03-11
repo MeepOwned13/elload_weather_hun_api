@@ -19,38 +19,42 @@
             <h1>Title text</h1>
         </div>
         <nav>
-            <a>OMSZ page</a>
-            <a>MAVIR page</a>
+            <button id="omszPageButton" value="omsz">OMSZ page</button>
+            <button id="mavirPageButton" value="mavir">MAVIR page</button>
         </nav>
     </header>
     <main>
-        <div class="block container">
-            <img id="omszLogo" src="">
-            <div id="omszStationMapDiv"></div>
-            <div class="inputs">
-                <input id="omszDateInput" type="datetime-local" min="2018-01-01T00:00:00" max="2024-03-02T15:00:00"
-                    step="600" />
-                <button id="omszForwardButton">Up</button>
-                <button id="omszBackwardButton">Down</button>
-                <select id="omszDropdown">
-                </select>
+        <div id="omszPage" class="page">
+            <div class="block container">
+                <img id="omszLogo" src="">
+                <div id="omszStationMapDiv"></div>
+                <div class="inputs">
+                    <input id="omszDateInput" type="datetime-local" min="2018-01-01T00:00:00" max="2024-03-02T15:00:00"
+                        step="600" />
+                    <button id="omszForwardButton">Up</button>
+                    <button id="omszBackwardButton">Down</button>
+                    <select id="omszDropdown">
+                    </select>
+                </div>
+            </div>
+            <div class="block text">
+                <div id="omszMsgDiv"></div>
             </div>
         </div>
-        <div class="block text">
-            <div id="omszMsgDiv"></div>
-        </div>
-        <div class="block container">
-            <div id="mavirPlotDiv"></div>
-            <div class="inputs">
-                <input id="mavirDateInput" type="datetime-local" name="observedate" min="2018-01-01T00:00:00"
-                    max="2024-03-02T15:00:00" step="600" />
-                <button id="mavirUpdateButton">Update</button>
-                <button id="mavirForwardButton">Up</button>
-                <button id="mavirBackwardButton">Down</button>
+        <div id="mavirPage" class="page" style="display: none;">
+            <div class="block container">
+                <div id="mavirPlotDiv"></div>
+                <div class="inputs">
+                    <input id="mavirDateInput" type="datetime-local" name="observedate" min="2018-01-01T00:00:00"
+                        max="2024-03-02T15:00:00" step="600" />
+                    <button id="mavirUpdateButton">Update</button>
+                    <button id="mavirForwardButton">Up</button>
+                    <button id="mavirBackwardButton">Down</button>
+                </div>
             </div>
-        </div>
-        <div class="block text">
-            <div id="mavirMsgDiv"></div>
+            <div class="block text">
+                <div id="mavirMsgDiv"></div>
+            </div>
         </div>
     </main>
 </body>

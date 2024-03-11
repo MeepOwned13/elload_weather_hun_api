@@ -1,3 +1,23 @@
+const pages = {
+    omsz: {
+        button: document.getElementById("omszPageButton"),
+        div: document.getElementById("omszPage"),
+        updateFunc: function() {
+            updateOmsz()
+            updateOmszPlot()
+        }
+    },
+    mavir: {
+        button: document.getElementById("mavirPageButton"),
+        div: document.getElementById("mavirPage"),
+        updateFunc: function() {
+            updateMavir()
+            updateMavirPlot()
+        }
+    }
+}
+let currentPage = pages.omsz
+
 async function setup() {
     await updateOmszMeta()
     await updateMavirMeta()
@@ -8,6 +28,9 @@ async function setup() {
 
     setupOmsz()
     setupMavir()
+
+    omszPageButton.addEventListener("click", switchPage)
+    mavirPageButton.addEventListener("click", switchPage)
 }
 
 async function update() {
@@ -19,13 +42,20 @@ async function update() {
     if (!(index.last_mavir_update === mavirLastUpdate)) {
         await updateMavirMeta()
         mavirLastUpdate = index.last_mavir_update
-        updateMavirPlot()
+        if (currentPage === pages.mavir) updateMavirPlot()
     }
 
-    updateOmsz()
-    updateMavir()
+    currentPage.updateFunc()
 }
 
-setup().then(() =>{
+function switchPage(event) {
+    if (event.target === currentPage.button) return;
+    currentPage.div.style.display = "none"
+    currentPage = pages[event.target.value]
+    currentPage.div.style.display = "block"
+    currentPage.updateFunc()
+}
+
+setup().then(() => {
     setInterval(update, 10 * 1000)
 })

@@ -315,10 +315,13 @@ async function updateOmsz() {
     let inMax = new Date(omszMaxDate)
     inMax.setHours(inMax.getHours() - 2 * inMax.getTimezoneOffset() / 60)
     omszDateInput.max = localToUtcString(inMax)
+    updateMapDimensions()
 }
 
 function updateMapDimensions() {
-    const width = window.getComputedStyle(document.getElementById(mavirPlotDivId)).getPropertyValue("width").slice(0, -2)
+    const width = window.getComputedStyle(document.getElementById(omszMapDivId)).getPropertyValue("width").slice(0, -2)
+    console.log(width)
+    if(width == "au") return; // means width was auto, it isn't displayed
     const part = width / omszMapBaseWidth
     const newLotRange = (omszMapBaseLotAxis.max - omszMapBaseLotAxis.min) * part
     const centerLot = (omszMapBaseLotAxis.max + omszMapBaseLotAxis.min) / 2
@@ -344,7 +347,6 @@ function setupOmsz() {
         omszLogo.src = resp
     })
 
-    updateMapDimensions()
     updateOmszPlot()
 
     omszDateInput.addEventListener("change", updateOmszPlot) 
