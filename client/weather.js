@@ -184,6 +184,12 @@ function makeOmszMap(datetime, column) {
             textposition: [
                 'top right', 'top left'
             ],
+            hoverlabel: {
+                font: {
+                    color: gradientColor
+                },
+                namelength: -1
+            }
         })
     }
 

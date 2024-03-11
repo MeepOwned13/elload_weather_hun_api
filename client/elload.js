@@ -125,7 +125,7 @@ function makeMavirLines(loadData) {
         },
         autosize: true,
         margin: {
-            l: 40,
+            l: 60,
             r: 10,
             b: 30,
             t: 20,
@@ -135,6 +135,8 @@ function makeMavirLines(loadData) {
         },
         yaxis: {
             gridcolor: 'rgb(255,255,255)',
+            ticksuffix: ' MW',
+            hoverformat: '.1f'
         },
         showlegend: true,
         legend: {
@@ -143,6 +145,9 @@ function makeMavirLines(loadData) {
         height: 600,
         paper_bgcolor: 'rgba(75, 75, 75, 1)',
         plot_bgcolor: 'rgba(0, 0, 0, 0)',
+        hoverlabel: {
+            namelength: -1
+        }
     }
 
     let plotConfig = {
