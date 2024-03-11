@@ -7,9 +7,13 @@ const mavirMsgDiv = document.getElementById("mavirMsgDiv")
 const mavirPlotDivId = "mavirPlotDiv"
 
 // global variables
-let mavirMinDate = "2022-01-01T00:00:00"
-let mavirMaxDate = "2024-03-02T15:00:00"
+let mavirMinDate = null
+let mavirMaxDate = null
+let mavirRequestedMinDate = null
+let mavirRequestedMaxDate = null
 let mavirMeta = null
+let mavirData = null
+let mavirViewRange = 5
 let mavirLastUpdate = null
 
 // plot format
@@ -70,16 +74,22 @@ const mavirPlotFormat = {
 }
 
 // functions
+function setMavirNavDisabled(disabled) {
+    mavirForwardButton.disabled = disabled
+    mavirBackwardButton.disabled = disabled
+}
+
 async function updateMavirMeta() {
     let meta = await fetchData(apiUrl + 'mavir/meta')
     mavirMeta = meta
 }
 
-function makeMavirLines(loadData) {
+function makeMavirLines(from, to) {
+    // update mavir lineplot with given range, expects: from < to
     mavirMsgDiv.innerHTML = "<p>" +
-        loadData.Message.replace('MAVIR, source: (', '<a href=').replace(')', '>MAVIR</a>') +
+        mavirData.Message.replace('MAVIR, source: (', '<a href=').replace(')', '>MAVIR</a>') +
         "</p>"
-    let data = loadData.data
+    let data = mavirData.data
     let x = []
     let ys = {}
 
@@ -87,7 +97,8 @@ function makeMavirLines(loadData) {
         ys[key] = []
     }
 
-    for (let key in data) {
+    for (let i = from; i <= to; i = addMinutesToISODate(i, 10)) {
+        let key = i.replace('T', ' ')
         let item = data[key]
 
         // display date in local time
@@ -166,22 +177,43 @@ function makeMavirLines(loadData) {
 }
 
 async function updateMavirLines(datetime) {
-    // update elload on given datetime
-    let date = new Date(datetime)
+    // update elload centered on given datetime
+    if (mavirMeta === null) {
+        await updateMavirMeta()
+    }
 
-    let start = new Date(date.getTime())
-    start.setHours(start.getHours() - 5)
-    start_date = localToUtcString(start)
+    let from = addHoursToISODate(datetime, -mavirViewRange)
+    let to = addHoursToISODate(datetime, mavirViewRange)
 
-    let end = new Date(date.getTime())
-    end.setHours(end.getHours() + 5)
-    end_date = localToUtcString(end)
+    let reRequest = false
+    if (mavirRequestedMinDate === null || mavirRequestedMaxDate === null) {
+        // setting a smaller range to reduce traffic
+        mavirRequestedMinDate = addHoursToISODate(datetime, -10)
+        mavirRequestedMaxDate = addHoursToISODate(datetime, 10)
 
-    const dataUrl = apiUrl + "mavir/load?start_date=" + start_date + "&end_date=" + end_date
+        reRequest = true
+    } else if ((from < mavirRequestedMinDate) || (to > mavirRequestedMaxDate)) {
+        mavirRequestedMinDate = addHoursToISODate(datetime, -24)
+        mavirRequestedMaxDate = addHoursToISODate(datetime, 24)
 
-    const data = await fetchData(dataUrl)
+        if (mavirRequestedMaxDate > mavirMaxDate) {
+            mavirRequestedMaxDate = mavirMaxDate
+        }
 
-    makeMavirLines(data)
+        reRequest = true
+    }
+
+    if (reRequest) {
+        setMavirNavDisabled(true)
+
+        mavirData = await fetchData(
+            apiUrl + "mavir/load?start_date=" + mavirRequestedMinDate + "&end_date=" + mavirMaxDate
+        )
+
+        setMavirNavDisabled(false)
+    }
+
+    makeMavirLines(from, to)
 }
 
 function updateMavirPlot() {

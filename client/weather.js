@@ -102,7 +102,7 @@ const omszMapFormat = {
 }
 
 // functions
-function setMapNavDisabled(disabled) {
+function setOmszNavDisabled(disabled) {
     omszDropdown.disabled = disabled
     omszForwardButton.disabled = disabled
     omszBackwardButton.disabled = disabled
@@ -268,7 +268,7 @@ async function updateOmszMap(datetime, column) {
     }
 
     if (reRequest) {
-        setMapNavDisabled(true)
+        setOmszNavDisabled(true)
 
         let cols = []
         for (let key in omszMapFormat) {
@@ -283,7 +283,7 @@ async function updateOmszMap(datetime, column) {
             '&col=' + cols.join('&col=')
         )
 
-        setMapNavDisabled(false)
+        setOmszNavDisabled(false)
     }
 
     makeOmszMap(datetime.replace('T', ' '), column)
