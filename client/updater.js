@@ -4,6 +4,9 @@ const pages = {
         div: document.getElementById("omszPage"),
         updateFunc: function() {
             updateOmsz()
+        },
+        switchFunc: function() {
+            this.updateFunc()
             updateOmszPlot()
         }
     },
@@ -12,6 +15,9 @@ const pages = {
         div: document.getElementById("mavirPage"),
         updateFunc: function() {
             updateMavir()
+        },
+        switchFunc: function() {
+            this.updateFunc()
             updateMavirPlot()
         }
     }
@@ -53,7 +59,7 @@ function switchPage(event) {
     currentPage.div.style.display = "none"
     currentPage = pages[event.target.value]
     currentPage.div.style.display = "block"
-    currentPage.updateFunc()
+    currentPage.switchFunc()
 }
 
 setup().then(() => {
