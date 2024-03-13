@@ -5,6 +5,9 @@ const mavirBackwardButton = document.getElementById("mavirBackwardButton")
 const mavirDateInput = document.getElementById("mavirDateInput")
 const mavirMsgDiv = document.getElementById("mavirMsgDiv")
 const mavirPlotDivId = "mavirPlotDiv"
+const mavirPlotBaseWidth = 1080 // maximal width defined via css
+const mavirBaseViewRange = 6
+const mavirMinViewRange = 2
 
 // global variables
 let mavirMinDate = null
@@ -13,15 +16,16 @@ let mavirRequestedMinDate = null
 let mavirRequestedMaxDate = null
 let mavirMeta = null
 let mavirData = null
-let mavirViewRange = 5
+let mavirViewRange = mavirBaseViewRange
 let mavirLastUpdate = null
+let mavirResizeTimeout = null
 
 // plot format
 const mavirPlotFormat = {
     // net load
     NetSystemLoad: {
         name: 'Nettó rendszertehelés',
-        color: 'rgb(51, 34, 136)',
+        color: 'rgb(102, 68, 196)',
         dash: 'solid'
     },
     NetSystemLoadFactPlantManagment: {
@@ -47,7 +51,7 @@ const mavirPlotFormat = {
     // production
     NetPlanSystemProduction: {
         name: 'Nettó terv rendszertermelés',
-        color: 'rgb(0, 0, 0)',
+        color: 'rgb(255, 255, 255)',
         dash: 'dashdot'
     },
     // gross load
@@ -124,28 +128,28 @@ function makeMavirLines(from, to) {
             line: {
                 dash: format.dash,
                 color: format.color,
-                width: 2
+                width: 3
             }
         })
     }
 
     let plotLayout = {
         font: {
-            size: 12,
-            color: 'rgb(255,255,255)'
+            size: 16,
+            color: 'rgb(200, 200, 200)'
         },
         autosize: true,
         margin: {
-            l: 60,
-            r: 10,
+            l: 72,
+            r: 20,
             b: 30,
             t: 20,
         },
         xaxis: {
-            gridcolor: 'rgb(255,255,255)',
+            gridcolor: 'rgb(200, 200, 200)',
         },
         yaxis: {
-            gridcolor: 'rgb(255,255,255)',
+            gridcolor: 'rgb(200, 200, 200)',
             ticksuffix: ' MW',
             hoverformat: '.1f'
         },
@@ -153,12 +157,15 @@ function makeMavirLines(from, to) {
         legend: {
             orientation: 'h'
         },
-        height: 600,
-        paper_bgcolor: 'rgba(75, 75, 75, 1)',
+        height: 700,
+        paper_bgcolor: 'rgba(0, 0, 0, 1)',
         plot_bgcolor: 'rgba(0, 0, 0, 0)',
-        hoverlabel: {
-            namelength: -1
-        }
+            hoverlabel: {
+                font: {
+                    size: 18,
+                },
+                namelength: -1
+            }
     }
 
     let plotConfig = {
@@ -247,6 +254,16 @@ async function updateMavir() {
     let inMax = new Date(mavirMaxDate)
     inMax.setHours(inMax.getHours() - 2 * inMax.getTimezoneOffset() / 60)
     mavirDateInput.max = localToUtcString(inMax)
+    updateMavirPlotDimensions()
+}
+
+function updateMavirPlotDimensions() {
+    const width = window.getComputedStyle(document.getElementById(mavirPlotDivId)).getPropertyValue("width").slice(0, -2)
+    if(width == "au") return; // means width was auto, it isn't displayed
+    const part = (width - 400) / (mavirPlotBaseWidth - 400)
+    mavirViewRange = mavirMinViewRange + Math.round((mavirBaseViewRange - mavirMinViewRange) * part)
+    console.log(mavirViewRange)
+    updateMavirPlot()
 }
 
 // construct elements
@@ -267,5 +284,10 @@ function setupMavir() {
     mavirBackwardButton.addEventListener("click", () => {
         addMinutesToInputRounded10(mavirDateInput, -10)
         updateMavirPlot()
+    })
+
+    window.addEventListener('resize', function() {
+        clearTimeout(mavirResizeTimeout)
+        mavirResizeTimeout = this.setTimeout(updateMavirPlotDimensions, 50)
     })
 }

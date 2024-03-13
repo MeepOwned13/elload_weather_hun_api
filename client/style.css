@@ -2,12 +2,17 @@
     --background: rgb(255, 255, 255);
     --basecolor: rgb(0, 0, 0);
     --containercolor: rgb(200, 50, 50);
+    --accent-color: rgb(50, 200, 50);
 }
 
 * {
     margin: 0;
     padding: 0;
     color: var(--basecolor);
+    font-family: "Ubuntu", sans-serif;
+}
+
+.plot-container * {
     font-family: "Ubuntu", sans-serif !important;
 }
 
@@ -96,18 +101,15 @@ div.container {
     border-radius: 20px;
 }
 
-div.inputs {
-    width: 60%;
-    margin: auto;
-}
-
 .main-svg {
     border-radius: 20px;
 }
 
 .js-plotly-plot .plotly .modebar {
     transform: translateX(-10px)
-} /* to accomodate modebar with border-radius set in .main-svg */
+}
+
+/* to accomodate modebar with border-radius set in .main-svg */
 
 img#omszLogo {
     position: absolute;
@@ -131,3 +133,32 @@ img#mavirLogo {
     pointer-events: none;
 }
 
+div.inputs {
+    margin: auto;
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+input,
+button,
+select {
+    font-size: 20px;
+    font-weight: 400;
+    margin-right: 10px;
+    padding: 5px;
+    border: 0px solid var(--accent-color);
+    border-radius: 15px;
+    background-color: var(--accent-color);
+}
+
+i {
+    margin: 2px;
+}
+
+input[type="datetime-local"]:focus {
+    border: none;
+    outline: none;
+}

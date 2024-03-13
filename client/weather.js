@@ -129,7 +129,6 @@ function makeOmszMap(datetime, column) {
         let item = meta[key]
         let station = data[key]
 
-        let gradientColor = null
         let color = null
         let value = null
         // station may be not retrieved, not have respective column or not have data for given time
@@ -139,8 +138,7 @@ function makeOmszMap(datetime, column) {
             !(value === undefined)
         ) {
             let interpol = linearGradient(format.gradient, getPercentageInRange(format.min, format.max, value))
-            gradientColor = arrToRGBA(interpol) // in the middle
-            color = arrToRGBA(interpol, 0) // rest
+            color = arrToRGBA(interpol)
         } else {
             continue
         }
@@ -151,7 +149,7 @@ function makeOmszMap(datetime, column) {
 
         let angle = 0
         let symbol = "circle"
-        let size = 50
+        let size = 25
 
         if (format.directionFeature) {
             if (value === 0) {
@@ -160,7 +158,6 @@ function makeOmszMap(datetime, column) {
             angle = station[datetime][format.directionFeature]
             symbol = "arrow-wide"
             size = 27
-            color = gradientColor
         }
 
         plotData.push({
@@ -176,17 +173,14 @@ function makeOmszMap(datetime, column) {
                 symbol: symbol,
                 size: size,
                 color: color,
-                gradient: {
-                    color: gradientColor,
-                    type: "radial"
-                },
             },
             textposition: [
                 'top right', 'top left'
             ],
             hoverlabel: {
                 font: {
-                    color: gradientColor
+                    color: "rgb(0, 0, 0)",
+                    size: 20,
                 },
                 namelength: -1
             }
@@ -195,7 +189,7 @@ function makeOmszMap(datetime, column) {
 
     let plotLayout = {
         font: {
-            size: 12
+            size: 20
         },
         geo: {
             scope: 'europe',
@@ -325,7 +319,6 @@ async function updateOmsz() {
     let inMax = new Date(omszMaxDate)
     inMax.setHours(inMax.getHours() - 2 * inMax.getTimezoneOffset() / 60)
     omszDateInput.max = localToUtcString(inMax)
-    updateMapDimensions()
 }
 
 function updateMapDimensions() {
@@ -356,6 +349,7 @@ function setupOmsz() {
         omszLogo.src = resp
     })
 
+    updateMapDimensions()
     updateOmszPlot()
 
     omszDateInput.addEventListener("change", updateOmszPlot) 
