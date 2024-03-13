@@ -7,6 +7,7 @@ const pages = {
         },
         switchFunc: function() {
             this.updateFunc()
+            updateOmszMapDimensions()
             updateOmszPlot()
         }
     },
@@ -18,6 +19,7 @@ const pages = {
         },
         switchFunc: function() {
             this.updateFunc()
+            updateMavirPlotDimensions()
             updateMavirPlot()
         }
     }

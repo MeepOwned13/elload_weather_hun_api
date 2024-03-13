@@ -209,10 +209,10 @@ function makeOmszMap(datetime, column) {
             lakecolor: '#55f',
             showland: true,
             showcountries: true,
-            landcolor: '#121411',
+            landcolor: '#0e010d',
             countrycolor: '#d3d3d3',
-            countrywidth: 1,
-            subunitcolor: '#a1a1a1'
+            countrywidth: 2,
+            subunitcolor: '#a1a1a1',
         },
         autosize: true,
         margin: {
@@ -321,7 +321,7 @@ async function updateOmsz() {
     omszDateInput.max = localToUtcString(inMax)
 }
 
-function updateMapDimensions() {
+function updateOmszMapDimensions() {
     const width = window.getComputedStyle(document.getElementById(omszMapDivId)).getPropertyValue("width").slice(0, -2)
     if(width == "au") return; // means width was auto, it isn't displayed
     const part = width / omszMapBaseWidth
@@ -349,7 +349,7 @@ function setupOmsz() {
         omszLogo.src = resp
     })
 
-    updateMapDimensions()
+    updateOmszMapDimensions()
     updateOmszPlot()
 
     omszDateInput.addEventListener("change", updateOmszPlot) 
@@ -366,6 +366,6 @@ function setupOmsz() {
 
     window.addEventListener('resize', function() {
         clearTimeout(omszResizeTimeout)
-        omszResizeTimeout = this.setTimeout(updateMapDimensions, 50)
+        omszResizeTimeout = this.setTimeout(updateOmszMapDimensions, 50)
     })
 }

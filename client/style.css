@@ -1,14 +1,16 @@
 :root {
-    --background: rgb(255, 255, 255);
-    --basecolor: rgb(0, 0, 0);
-    --containercolor: rgb(200, 50, 50);
-    --accent-color: rgb(50, 200, 50);
+    --background: #0e010d;
+    --onbackground: #feeeff;
+    --primary: #200038;
+    --onprimary: #0e010d;
+    --secondary: #6ed606;
+    --onsecondary: #0e010d;
 }
 
 * {
     margin: 0;
     padding: 0;
-    color: var(--basecolor);
+    color: var(--onbackground);
     font-family: "Ubuntu", sans-serif;
 }
 
@@ -17,7 +19,10 @@
 }
 
 body {
+    background-image: radial-gradient(farthest-corner at 20% 70%, #180404 0%, var(--background) 50%);
     background-color: var(--background);
+    background-repeat: no-repeat;
+    background-attachment: fixed;
     font-size: medium;
 }
 
@@ -97,18 +102,33 @@ div.text {
 }
 
 div.container {
-    background-color: var(--containercolor);
+    background-color: var(--primary);
+    color: var(--onprimary);
     border-radius: 20px;
 }
 
 .main-svg {
+    border-radius: 25px;    
+}
+
+#omszStationMapDiv {
+    position: relative;
+}
+
+#hider {
+    position: absolute;
+    width: 100%;
+    left: 0;
+    top: 0;
+    height: 100%;
+    border: 5px solid var(--background);
     border-radius: 20px;
+    box-sizing: border-box;
 }
 
 .js-plotly-plot .plotly .modebar {
     transform: translateX(-10px)
 }
-
 /* to accomodate modebar with border-radius set in .main-svg */
 
 img#omszLogo {
@@ -149,13 +169,15 @@ select {
     font-weight: 400;
     margin-right: 10px;
     padding: 5px;
-    border: 0px solid var(--accent-color);
+    border: 0px solid var(--secondary);
     border-radius: 15px;
-    background-color: var(--accent-color);
+    background-color: var(--secondary);
+    color: var(--onsecondary);
 }
 
 i {
     margin: 2px;
+    color: var(--onsecondary);
 }
 
 input[type="datetime-local"]:focus {

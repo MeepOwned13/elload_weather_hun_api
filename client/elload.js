@@ -160,12 +160,12 @@ function makeMavirLines(from, to) {
         height: 700,
         paper_bgcolor: 'rgba(0, 0, 0, 1)',
         plot_bgcolor: 'rgba(0, 0, 0, 0)',
-            hoverlabel: {
-                font: {
-                    size: 18,
-                },
-                namelength: -1
-            }
+        hoverlabel: {
+            font: {
+                size: 18,
+            },
+            namelength: -1
+        }
     }
 
     let plotConfig = {
@@ -254,12 +254,11 @@ async function updateMavir() {
     let inMax = new Date(mavirMaxDate)
     inMax.setHours(inMax.getHours() - 2 * inMax.getTimezoneOffset() / 60)
     mavirDateInput.max = localToUtcString(inMax)
-    updateMavirPlotDimensions()
 }
 
 function updateMavirPlotDimensions() {
     const width = window.getComputedStyle(document.getElementById(mavirPlotDivId)).getPropertyValue("width").slice(0, -2)
-    if(width == "au") return; // means width was auto, it isn't displayed
+    if (width == "au") return; // means width was auto, it isn't displayed
     const part = (width - 400) / (mavirPlotBaseWidth - 400)
     mavirViewRange = mavirMinViewRange + Math.round((mavirBaseViewRange - mavirMinViewRange) * part)
     console.log(mavirViewRange)
