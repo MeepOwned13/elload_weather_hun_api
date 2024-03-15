@@ -1,9 +1,9 @@
 :root {
     --background: #0e010d;
     --onbackground: #feeeff;
-    --primary: #200038;
-    --onprimary: #0e010d;
-    --secondary: #6ed606;
+    --primary: #050e61;
+    --onprimary: #feeeff;
+    --secondary: #5cb603;
     --onsecondary: #0e010d;
 }
 
@@ -19,10 +19,12 @@
 }
 
 body {
-    background-image: radial-gradient(farthest-corner at 20% 70%, #180404 0%, var(--background) 50%);
+    background-image:
+        radial-gradient(farthest-corner at 20% 70%, #3a1616 0%, transparent 50%),
+        radial-gradient(farthest-corner at 80% 50%, #143101 0%, transparent 40%);
     background-color: var(--background);
-    background-repeat: no-repeat;
-    background-attachment: fixed;
+    background-repeat: no-repeat, no-repeat;
+    background-attachment: fixed, fixed;
     font-size: medium;
 }
 
@@ -108,7 +110,7 @@ div.container {
 }
 
 .main-svg {
-    border-radius: 25px;    
+    border-radius: 25px;
 }
 
 #omszStationMapDiv {
@@ -124,11 +126,13 @@ div.container {
     border: 5px solid var(--background);
     border-radius: 20px;
     box-sizing: border-box;
+    pointer-events: none;
 }
 
 .js-plotly-plot .plotly .modebar {
     transform: translateX(-10px)
 }
+
 /* to accomodate modebar with border-radius set in .main-svg */
 
 img#omszLogo {
@@ -164,14 +168,21 @@ div.inputs {
 
 input,
 button,
-select {
+select,
+label {
     font-size: 20px;
     font-weight: 400;
     margin-right: 10px;
     padding: 5px;
-    border: 0px solid var(--secondary);
+    border: none;
     border-radius: 15px;
     background-color: var(--secondary);
+    outline: none;
+    color: var(--onsecondary);
+    cursor: pointer;
+}
+
+option {
     color: var(--onsecondary);
 }
 
@@ -180,7 +191,48 @@ i {
     color: var(--onsecondary);
 }
 
+input:disabled,
+button:disabled,
+select:disabled {
+    border: none;
+    border-radius: 15px;
+    background-color: var(--background);
+    color: #696169;
+}
+
+button:disabled > i {
+    color: #696169;
+}
+
 input[type="datetime-local"]:focus {
     border: none;
     outline: none;
+}
+
+input[type="checkbox"] {
+    -webkit-appearance: none;
+    appearance: none;
+    padding: 15px;
+    background: var(--background) !important;
+    border: 1px solid var(--background);
+    display: inline-block;
+    margin-right: 0;
+}
+
+input[type="checkbox"]:checked {
+    border-color: var(--secondary) !important;
+    background-color: var(--secondary) !important;
+}
+
+input[type="checkbox"] + label {
+    background: none;
+    border: none;
+    color: var(--background);
+    transition: 0.2ms;
+}
+
+input[type="checkbox"]:checked + label {
+    color: var(--secondary);
+    transition: 0.2ms;
+    font-weight: 700;
 }

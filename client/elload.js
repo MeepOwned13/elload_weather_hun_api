@@ -3,6 +3,7 @@ const mavirUpdateButton = document.getElementById("mavirUpdateButton")
 const mavirForwardButton = document.getElementById("mavirForwardButton")
 const mavirBackwardButton = document.getElementById("mavirBackwardButton")
 const mavirDateInput = document.getElementById("mavirDateInput")
+const mavirLegendCheckbox = document.getElementById("mavirShowLegend")
 const mavirMsgDiv = document.getElementById("mavirMsgDiv")
 const mavirPlotDivId = "mavirPlotDiv"
 const mavirPlotBaseWidth = 1080 // maximal width defined via css
@@ -19,6 +20,7 @@ let mavirData = null
 let mavirViewRange = mavirBaseViewRange
 let mavirLastUpdate = null
 let mavirResizeTimeout = null
+let mavirShowLegend = true
 
 // plot format
 const mavirPlotFormat = {
@@ -142,7 +144,6 @@ function makeMavirLines(from, to) {
         margin: {
             l: 72,
             r: 20,
-            b: 30,
             t: 20,
         },
         xaxis: {
@@ -153,9 +154,11 @@ function makeMavirLines(from, to) {
             ticksuffix: ' MW',
             hoverformat: '.1f'
         },
-        showlegend: true,
+        showlegend: mavirShowLegend,
         legend: {
-            orientation: 'h'
+            orientation: 'h',
+            xanchor: 'center',
+            x : 0.5
         },
         height: 700,
         paper_bgcolor: 'rgba(0, 0, 0, 1)',
@@ -282,6 +285,11 @@ function setupMavir() {
     })
     mavirBackwardButton.addEventListener("click", () => {
         addMinutesToInputRounded10(mavirDateInput, -10)
+        updateMavirPlot()
+    })
+    mavirLegendCheckbox.checked = true
+    mavirLegendCheckbox.addEventListener("change", () => {
+        mavirShowLegend = mavirLegendCheckbox.checked
         updateMavirPlot()
     })
 
