@@ -46,7 +46,7 @@ app = FastAPI(
     lifespan=lifespan)
 
 
-@repeat_every(seconds=30)
+@repeat_every(seconds=10)
 async def update_check():
     if DEV_MODE:
         return

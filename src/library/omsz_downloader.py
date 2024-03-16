@@ -61,8 +61,8 @@ class OMSZ_Downloader(DatabaseConnect):
 
     @DatabaseConnect._db_transaction
     def _drop_temp(self):
-        self._curs.execute("DROP TABLE IF EXISTS _temp_meta")
-        self._curs.execute("DROP TABLE IF EXISTS _temp_omsz")
+        self._curs_.execute("DROP TABLE IF EXISTS _temp_meta")
+        self._curs_.execute("DROP TABLE IF EXISTS _temp_omsz")
         self._logger.debug("Dropped temporary tables if they existed")
 
     @DatabaseConnect._db_transaction
@@ -75,17 +75,17 @@ class OMSZ_Downloader(DatabaseConnect):
         # StarDate and EndDate is maintained based on actual, inserted data
         df.loc[:, ["StartDate", "EndDate"]] = pd.NaT
 
-        tables = self._curs.execute("SELECT tbl_name FROM sqlite_master").fetchall()
+        tables = self._curs_.execute("SELECT tbl_name FROM sqlite_master").fetchall()
         tables = [t[0] for t in tables]
         if "OMSZ_meta" not in tables:
             self._logger.info("Creating metadata table")
             df.to_sql(name="_temp_meta", con=self._con, if_exists='replace')
             # I want a primary key for the table
-            sql = self._curs.execute("SELECT sql FROM sqlite_master WHERE tbl_name = \"_temp_meta\"").fetchone()[0]
+            sql = self._curs_.execute("SELECT sql FROM sqlite_master WHERE tbl_name = \"_temp_meta\"").fetchone()[0]
             sql = sql.replace("_temp_meta", "OMSZ_meta")
             sql = sql.replace("\"StationNumber\" INTEGER", "\"StationNumber\" INTEGER PRIMARY KEY")
-            self._curs.execute(sql)
-            self._curs.execute("CREATE INDEX ix_omsz_meta_StationNumber ON OMSZ_meta (StationNumber)")
+            self._curs_.execute(sql)
+            self._curs_.execute("CREATE INDEX ix_omsz_meta_StationNumber ON OMSZ_meta (StationNumber)")
             self._logger.debug("Created metadata table")
         else:
             df.to_sql(name="_temp_meta", con=self._con, if_exists='replace')
@@ -95,7 +95,7 @@ class OMSZ_Downloader(DatabaseConnect):
         # SQL should look like this:
         # INSERT INTO table ([cols]) SELECT [cols] FROM temp WHERE Time NOT IN (SELECT Time FROM table)
         # Watch the first set of cols need (), but the second don't, also gonna remove ' marks
-        self._curs.execute(f"INSERT INTO OMSZ_meta ({cols}) SELECT {cols} FROM _temp_meta "
+        self._curs_.execute(f"INSERT INTO OMSZ_meta ({cols}) SELECT {cols} FROM _temp_meta "
                            f"WHERE StationNumber NOT IN (SELECT StationNumber FROM OMSZ_meta)")
 
         self._logger.info("Metadata updated to database")
@@ -170,7 +170,7 @@ class OMSZ_Downloader(DatabaseConnect):
         """
         # get all stations from metadata
         try:
-            stations = self._curs.execute("SELECT stationnumber FROM OMSZ_meta").fetchall()
+            stations = self._curs_.execute("SELECT stationnumber FROM OMSZ_meta").fetchall()
             stations = [s[0] for s in stations]  # remove them from tuples
         except sqlite3.OperationalError:
             self._logger.error(
@@ -235,8 +235,8 @@ class OMSZ_Downloader(DatabaseConnect):
         :param station: Station Number to update
         :returns: None
         """
-        end_date = self._curs.execute(f"SELECT MAX(Time) FROM OMSZ_{station}").fetchone()[0]
-        self._curs.execute(f"UPDATE OMSZ_meta SET EndDate = datetime(\"{end_date}\") "
+        end_date = self._curs_.execute(f"SELECT MAX(Time) FROM OMSZ_{station}").fetchone()[0]
+        self._curs_.execute(f"UPDATE OMSZ_meta SET EndDate = datetime(\"{end_date}\") "
                            f"WHERE StationNumber = {station} AND "
                            f"(EndDate IS NULL OR EndDate < datetime(\"{end_date}\"))"
                            )
@@ -258,17 +258,17 @@ class OMSZ_Downloader(DatabaseConnect):
         table_name = f"OMSZ_{station}"
 
         self._logger.info(f"Starting write to table {table_name}")
-        exists = self._curs.execute(
+        exists = self._curs_.execute(
             f"SELECT name FROM sqlite_master WHERE type=\"table\" AND name=\"{table_name}\"").fetchone()
         if not exists:
             self._logger.info(f"Creating new table {table_name}")
             df.to_sql(name="_temp_omsz", con=self._con, if_exists='replace')
             # I want a primary key for the table
-            sql = self._curs.execute("SELECT sql FROM sqlite_master WHERE tbl_name = \"_temp_omsz\"").fetchone()[0]
+            sql = self._curs_.execute("SELECT sql FROM sqlite_master WHERE tbl_name = \"_temp_omsz\"").fetchone()[0]
             sql = sql.replace("_temp_omsz", table_name)
             sql = sql.replace("\"Time\" TIMESTAMP", "\"Time\" TIMESTAMP PRIMARY KEY")
-            self._curs.execute(sql)
-            self._curs.execute(f"CREATE INDEX ix_{table_name}_Time ON {table_name} (Time)")
+            self._curs_.execute(sql)
+            self._curs_.execute(f"CREATE INDEX ix_{table_name}_Time ON {table_name} (Time)")
             self._logger.debug(f"Created new table {table_name}")
         else:
             # Idea: create temp table and insert values missing into the actual table
@@ -285,11 +285,11 @@ class OMSZ_Downloader(DatabaseConnect):
         # SQL should look like this:
         # INSERT INTO table ([cols]) SELECT [cols] FROM temp WHERE Time NOT IN (SELECT Time FROM table)
         # Watch the first set of cols need (), but the second don't, also gonna remove ' marks
-        self._curs.execute(f"INSERT INTO {table_name} ({cols}) SELECT {cols} FROM _temp_omsz "
+        self._curs_.execute(f"INSERT INTO {table_name} ({cols}) SELECT {cols} FROM _temp_omsz "
                            f"WHERE Time NOT IN (SELECT Time FROM {table_name})")
 
-        start_date = self._curs.execute(f"SELECT MIN(Time) FROM OMSZ_{station}").fetchone()[0]
-        self._curs.execute(f"UPDATE OMSZ_meta SET StartDate = datetime(\"{start_date}\") "
+        start_date = self._curs_.execute(f"SELECT MIN(Time) FROM OMSZ_{station}").fetchone()[0]
+        self._curs_.execute(f"UPDATE OMSZ_meta SET StartDate = datetime(\"{start_date}\") "
                            f"WHERE StationNumber = {station} AND "
                            f"(StartDate IS NULL OR StartDate > datetime(\"{start_date}\"))"
                            )
@@ -317,7 +317,7 @@ class OMSZ_Downloader(DatabaseConnect):
         # Historical csv-s contain data up to lastyear-12-31 23:50:00 UTC
         # Need to request it, if no EndDate is specified (meaning no data yet) or
         # The EndDate is from before this year => res.fetchall() will return a non-empty list
-        res = self._curs.execute(f"SELECT * FROM OMSZ_meta "
+        res = self._curs_.execute(f"SELECT * FROM OMSZ_meta "
                                  f"WHERE StationNumber = {station} AND "
                                  f"(EndDate IS NULL OR EndDate < datetime(\"{last_year}-12-31 23:50:00\"))"
                                  )
@@ -396,12 +396,12 @@ class OMSZ_Downloader(DatabaseConnect):
         """
         station = ser["StationNumber"]
         # Check if the time was already inserted into the table
-        exists = self._curs.execute(f"SELECT Time FROM OMSZ_{station} "
+        exists = self._curs_.execute(f"SELECT Time FROM OMSZ_{station} "
                                     f"WHERE Time = datetime(\"{ser['Time']}\")").fetchone()
         if exists:
             return
 
-        cols = self._curs.execute(f"SELECT name FROM PRAGMA_TABLE_INFO(\"OMSZ_{station}\")").fetchall()
+        cols = self._curs_.execute(f"SELECT name FROM PRAGMA_TABLE_INFO(\"OMSZ_{station}\")").fetchall()
         # Extract query result and remove NaN values,
         # also remove Time column because we have to handle datetime conversion
         cols = [c[0] for c in cols if not pd.isna(ser[c[0]]) and c[0] != "Time"]
@@ -415,7 +415,7 @@ class OMSZ_Downloader(DatabaseConnect):
             col_str = str(cols)[1:-1].replace("\'", "")
             val_str = str(val_str)[1:-1].replace("\'", "")
 
-        self._curs.execute(f"INSERT INTO OMSZ_{station} (Time, {col_str}) "
+        self._curs_.execute(f"INSERT INTO OMSZ_{station} (Time, {col_str}) "
                            f"VALUES(datetime(\"{ser['Time']}\"), {val_str})")
 
     @DatabaseConnect._assert_transaction
@@ -434,7 +434,7 @@ class OMSZ_Downloader(DatabaseConnect):
         for _, row in df.iterrows():
             self._insert_curr_weather_row(row)
 
-        stations = self._curs.execute("SELECT StationNumber FROM OMSZ_meta "
+        stations = self._curs_.execute("SELECT StationNumber FROM OMSZ_meta "
                                       "WHERE StartDate IS NOT NULL AND EndDate IS NOT NULL").fetchall()
         for station in stations:
             station = station[0]  # results are always tuples (inside of a list)
@@ -489,7 +489,7 @@ class OMSZ_Downloader(DatabaseConnect):
         Gets the maximum of EndDate in omsz_meta
         :returns: pandas.Timestamp for max end date
         """
-        date = self._curs.execute("SELECT MAX(EndDate) FROM omsz_meta").fetchone()[0]
+        date = self._curs_.execute("SELECT MAX(EndDate) FROM omsz_meta").fetchone()[0]
         return pd.to_datetime(date, format="%Y-%m-%d %H:%M:%S")
 
     def choose_curr_update(self) -> bool:

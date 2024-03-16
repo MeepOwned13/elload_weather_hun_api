@@ -9,12 +9,12 @@ class DatabaseConnect():
     It also requires a logger, which can be used the child class
     """
 
-    def __init__(self, db_path: Path, logger):
+    def __init__(self, db_path: Path, logger: logging.Logger):
         self._db_path: Path = db_path
         self._con: sqlite3.Connection = sqlite3.connect(
             self._db_path, timeout=120, autocommit=False, check_same_thread=False)
-        self._curs: sqlite3.Cursor = None
-        self._logger = logger
+        self._curs_: sqlite3.Cursor = None  # _ after a variable means it's not initiated druing __init__, but later
+        self._logger: logging.Logger = logger
         self._in_transaction = False
 
     def __del__(self):
@@ -30,10 +30,10 @@ class DatabaseConnect():
         def execute(self, *args, **kwargs):
             try:
                 self._in_transaction = True
-                with self._con as self._curs:
+                with self._con as self._curs_:
                     self._logger.debug("Database transaction begin")
                     res = func(self, *args, **kwargs)
-                    self._curs.commit()
+                    self._curs_.commit()
             finally:
                 self._in_transaction = False
             self._logger.debug("Database transaction commit")

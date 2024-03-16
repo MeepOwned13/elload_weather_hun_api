@@ -13,6 +13,10 @@ reader_logger.addHandler(logging.NullHandler())
 
 
 class Reader(DatabaseConnect):
+    """
+    Facilitates reading of the Database, returning results ready for the API
+    """
+
     def __init__(self, db_path: Path):
         super().__init__(db_path, reader_logger)
         self._SINGLE_TABLE_LIMIT = (3 * 365 + 2 * 366) * 24 * 60  # at least 5 years
