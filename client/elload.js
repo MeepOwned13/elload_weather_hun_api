@@ -5,6 +5,7 @@ const mavirBackwardButton = document.getElementById("mavirBackwardButton")
 const mavirDateInput = document.getElementById("mavirDateInput")
 const mavirLegendCheckbox = document.getElementById("mavirShowLegend")
 const mavirMsgDiv = document.getElementById("mavirMsgDiv")
+const mavirLogoImg = document.getElementById("mavirLogo")
 const mavirPlotDivId = "mavirPlotDiv"
 const mavirPlotBaseWidth = 1080 // maximal width defined via css
 const mavirBaseViewRange = 6
@@ -274,6 +275,10 @@ function setupMavir() {
     updateMavir()
     mavirDateInput.value = mavirDateInput.max
     addMinutesToInputRounded10(mavirDateInput, -60 * 24)
+
+    fetchData(apiUrl + 'mavir/logo').then((resp) => {
+        mavirLogoImg.src = resp
+    })
 
     updateMavirPlot()
 

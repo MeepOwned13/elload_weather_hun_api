@@ -27,6 +27,8 @@ const pages = {
 let currentPage = pages.omsz
 
 async function setup() {
+    document.getElementById("pageLogo").src = apiUrl + 'favicon.ico'
+
     await updateOmszMeta()
     await updateMavirMeta()
 

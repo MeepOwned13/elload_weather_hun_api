@@ -348,7 +348,7 @@ function setupOmsz() {
     omszDropdown.innerHTML = dropdownOptions.join('\n')
 
     fetchData(apiUrl + 'omsz/logo').then((resp) => {
-        omszLogo.src = resp
+        omszLogoImg.src = resp
     })
 
     updateOmszMapDimensions()

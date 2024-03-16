@@ -61,8 +61,15 @@ header {
     background-color: var(--background);
 }
 
+header img {
+    height: 40px;
+    margin-right: 5px;
+}
+
 header div {
     float: left;
+    display: flex;
+    align-items: center;
 }
 
 header nav {
@@ -76,12 +83,14 @@ h1 {
     font-size: 30px;
     font-weight: 700;
     letter-spacing: 2px;
+    text-align: center;
 }
 
 h2 {
     font-size: 35px;
     font-weight: 800px;
     letter-spacing: 3px;
+    text-align: center;
 }
 
 nav button {
@@ -200,7 +209,7 @@ select:disabled {
     color: #696169;
 }
 
-button:disabled > i {
+button:disabled>i {
     color: #696169;
 }
 
@@ -224,15 +233,21 @@ input[type="checkbox"]:checked {
     background-color: var(--secondary) !important;
 }
 
-input[type="checkbox"] + label {
+input[type="checkbox"]+label {
     background: none;
     border: none;
     color: var(--background);
     transition: 0.2ms;
 }
 
-input[type="checkbox"]:checked + label {
+input[type="checkbox"]:checked+label {
     color: var(--secondary);
     transition: 0.2ms;
     font-weight: 700;
+}
+
+@media screen and (max-width: 500px) {
+    header div h1 {
+        display: none;
+    }
 }
