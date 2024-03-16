@@ -1,22 +1,21 @@
 from requests import Session
 from pathlib import Path
 import logging
-import sqlite3
 import pandas as pd
 import io
 import re
 import warnings
+from .utils.db_connect import DatabaseConnect
+# sqlite3 implicitly imported via DatabaseConnect
 
 mavir_downloader_logger = logging.getLogger("mavir")
 mavir_downloader_logger.setLevel(logging.DEBUG)
 mavir_downloader_logger.addHandler(logging.NullHandler())
 
 
-class MAVIR_Downloader():
+class MAVIR_Downloader(DatabaseConnect):
     def __init__(self, db_path: Path):
-        self._db_path: Path = db_path
-        self._con: sqlite3.Connection = sqlite3.connect(self._db_path, timeout=120, autocommit=False)
-        self._curs: sqlite3.Cursor = None
+        super().__init__(db_path, mavir_downloader_logger)
         self._sess: Session = Session()
         self._RENAME: dict = {"Időpont": "Time",  # Time of data
                               # Net load and estimates
@@ -36,30 +35,14 @@ class MAVIR_Downloader():
     def __del__(self):
         if self._con:
             self._drop_temp()
-            self._con.close()
+        super().__del__()
 
-    def _db_transaction(func):
-        """
-        This function opens a cursor at self._curs and makes sure the decorated function is a single transaction.
-        Exceptions to this rule are pd.df.to_sql() table creations, so they should only be used for temporary tables.
-        Using pd.df.to_sql() commits it's own contribuiton as per the documentation.
-        """
-
-        def execute(self, *args, **kwargs):
-            with self._con as self._curs:
-                mavir_downloader_logger.debug("Database transaction begin")
-                res = func(self, *args, **kwargs)
-                self._curs.commit()
-            mavir_downloader_logger.debug("Database transaction commit")
-            return res
-        return execute
-
-    @_db_transaction
+    @DatabaseConnect._db_transaction
     def _drop_temp(self) -> None:
         self._curs.execute("DROP TABLE IF EXISTS _temp_mavir")
-        mavir_downloader_logger.debug("Dropped temporary tables if they existed")
+        self._logger.debug("Dropped temporary tables if they existed")
 
-    @_db_transaction
+    @DatabaseConnect._db_transaction
     def _create_meta(self) -> None:
         """
         Creates metadata table if it doesn't exist yet
@@ -75,10 +58,11 @@ class MAVIR_Downloader():
                                [(key, None, None) for key in set(self._RENAME.values()) - set(["Time"])])
         # Don't need to store StarDate and EndDate for time
 
+    @DatabaseConnect._assert_transaction
     def _update_meta(self) -> None:
         """
         Updates metadata if MAVIR_meta and MAVIR_electricity exist
-        This function assumes there is an ongoing transaction
+        THIS FUNCTION ASSUMES THERE IS AN ONGOING TRANSACTION
         :returns: None
         """
         exists = self._curs.execute("SELECT name FROM sqlite_master WHERE type=\"table\" AND "
@@ -88,7 +72,7 @@ class MAVIR_Downloader():
 
         records = [rec for rec in self._curs.execute("SELECT * FROM MAVIR_meta").fetchall()]
 
-        mavir_downloader_logger.info("Started metadata update")
+        self._logger.info("Started metadata update")
         for col, start, end in records:
             # SELECT the minimum for the column, then update meta
             self._curs.execute(f"UPDATE MAVIR_meta SET StartDate = ("
@@ -122,7 +106,7 @@ class MAVIR_Downloader():
         :param end: End time in UTC, inclusive
         :returns: Downloaded DataFrame
         """
-        mavir_downloader_logger.debug(f"Requesting electricity data from {start} to {end}")
+        self._logger.debug(f"Requesting electricity data from {start} to {end}")
         url = (f"https://www.mavir.hu/rtdwweb/webuser/chart/7678/export"
                f"?exportType=xlsx"
                f"&fromTime={int(start.value / 1e6)}"
@@ -132,10 +116,10 @@ class MAVIR_Downloader():
 
         request = self._sess.get(url)
         if request.status_code != 200:
-            mavir_downloader_logger.error(
+            self._logger.error(
                 f"Electricity data download failed from {start} to {end} with {request.status_code}")
             return
-        mavir_downloader_logger.info(f"Recieved electricity data from {start} to {end}")
+        self._logger.info(f"Recieved electricity data from {start} to {end}")
 
         xlsx = io.BytesIO(request.content)
 
@@ -167,7 +151,7 @@ class MAVIR_Downloader():
 
         return pd.concat(ls_df)
 
-    @_db_transaction
+    @DatabaseConnect._db_transaction
     def _write_electricity_data(self, df: pd.DataFrame) -> None:
         """
         Insert electricity data, doesn't update, only inserts Times that don't exist yet
@@ -175,11 +159,11 @@ class MAVIR_Downloader():
         :returns: None
         """
         table_name = "MAVIR_electricity"
-        mavir_downloader_logger.info("Starting write to table MAVIR_electricity")
+        self._logger.info("Starting write to table MAVIR_electricity")
         exists = self._curs.execute(
             f"SELECT name FROM sqlite_master WHERE type=\"table\" AND name=\"{table_name}\"").fetchone()
         if not exists:
-            mavir_downloader_logger.info(f"Creating new table {table_name}")
+            self._logger.info(f"Creating new table {table_name}")
             df.to_sql(name="_temp_mavir", con=self._con, if_exists='replace')
             # I want a primary key for the table
             sql = self._curs.execute("SELECT sql FROM sqlite_master WHERE tbl_name = \"_temp_mavir\"").fetchone()[0]
@@ -187,10 +171,10 @@ class MAVIR_Downloader():
             sql = sql.replace("\"Time\" TIMESTAMP", "\"Time\" TIMESTAMP PRIMARY KEY")
             self._curs.execute(sql)
             self._curs.execute(f"CREATE INDEX ix_{table_name}_Time ON {table_name} (Time)")
-            mavir_downloader_logger.debug(f"Created new table {table_name}")
+            self._logger.debug(f"Created new table {table_name}")
         else:
             # Idea: create temp table and insert values missing into the actual table
-            mavir_downloader_logger.info(f"Table {table_name} already exists, inserting new values")
+            self._logger.info(f"Table {table_name} already exists, inserting new values")
             df.to_sql(name="_temp_mavir", con=self._con, if_exists="replace")
 
         # Tuple->String in Python leaves a single ',' if the tuple has 1 element
@@ -207,10 +191,10 @@ class MAVIR_Downloader():
 
         self._update_meta()
 
-        mavir_downloader_logger.info(
+        self._logger.info(
             f"Updated {table_name}, updated StartDate and EndDate in metadata for Columns")
 
-    @_db_transaction
+    @DatabaseConnect._db_transaction
     def _get_min_end_date(self) -> pd.Timestamp | None:
         """
         Get MIN EndDate from MAVIR_meta, useful to know which Times need downloading
@@ -240,7 +224,7 @@ class MAVIR_Downloader():
             self._get_min_end_date() or pd.to_datetime("2007-01-01 00:00:00", format="%Y-%m-%d %H:%M:%S"),
             now.round(freq="10min") + pd.Timedelta(hours=24)))
 
-    @_db_transaction
+    @DatabaseConnect._db_transaction
     def _get_end_date_netload(self) -> pd.Timestamp | None:
         """
         Gets the end date for NetSystemLoad from MAVIR_meta

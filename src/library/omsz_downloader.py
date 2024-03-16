@@ -8,13 +8,14 @@ from zipfile import ZipFile
 import bs4
 import re
 from datetime import datetime
+from .utils.db_connect import DatabaseConnect
 
 omsz_downloader_logger = logging.getLogger("omsz")
 omsz_downloader_logger.setLevel(logging.DEBUG)
 omsz_downloader_logger.addHandler(logging.NullHandler())
 
 
-class OMSZ_Downloader():
+class OMSZ_Downloader(DatabaseConnect):
     """
     Class to update OMSZ data inside given Database
     MAKE SURE TO HAVE OMSZ_META TABLE OR RUN UPDATE_META() BEFORE CALLING OTHER FUNCTIONS
@@ -22,9 +23,7 @@ class OMSZ_Downloader():
     """
 
     def __init__(self, db_path: Path):
-        self._db_path: Path = db_path
-        self._con: sqlite3.Connection = sqlite3.connect(self._db_path, timeout=120, autocommit=False)
-        self._curs: sqlite3.Cursor = None
+        super().__init__(db_path, omsz_downloader_logger)
         self._sess: Session = Session()
         self._RENAME: dict = {"Station Number": "StationNumber",  # Station Number
                               "StationNumber": "StationNumber",  # Station Number
@@ -58,43 +57,28 @@ class OMSZ_Downloader():
     def __del__(self):
         if self._con:
             self._drop_temp()
-            self._con.close()
+        super().__del__()
 
-    def _db_transaction(func):
-        """
-        This function opens a cursor at self._curs and makes sure the decorated function is a single transaction.
-        Exceptions to this rule are pd.df.to_sql() table creations, so they should only be used for temporary tables.
-        """
-
-        def execute(self, *args, **kwargs):
-            with self._con as self._curs:
-                omsz_downloader_logger.debug("Database transaction begin")
-                res = func(self, *args, **kwargs)
-                self._curs.commit()
-            omsz_downloader_logger.debug("Database transaction commit")
-            return res
-        return execute
-
-    @_db_transaction
+    @DatabaseConnect._db_transaction
     def _drop_temp(self):
         self._curs.execute("DROP TABLE IF EXISTS _temp_meta")
         self._curs.execute("DROP TABLE IF EXISTS _temp_omsz")
-        omsz_downloader_logger.debug("Dropped temporary tables if they existed")
+        self._logger.debug("Dropped temporary tables if they existed")
 
-    @_db_transaction
+    @DatabaseConnect._db_transaction
     def _write_meta(self, df: pd.DataFrame) -> None:
         """
         Write metadata to Database
         :param df: DataFrame to write to Database
         """
-        omsz_downloader_logger.info("Starting update to metadata table")
+        self._logger.info("Starting update to metadata table")
         # StarDate and EndDate is maintained based on actual, inserted data
         df.loc[:, ["StartDate", "EndDate"]] = pd.NaT
 
         tables = self._curs.execute("SELECT tbl_name FROM sqlite_master").fetchall()
         tables = [t[0] for t in tables]
         if "OMSZ_meta" not in tables:
-            omsz_downloader_logger.info("Creating metadata table")
+            self._logger.info("Creating metadata table")
             df.to_sql(name="_temp_meta", con=self._con, if_exists='replace')
             # I want a primary key for the table
             sql = self._curs.execute("SELECT sql FROM sqlite_master WHERE tbl_name = \"_temp_meta\"").fetchone()[0]
@@ -102,7 +86,7 @@ class OMSZ_Downloader():
             sql = sql.replace("\"StationNumber\" INTEGER", "\"StationNumber\" INTEGER PRIMARY KEY")
             self._curs.execute(sql)
             self._curs.execute("CREATE INDEX ix_omsz_meta_StationNumber ON OMSZ_meta (StationNumber)")
-            omsz_downloader_logger.debug("Created metadata table")
+            self._logger.debug("Created metadata table")
         else:
             df.to_sql(name="_temp_meta", con=self._con, if_exists='replace')
 
@@ -114,7 +98,7 @@ class OMSZ_Downloader():
         self._curs.execute(f"INSERT INTO OMSZ_meta ({cols}) SELECT {cols} FROM _temp_meta "
                            f"WHERE StationNumber NOT IN (SELECT StationNumber FROM OMSZ_meta)")
 
-        omsz_downloader_logger.info("Metadata updated to database")
+        self._logger.info("Metadata updated to database")
 
     def _format_meta(self, meta: pd.DataFrame) -> pd.DataFrame:
         """
@@ -136,12 +120,12 @@ class OMSZ_Downloader():
         """
         # Request metadata
         url = "https://odp.met.hu/climate/observations_hungary/hourly/station_meta_auto.csv"
-        omsz_downloader_logger.info(f"Requesting metadata at '{url}'")
+        self._logger.info(f"Requesting metadata at '{url}'")
         request = self._sess.get(url)
         if request.status_code != 200:
-            omsz_downloader_logger.error(f"Meta data download failed with {request.status_code} | {url}")
+            self._logger.error(f"Meta data download failed with {request.status_code} | {url}")
             return
-        omsz_downloader_logger.debug(f"Meta data recieved from '{url}'")
+        self._logger.debug(f"Meta data recieved from '{url}'")
 
         # Load data, format and write to DB
         df: pd.DataFrame = pd.read_csv(io.StringIO(request.content.decode("utf-8")),
@@ -162,12 +146,12 @@ class OMSZ_Downloader():
         :param url: Url to ZIP
         :returns: Downloaded DataFrame
         """
-        omsz_downloader_logger.debug(f"Requesting historical/recent data at '{url}'")
+        self._logger.debug(f"Requesting historical/recent data at '{url}'")
         request = self._sess.get(url)
         if request.status_code != 200:
-            omsz_downloader_logger.error(f"Historical/recent data download failed with {request.status_code} | {url}")
+            self._logger.error(f"Historical/recent data download failed with {request.status_code} | {url}")
             return
-        omsz_downloader_logger.debug(f"Historical/recent data recieved from '{url}'")
+        self._logger.debug(f"Historical/recent data recieved from '{url}'")
 
         with ZipFile(io.BytesIO(request.content), 'r') as zip_file:
             df: pd.DataFrame = pd.read_csv(zip_file.open(zip_file.namelist()[0]), comment='#',  # skip metadata of csv
@@ -177,7 +161,7 @@ class OMSZ_Downloader():
 
         return self._format_prev_weather(df)
 
-    @_db_transaction
+    @DatabaseConnect._db_transaction
     def _filter_stations_from_url(self, urls: list[str]) -> list[str]:
         """
         Filter given urls/strings where they contain station numbers for stations we have metadata for
@@ -189,7 +173,7 @@ class OMSZ_Downloader():
             stations = self._curs.execute("SELECT stationnumber FROM OMSZ_meta").fetchall()
             stations = [s[0] for s in stations]  # remove them from tuples
         except sqlite3.OperationalError:
-            omsz_downloader_logger.error(
+            self._logger.error(
                 "Station filtering failed, can't access Database or OMSZ_meta table doesn't exist")
             return []
 
@@ -216,10 +200,10 @@ class OMSZ_Downloader():
         :param current: Extracting current weather data or not? Used for filtering
         :returns: List of download urls
         """
-        omsz_downloader_logger.info(f"Requesting weather data urls at '{url}'")
+        self._logger.info(f"Requesting weather data urls at '{url}'")
         request = self._sess.get(url)
         if request.status_code != 200:
-            omsz_downloader_logger.error(f"Weather data url request failed with {request.status_code}")
+            self._logger.error(f"Weather data url request failed with {request.status_code}")
             return []
 
         soup = bs4.BeautifulSoup(request.text, 'html.parser')
@@ -230,7 +214,7 @@ class OMSZ_Downloader():
         file_downloads = list(set([link.get('href').strip()
                               for link in file_downloads if regex.match(link.get('href'))]))
 
-        omsz_downloader_logger.info(f"Weather data urls extracted from '{url}'")
+        self._logger.info(f"Weather data urls extracted from '{url}'")
 
         # metadata only contains info about stations currently active
         # we only want data from stations we had the metadata from
@@ -243,6 +227,7 @@ class OMSZ_Downloader():
 
         return [f"{url}{file}" for file in file_downloads]
 
+    @DatabaseConnect._assert_transaction
     def _update_end_date_meta(self, station: int) -> None:
         """
         Updates the EndDate inside OMSZ_meta for given station
@@ -256,7 +241,7 @@ class OMSZ_Downloader():
                            f"(EndDate IS NULL OR EndDate < datetime(\"{end_date}\"))"
                            )
 
-    @_db_transaction
+    @DatabaseConnect._db_transaction
     def _write_prev_weather_data(self, df: pd.DataFrame) -> None:
         """
         Write historical/recent weather data to corresponding Table
@@ -265,18 +250,18 @@ class OMSZ_Downloader():
         """
         # Check if DataFrame is empty or only has it's index
         if df.empty or len(tuple(df.columns)) == 0:
-            omsz_downloader_logger.warning("Table writing was called with an empty DataFrame")
+            self._logger.warning("Table writing was called with an empty DataFrame")
             return
 
         station = df["StationNumber"].iloc[0]
         df.drop(columns="StationNumber", inplace=True)
         table_name = f"OMSZ_{station}"
 
-        omsz_downloader_logger.info(f"Starting write to table {table_name}")
+        self._logger.info(f"Starting write to table {table_name}")
         exists = self._curs.execute(
             f"SELECT name FROM sqlite_master WHERE type=\"table\" AND name=\"{table_name}\"").fetchone()
         if not exists:
-            omsz_downloader_logger.info(f"Creating new table {table_name}")
+            self._logger.info(f"Creating new table {table_name}")
             df.to_sql(name="_temp_omsz", con=self._con, if_exists='replace')
             # I want a primary key for the table
             sql = self._curs.execute("SELECT sql FROM sqlite_master WHERE tbl_name = \"_temp_omsz\"").fetchone()[0]
@@ -284,10 +269,10 @@ class OMSZ_Downloader():
             sql = sql.replace("\"Time\" TIMESTAMP", "\"Time\" TIMESTAMP PRIMARY KEY")
             self._curs.execute(sql)
             self._curs.execute(f"CREATE INDEX ix_{table_name}_Time ON {table_name} (Time)")
-            omsz_downloader_logger.debug(f"Created new table {table_name}")
+            self._logger.debug(f"Created new table {table_name}")
         else:
             # Idea: create temp table and insert values missing into the actual table
-            omsz_downloader_logger.info(f"Table {table_name} already exists, inserting new values")
+            self._logger.info(f"Table {table_name} already exists, inserting new values")
             df.to_sql(name="_temp_omsz", con=self._con, if_exists="replace")
 
         # Tuple->String in Python leaves a single ',' if the tuple has 1 element
@@ -310,10 +295,10 @@ class OMSZ_Downloader():
                            )
         self._update_end_date_meta(station)
 
-        omsz_downloader_logger.info(
+        self._logger.info(
             f"Updated {table_name}, updated StartDate and EndDate in metadata for StationNumber {station}")
 
-    @_db_transaction
+    @DatabaseConnect._db_transaction
     def _is_hist_needed(self, url: str) -> bool:
         """
         Checks if given historical url would contain data we need
@@ -345,7 +330,7 @@ class OMSZ_Downloader():
         :returns: None
         """
         # Historical
-        omsz_downloader_logger.info("Downloading and updating with historical weather data")
+        self._logger.info("Downloading and updating with historical weather data")
 
         hist_urls = self._get_weather_downloads(
             "https://odp.met.hu/climate/observations_hungary/10_minutes/historical/")
@@ -356,12 +341,12 @@ class OMSZ_Downloader():
                     continue
                 self._write_prev_weather_data(data)
             else:
-                omsz_downloader_logger.debug(f"Historical data not needed at {url}")
+                self._logger.debug(f"Historical data not needed at {url}")
 
-        omsz_downloader_logger.info("Finished downloading and updating with historical weather data")
+        self._logger.info("Finished downloading and updating with historical weather data")
 
         # Recent
-        omsz_downloader_logger.info("Downloading and updating with recent weather data")
+        self._logger.info("Downloading and updating with recent weather data")
 
         rec_urls = self._get_weather_downloads("https://odp.met.hu/climate/observations_hungary/10_minutes/recent/")
         for url in rec_urls:
@@ -370,7 +355,7 @@ class OMSZ_Downloader():
                 continue
             self._write_prev_weather_data(data)
 
-        omsz_downloader_logger.info("Finished downloading and updating with recent weather data")
+        self._logger.info("Finished downloading and updating with recent weather data")
 
     def _format_past24h_weather(self, df: pd.DataFrame):
         df.columns = df.columns.str.strip()  # remove trailing whitespace
@@ -387,12 +372,12 @@ class OMSZ_Downloader():
         :param url: Url to ZIP
         :returns: Downloaded DataFrame
         """
-        omsz_downloader_logger.debug(f"Requesting current data at '{url}'")
+        self._logger.debug(f"Requesting current data at '{url}'")
         request = self._sess.get(url)
         if request.status_code != 200:
-            omsz_downloader_logger.error(f"Current data download failed with {request.status_code} | {url}")
+            self._logger.error(f"Current data download failed with {request.status_code} | {url}")
             return
-        omsz_downloader_logger.debug(f"Current data recieved from '{url}'")
+        self._logger.debug(f"Current data recieved from '{url}'")
 
         with ZipFile(io.BytesIO(request.content), 'r') as zip_file:
             df: pd.DataFrame = pd.read_csv(zip_file.open(zip_file.namelist()[0]), comment='#',  # skip metadata of csv
@@ -433,6 +418,7 @@ class OMSZ_Downloader():
         self._curs.execute(f"INSERT INTO OMSZ_{station} (Time, {col_str}) "
                            f"VALUES(datetime(\"{ser['Time']}\"), {val_str})")
 
+    @DatabaseConnect._assert_transaction
     def _write_curr_weather_data(self, df: pd.DataFrame) -> None:
         """
         Write current weather data to corresponding Tables
@@ -442,7 +428,7 @@ class OMSZ_Downloader():
         """
         # Check if DataFrame is empty or only has it's index
         if df.empty or len(tuple(df.columns)) == 0:
-            omsz_downloader_logger.warning("Table writing was called with an empty DataFrame")
+            self._logger.warning("Table writing was called with an empty DataFrame")
             return
 
         for _, row in df.iterrows():
@@ -454,9 +440,9 @@ class OMSZ_Downloader():
             station = station[0]  # results are always tuples (inside of a list)
             self._update_end_date_meta(station)
 
-        omsz_downloader_logger.info("Updated EndDate in OMSZ_meta for all stations")
+        self._logger.info("Updated EndDate in OMSZ_meta for all stations")
 
-    @_db_transaction
+    @DatabaseConnect._db_transaction
     def update_past24h_weather_data(self) -> None:
         """
         Updates weather data with the last 24 hours
@@ -464,21 +450,21 @@ class OMSZ_Downloader():
         """
         # WHILE UPDATING, THIS FUNCTION DOES A SINGLE TRANSACTION,
         # THIS IS TO PREVENT PROBLEMS ARISING FROM NOT INSERTING EACH TIME IN AN ORDERED MANNER
-        omsz_downloader_logger.info("Downloading and updating with the past 24h of weather data")
+        self._logger.info("Downloading and updating with the past 24h of weather data")
 
         curr_urls = self._get_weather_downloads(
             "https://odp.met.hu/weather/weather_reports/synoptic/hungary/10_minutes/csv/", current=True)
 
         for url in curr_urls:
             data = self._download_curr_data(url)
-            omsz_downloader_logger.info(f"Past 24h of weather data recieved from '{url}'")
+            self._logger.info(f"Past 24h of weather data recieved from '{url}'")
             if data is None:
                 continue
             self._write_curr_weather_data(data)
 
-        omsz_downloader_logger.info("Finished downloading and updating with the past 24h of weather data")
+        self._logger.info("Finished downloading and updating with the past 24h of weather data")
 
-    @_db_transaction
+    @DatabaseConnect._db_transaction
     def update_curr_weather_data(self) -> None:
         """
         Updates weather data with the current LATEST entries
@@ -488,16 +474,16 @@ class OMSZ_Downloader():
         # WHILE UPDATING, THIS FUNCTION DOES A SINGLE TRANSACTION,
         # THIS IS BECAUSE FUNCTIONS USED EXPECT AN ONGOING TRANSACTION
         # see also: self.update_past24h_weather_data()
-        omsz_downloader_logger.info("Downloading and updating with the most recent weather data")
+        self._logger.info("Downloading and updating with the most recent weather data")
 
         data = self._download_curr_data(
             "https://odp.met.hu/weather/weather_reports/synoptic/hungary/10_minutes/csv/HABP_10M_SYNOP_LATEST.csv.zip")
-        omsz_downloader_logger.info("Most recent weather data recieved")
+        self._logger.info("Most recent weather data recieved")
         self._write_curr_weather_data(data)
 
-        omsz_downloader_logger.info("Finished downloading and updating with the most recent weather data")
+        self._logger.info("Finished downloading and updating with the most recent weather data")
 
-    @_db_transaction
+    @DatabaseConnect._db_transaction
     def _get_max_end_date(self) -> pd.Timestamp | None:
         """
         Gets the maximum of EndDate in omsz_meta

@@ -1,42 +1,25 @@
 import logging
 from pathlib import Path
-import sqlite3
 import pandas as pd
 import numpy as np
 from datetime import datetime
+from .utils.db_connect import DatabaseConnect
+# sqlite3 implicitly imported via DatabaseConnect
 
 
-reader_logger = logging.getLogger("omsz")
+reader_logger = logging.getLogger("reader")
 reader_logger.setLevel(logging.DEBUG)
 reader_logger.addHandler(logging.NullHandler())
 
 
-class Reader():
+class Reader(DatabaseConnect):
     def __init__(self, db_path: Path):
-        self._db_path: Path = db_path
-        self._con: sqlite3.Connection = sqlite3.connect(
-            self._db_path, timeout=120, autocommit=False, check_same_thread=False)
-        self._curs: sqlite3.Cursor = None
+        super().__init__(db_path, reader_logger)
         self._SINGLE_TABLE_LIMIT = (3 * 365 + 2 * 366) * 24 * 60  # at least 5 years
         self._WEATHER_ALL_STATIONS_LIMIT = 7 * 24 * 60  # 1 week
 
     def __del__(self):
-        if self._con:
-            self._con.close()
-
-    def _db_transaction(func):
-        """
-        This function opens a cursor at self._curs and makes sure the decorated function is a single transaction.
-        """
-
-        def execute(self, *args, **kwargs):
-            with self._con as self._curs:
-                reader_logger.debug("Database transaction begin")
-                res = func(self, *args, **kwargs)
-                self._curs.commit()
-            reader_logger.debug("Database transaction commit")
-            return res
-        return execute
+        super().__del__()
 
     def _check_int(self, integer, name: str):
         """
@@ -110,14 +93,14 @@ class Reader():
         else:
             return '*'
 
-    @_db_transaction
+    @DatabaseConnect._db_transaction
     def get_electricity_meta(self) -> pd.DataFrame:
-        reader_logger.info("Reading MAVIR_meta")
+        self._logger.info("Reading MAVIR_meta")
         df = pd.read_sql("SELECT * FROM MAVIR_meta", con=self._con)
         df.set_index("Column", drop=True, inplace=True)
         return df
 
-    @_db_transaction
+    @DatabaseConnect._db_transaction
     def get_electricity_columns(self) -> list[str]:
         """
         Retrieves columns for MAVIR_electricity
@@ -126,7 +109,7 @@ class Reader():
         table_cols = self._curs.execute("SELECT name FROM PRAGMA_TABLE_INFO(\"MAVIR_electricity\")").fetchall()
         return [tc[0] for tc in table_cols]
 
-    @_db_transaction
+    @DatabaseConnect._db_transaction
     def get_electricity_load(self, start_date: pd.Timestamp | datetime,
                              end_date: pd.Timestamp | datetime, cols: list[str] | None) -> pd.DataFrame:
         """
@@ -145,7 +128,7 @@ class Reader():
 
         columns = self._cols_to_str(self._get_valid_cols("MAVIR_electricity", cols))
 
-        reader_logger.info(f"Reading MAVIR_electricity from {start_date} to {end_date}")
+        self._logger.info(f"Reading MAVIR_electricity from {start_date} to {end_date}")
 
         df = pd.read_sql(f"SELECT {columns} FROM MAVIR_electricity "
                          f"WHERE Time BETWEEN datetime(\"{start_date}\") AND datetime(\"{end_date}\")",
@@ -154,14 +137,14 @@ class Reader():
 
         return df
 
-    @_db_transaction
+    @DatabaseConnect._db_transaction
     def get_weather_meta(self) -> pd.DataFrame:
-        reader_logger.info("Reading OMSZ_meta")
+        self._logger.info("Reading OMSZ_meta")
         df = pd.read_sql("SELECT * FROM OMSZ_meta", con=self._con)
         df.set_index("StationNumber", drop=True, inplace=True)
         return df
 
-    @_db_transaction
+    @DatabaseConnect._db_transaction
     def get_weather_station_columns(self, station: int) -> list[str]:
         """
         Retrieves columns for given station
@@ -179,7 +162,7 @@ class Reader():
         table_cols = self._curs.execute(f"SELECT name FROM PRAGMA_TABLE_INFO(\"OMSZ_{station}\")").fetchall()
         return [tc[0] for tc in table_cols]
 
-    @_db_transaction
+    @DatabaseConnect._db_transaction
     def get_weather_all_columns(self) -> dict:
         """
         Retrieves columns for all stations
@@ -194,7 +177,7 @@ class Reader():
 
         return result
 
-    @_db_transaction
+    @DatabaseConnect._db_transaction
     def get_weather_station(self, station: int, start_date: pd.Timestamp | datetime,
                             end_date: pd.Timestamp | datetime, cols: list[str] | None) -> pd.DataFrame:
         """
@@ -219,10 +202,7 @@ class Reader():
 
         columns = self._cols_to_str(self._get_valid_cols(f"OMSZ_{station}", cols))
 
-        print(f"SELECT {columns} FROM OMSZ_{station} "
-              f"WHERE Time BETWEEN datetime(\"{start_date}\") AND datetime(\"{end_date}\")")
-
-        reader_logger.info(f"Reading OMSZ_{station} from {start_date} to {end_date}")
+        self._logger.info(f"Reading OMSZ_{station} from {start_date} to {end_date}")
 
         df = pd.read_sql(f"SELECT {columns} FROM OMSZ_{station} "
                          f"WHERE Time BETWEEN datetime(\"{start_date}\") AND datetime(\"{end_date}\")",
@@ -231,7 +211,7 @@ class Reader():
 
         return df
 
-    @_db_transaction
+    @DatabaseConnect._db_transaction
     def get_weather_time(self, start_date: pd.Timestamp | datetime, end_date: pd.Timestamp | datetime,
                          cols: list[str] | None, df_to_dict: dict | None = None,
                          stations: list[int] | None = None) -> dict:
@@ -259,8 +239,8 @@ class Reader():
         station_df = pd.read_sql("SELECT StationNumber, StartDate, EndDate FROM OMSZ_meta",
                                  con=self._con, parse_dates=["StartDate", "EndDate"])
 
-        reader_logger.info(f"Reading {'all' if not stations else len(stations)}"
-                           f"stations from {start_date} to {end_date}")
+        self._logger.info(f"Reading {'all' if not stations else len(stations)}"
+                          f"stations from {start_date} to {end_date}")
 
         result = dict()
         for _, row in station_df.iterrows():
@@ -278,7 +258,7 @@ class Reader():
                 df.set_index("Time", drop=True, inplace=True)
                 result[row["StationNumber"]] = df.replace({np.nan: None}).to_dict(**df_to_dict)
 
-        reader_logger.info("DONE")
+        self._logger.info("DONE")
 
         return result
 
