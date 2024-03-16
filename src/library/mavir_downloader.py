@@ -39,7 +39,7 @@ class MAVIR_Downloader(DatabaseConnect):
 
     @DatabaseConnect._db_transaction
     def _drop_temp(self) -> None:
-        self._curs.execute("DROP TABLE IF EXISTS _temp_mavir")
+        self._curs_.execute("DROP TABLE IF EXISTS _temp_mavir")
         self._logger.debug("Dropped temporary tables if they existed")
 
     @DatabaseConnect._db_transaction
@@ -48,14 +48,14 @@ class MAVIR_Downloader(DatabaseConnect):
         Creates metadata table if it doesn't exist yet
         :returns: None
         """
-        self._curs.execute("""CREATE TABLE IF NOT EXISTS MAVIR_meta(
+        self._curs_.execute("""CREATE TABLE IF NOT EXISTS MAVIR_meta(
             Column TEXT PRIMARY KEY,
             StartDate TIMESTAMP,
             EndDate TIMESTAMP
             )""")
 
-        self._curs.executemany("INSERT OR IGNORE INTO MAVIR_meta (Column, StartDate, EndDate) VALUES (?, ?, ?)",
-                               [(key, None, None) for key in set(self._RENAME.values()) - set(["Time"])])
+        self._curs_.executemany("INSERT OR IGNORE INTO MAVIR_meta (Column, StartDate, EndDate) VALUES (?, ?, ?)",
+                                [(key, None, None) for key in set(self._RENAME.values()) - set(["Time"])])
         # Don't need to store StarDate and EndDate for time
 
     @DatabaseConnect._assert_transaction
@@ -65,24 +65,24 @@ class MAVIR_Downloader(DatabaseConnect):
         THIS FUNCTION ASSUMES THERE IS AN ONGOING TRANSACTION
         :returns: None
         """
-        exists = self._curs.execute("SELECT name FROM sqlite_master WHERE type=\"table\" AND "
-                                    "(name=\"MAVIR_electricity\" OR name=\"MAVIR_meta\")").fetchall()
+        exists = self._curs_.execute("SELECT name FROM sqlite_master WHERE type=\"table\" AND "
+                                     "(name=\"MAVIR_electricity\" OR name=\"MAVIR_meta\")").fetchall()
         if len(exists) < 2:
             return
 
-        records = [rec for rec in self._curs.execute("SELECT * FROM MAVIR_meta").fetchall()]
+        records = [rec for rec in self._curs_.execute("SELECT * FROM MAVIR_meta").fetchall()]
 
         self._logger.info("Started metadata update")
         for col, start, end in records:
             # SELECT the minimum for the column, then update meta
-            self._curs.execute(f"UPDATE MAVIR_meta SET StartDate = ("
-                               f"SELECT MIN(Time) FROM MAVIR_electricity WHERE {col} IS NOT NULL"
-                               f") WHERE Column = \"{col}\"")
+            self._curs_.execute(f"UPDATE MAVIR_meta SET StartDate = ("
+                                f"SELECT MIN(Time) FROM MAVIR_electricity WHERE {col} IS NOT NULL"
+                                f") WHERE Column = \"{col}\"")
 
             # SELECT the maximum for the column, then update meta
-            self._curs.execute(f"UPDATE MAVIR_meta SET EndDate = ("
-                               f"SELECT MAX(Time) FROM MAVIR_electricity WHERE {col} IS NOT NULL"
-                               f") WHERE Column = \"{col}\"")
+            self._curs_.execute(f"UPDATE MAVIR_meta SET EndDate = ("
+                                f"SELECT MAX(Time) FROM MAVIR_electricity WHERE {col} IS NOT NULL"
+                                f") WHERE Column = \"{col}\"")
 
     def _format_data(self, df: pd.DataFrame) -> pd.DataFrame:
         df.columns = df.columns.str.strip()  # remove trailing whitespace
@@ -160,17 +160,17 @@ class MAVIR_Downloader(DatabaseConnect):
         """
         table_name = "MAVIR_electricity"
         self._logger.info("Starting write to table MAVIR_electricity")
-        exists = self._curs.execute(
+        exists = self._curs_.execute(
             f"SELECT name FROM sqlite_master WHERE type=\"table\" AND name=\"{table_name}\"").fetchone()
         if not exists:
             self._logger.info(f"Creating new table {table_name}")
             df.to_sql(name="_temp_mavir", con=self._con, if_exists='replace')
             # I want a primary key for the table
-            sql = self._curs.execute("SELECT sql FROM sqlite_master WHERE tbl_name = \"_temp_mavir\"").fetchone()[0]
+            sql = self._curs_.execute("SELECT sql FROM sqlite_master WHERE tbl_name = \"_temp_mavir\"").fetchone()[0]
             sql = sql.replace("_temp_mavir", table_name)
             sql = sql.replace("\"Time\" TIMESTAMP", "\"Time\" TIMESTAMP PRIMARY KEY")
-            self._curs.execute(sql)
-            self._curs.execute(f"CREATE INDEX ix_{table_name}_Time ON {table_name} (Time)")
+            self._curs_.execute(sql)
+            self._curs_.execute(f"CREATE INDEX ix_{table_name}_Time ON {table_name} (Time)")
             self._logger.debug(f"Created new table {table_name}")
         else:
             # Idea: create temp table and insert values missing into the actual table
@@ -187,7 +187,7 @@ class MAVIR_Downloader(DatabaseConnect):
         # SQL should look like this:
         # INSERT INTO table ([cols]) SELECT [cols] FROM temp WHERE Time NOT IN (SELECT Time FROM table)
         # Watch the first set of cols need (), but the second don't, also gonna remove ' marks
-        self._curs.execute(f"INSERT OR REPLACE INTO {table_name} ({cols}) SELECT {cols} FROM _temp_mavir ")
+        self._curs_.execute(f"INSERT OR REPLACE INTO {table_name} ({cols}) SELECT {cols} FROM _temp_mavir ")
 
         self._update_meta()
 
@@ -200,12 +200,12 @@ class MAVIR_Downloader(DatabaseConnect):
         Get MIN EndDate from MAVIR_meta, useful to know which Times need downloading
         :returns: minimum of EndDate as pd.Timestamp or None is all rows are NULL
         """
-        exists = self._curs.execute("SELECT name FROM sqlite_master WHERE type=\"table\" AND "
-                                    "name=\"MAVIR_meta\"").fetchone()
+        exists = self._curs_.execute("SELECT name FROM sqlite_master WHERE type=\"table\" AND "
+                                     "name=\"MAVIR_meta\"").fetchone()
         if not exists:
             return
 
-        date = self._curs.execute("SELECT MIN(EndDate) FROM MAVIR_meta").fetchone()[0]
+        date = self._curs_.execute("SELECT MIN(EndDate) FROM MAVIR_meta").fetchone()[0]
 
         # Pandas.to_datetime becomes None if date is None
         return pd.to_datetime(date, format="%Y-%m-%d %H:%M:%S")
@@ -230,7 +230,7 @@ class MAVIR_Downloader(DatabaseConnect):
         Gets the end date for NetSystemLoad from MAVIR_meta
         :returns: pandas.Timestamp for end date
         """
-        date = self._curs.execute("SELECT EndDate FROM MAVIR_meta WHERE Column=\"NetSystemLoad\"").fetchone()[0]
+        date = self._curs_.execute("SELECT EndDate FROM MAVIR_meta WHERE Column=\"NetSystemLoad\"").fetchone()[0]
         return pd.to_datetime(date, format="%Y-%m-%d %H:%M:%S")
 
     def choose_update(self) -> bool:

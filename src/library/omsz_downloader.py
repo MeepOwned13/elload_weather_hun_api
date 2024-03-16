@@ -96,7 +96,7 @@ class OMSZ_Downloader(DatabaseConnect):
         # INSERT INTO table ([cols]) SELECT [cols] FROM temp WHERE Time NOT IN (SELECT Time FROM table)
         # Watch the first set of cols need (), but the second don't, also gonna remove ' marks
         self._curs_.execute(f"INSERT INTO OMSZ_meta ({cols}) SELECT {cols} FROM _temp_meta "
-                           f"WHERE StationNumber NOT IN (SELECT StationNumber FROM OMSZ_meta)")
+                            f"WHERE StationNumber NOT IN (SELECT StationNumber FROM OMSZ_meta)")
 
         self._logger.info("Metadata updated to database")
 
@@ -237,9 +237,9 @@ class OMSZ_Downloader(DatabaseConnect):
         """
         end_date = self._curs_.execute(f"SELECT MAX(Time) FROM OMSZ_{station}").fetchone()[0]
         self._curs_.execute(f"UPDATE OMSZ_meta SET EndDate = datetime(\"{end_date}\") "
-                           f"WHERE StationNumber = {station} AND "
-                           f"(EndDate IS NULL OR EndDate < datetime(\"{end_date}\"))"
-                           )
+                            f"WHERE StationNumber = {station} AND "
+                            f"(EndDate IS NULL OR EndDate < datetime(\"{end_date}\"))"
+                            )
 
     @DatabaseConnect._db_transaction
     def _write_prev_weather_data(self, df: pd.DataFrame) -> None:
@@ -286,13 +286,13 @@ class OMSZ_Downloader(DatabaseConnect):
         # INSERT INTO table ([cols]) SELECT [cols] FROM temp WHERE Time NOT IN (SELECT Time FROM table)
         # Watch the first set of cols need (), but the second don't, also gonna remove ' marks
         self._curs_.execute(f"INSERT INTO {table_name} ({cols}) SELECT {cols} FROM _temp_omsz "
-                           f"WHERE Time NOT IN (SELECT Time FROM {table_name})")
+                            f"WHERE Time NOT IN (SELECT Time FROM {table_name})")
 
         start_date = self._curs_.execute(f"SELECT MIN(Time) FROM OMSZ_{station}").fetchone()[0]
         self._curs_.execute(f"UPDATE OMSZ_meta SET StartDate = datetime(\"{start_date}\") "
-                           f"WHERE StationNumber = {station} AND "
-                           f"(StartDate IS NULL OR StartDate > datetime(\"{start_date}\"))"
-                           )
+                            f"WHERE StationNumber = {station} AND "
+                            f"(StartDate IS NULL OR StartDate > datetime(\"{start_date}\"))"
+                            )
         self._update_end_date_meta(station)
 
         self._logger.info(
@@ -318,9 +318,9 @@ class OMSZ_Downloader(DatabaseConnect):
         # Need to request it, if no EndDate is specified (meaning no data yet) or
         # The EndDate is from before this year => res.fetchall() will return a non-empty list
         res = self._curs_.execute(f"SELECT * FROM OMSZ_meta "
-                                 f"WHERE StationNumber = {station} AND "
-                                 f"(EndDate IS NULL OR EndDate < datetime(\"{last_year}-12-31 23:50:00\"))"
-                                 )
+                                  f"WHERE StationNumber = {station} AND "
+                                  f"(EndDate IS NULL OR EndDate < datetime(\"{last_year}-12-31 23:50:00\"))"
+                                  )
 
         return bool(res.fetchall())
 
@@ -397,7 +397,7 @@ class OMSZ_Downloader(DatabaseConnect):
         station = ser["StationNumber"]
         # Check if the time was already inserted into the table
         exists = self._curs_.execute(f"SELECT Time FROM OMSZ_{station} "
-                                    f"WHERE Time = datetime(\"{ser['Time']}\")").fetchone()
+                                     f"WHERE Time = datetime(\"{ser['Time']}\")").fetchone()
         if exists:
             return
 
@@ -416,7 +416,7 @@ class OMSZ_Downloader(DatabaseConnect):
             val_str = str(val_str)[1:-1].replace("\'", "")
 
         self._curs_.execute(f"INSERT INTO OMSZ_{station} (Time, {col_str}) "
-                           f"VALUES(datetime(\"{ser['Time']}\"), {val_str})")
+                            f"VALUES(datetime(\"{ser['Time']}\"), {val_str})")
 
     @DatabaseConnect._assert_transaction
     def _write_curr_weather_data(self, df: pd.DataFrame) -> None:
@@ -435,7 +435,7 @@ class OMSZ_Downloader(DatabaseConnect):
             self._insert_curr_weather_row(row)
 
         stations = self._curs_.execute("SELECT StationNumber FROM OMSZ_meta "
-                                      "WHERE StartDate IS NOT NULL AND EndDate IS NOT NULL").fetchall()
+                                       "WHERE StartDate IS NOT NULL AND EndDate IS NOT NULL").fetchall()
         for station in stations:
             station = station[0]  # results are always tuples (inside of a list)
             self._update_end_date_meta(station)

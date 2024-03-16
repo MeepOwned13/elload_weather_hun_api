@@ -24,7 +24,7 @@ class DatabaseConnect():
     @staticmethod
     def _db_transaction(func):
         """
-        This function opens a cursor at self._curs and makes sure the decorated function is a single transaction.
+        This function opens a cursor at self._curs_ and makes sure the decorated function is a single transaction.
         """
 
         def execute(self, *args, **kwargs):

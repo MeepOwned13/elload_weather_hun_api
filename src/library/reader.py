@@ -70,7 +70,7 @@ class Reader(DatabaseConnect):
         if not cols:
             return None
 
-        table_cols = self._curs.execute(f"SELECT name FROM PRAGMA_TABLE_INFO(\"{table}\")").fetchall()
+        table_cols = self._curs_.execute(f"SELECT name FROM PRAGMA_TABLE_INFO(\"{table}\")").fetchall()
         table_cols = {tc[0].lower(): tc[0] for tc in table_cols}
         cols = [c.lower() for c in cols]
 
@@ -110,7 +110,7 @@ class Reader(DatabaseConnect):
         Retrieves columns for MAVIR_electricity
         :returns: list of columns
         """
-        table_cols = self._curs.execute("SELECT name FROM PRAGMA_TABLE_INFO(\"MAVIR_electricity\")").fetchall()
+        table_cols = self._curs_.execute("SELECT name FROM PRAGMA_TABLE_INFO(\"MAVIR_electricity\")").fetchall()
         return [tc[0] for tc in table_cols]
 
     @DatabaseConnect._db_transaction
@@ -159,11 +159,11 @@ class Reader(DatabaseConnect):
         """
         self._check_int(station, "station")
 
-        exists = self._curs.execute(f"SELECT StationNumber FROM OMSZ_meta WHERE StationNumber = {station}").fetchone()
+        exists = self._curs_.execute(f"SELECT StationNumber FROM OMSZ_meta WHERE StationNumber = {station}").fetchone()
         if not exists:
             raise LookupError(f"Can't find station {station}")
 
-        table_cols = self._curs.execute(f"SELECT name FROM PRAGMA_TABLE_INFO(\"OMSZ_{station}\")").fetchall()
+        table_cols = self._curs_.execute(f"SELECT name FROM PRAGMA_TABLE_INFO(\"OMSZ_{station}\")").fetchall()
         return [tc[0] for tc in table_cols]
 
     @DatabaseConnect._db_transaction
@@ -173,10 +173,10 @@ class Reader(DatabaseConnect):
         :returns: dict{station: [columns]}
         """
 
-        stations = self._curs.execute("SELECT StationNumber FROM OMSZ_meta").fetchall()
+        stations = self._curs_.execute("SELECT StationNumber FROM OMSZ_meta").fetchall()
         result = dict()
         for station in [s[0] for s in stations]:
-            table_cols = self._curs.execute(f"SELECT name FROM PRAGMA_TABLE_INFO(\"OMSZ_{station}\")").fetchall()
+            table_cols = self._curs_.execute(f"SELECT name FROM PRAGMA_TABLE_INFO(\"OMSZ_{station}\")").fetchall()
             result[station] = [tc[0] for tc in table_cols]
 
         return result
@@ -200,7 +200,7 @@ class Reader(DatabaseConnect):
 
         self._limit_timeframe(start_date, end_date, self._SINGLE_TABLE_LIMIT)
 
-        exists = self._curs.execute(f"SELECT StationNumber FROM OMSZ_meta WHERE StationNumber = {station}").fetchone()
+        exists = self._curs_.execute(f"SELECT StationNumber FROM OMSZ_meta WHERE StationNumber = {station}").fetchone()
         if not exists:
             raise LookupError(f"Can't find station {station}")
 
