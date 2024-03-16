@@ -12,6 +12,7 @@ from fastapi_utils.tasks import repeat_every
 from datetime import datetime
 import numpy as np
 from typing import Annotated
+from response_examples import response_examples
 
 logger = logging.getLogger("app")
 db_path = Path(f"{__file__}/../../data/sqlite.db").resolve()
@@ -71,21 +72,7 @@ async def update_check():
     # Change rollback is provided by the respective classes
 
 
-@app.get("/",
-         responses={
-             200: {
-                 "description": "Succesful Response",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "Message": "message",
-                             "last_omsz_update": "2024-02-23T11:29:56.031130",
-                             "last_mavir_update": "2024-02-23T11:29:56.031130"
-                         }
-                     }
-                 }
-             }
-         })
+@app.get("/", responses=response_examples['/'])
 async def index():
     """
     Get message about usage and sources from OMSZ and MAVIR, and last update times
@@ -94,19 +81,7 @@ async def index():
             "last_mavir_update": last_electricity_update}
 
 
-@app.get("/omsz/logo",
-         responses={
-             200: {
-                 "description": "Succesful Response",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "https://www.met.hu/images/logo/omsz_logo_1362x492_300dpi.png"
-                         }
-                     }
-                 }
-             }
-         })
+@app.get("/omsz/logo", responses=response_examples['/omsz/logo'])
 async def get_omsz_logo():
     """
     Get url to OMSZ logo required when displaying OMSZ data visually.
@@ -114,33 +89,7 @@ async def get_omsz_logo():
     return "https://www.met.hu/images/logo/omsz_logo_1362x492_300dpi.png"
 
 
-@app.get("/omsz/meta",
-         responses={
-             200: {
-                 "description": "Succesful Response",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "Message": "string",
-                             "data": {
-                                 13704: {
-                                     "StartDate": "2005-07-27 18:10:00",
-                                     "EndDate": "2024-02-21 18:30:00",
-                                     "Latitude": 47.6783,
-                                     "Longitude": 16.6022,
-                                     "Elevation": 232.8,
-                                     "StationName": "Sopron Kuruc-domb",
-                                     "RegioName": "Győr-Moson-Sopron"
-                                 },
-                                 13711: {
-                                     "...": "..."
-                                 }
-                             }
-                         }
-                     }
-                 }
-             }
-         })
+@app.get("/omsz/meta", responses=response_examples["/omsz/meta"])
 async def get_omsz_meta():
     """
     Retrieve the metadata for Weather/OMSZ stations
@@ -150,52 +99,7 @@ async def get_omsz_meta():
     return {"Message": OMSZ_MESSAGE, "data": df.to_dict(**DEFAULT_TO_DICT)}
 
 
-@app.get("/omsz/columns",
-         responses={
-             200: {
-                 "description": "Succesful Response",
-                 "content": {
-                     "application/json": {
-                         "examples": {
-                             "Specified Station": {
-                                 "value": {
-                                     "Message": "string",
-                                     "data": {
-                                         0: "Time",
-                                         1: "Prec",
-                                         2: "Temp",
-                                         "...": "..."
-                                     }
-                                 }
-                             },
-                             "Unspecified Station": {
-                                 "value": {
-                                     "Message": "string",
-                                     "data": {
-                                         13704: {
-                                             0: "Time",
-                                             1: "Prec",
-                                             2: "Temp",
-                                             "...": "..."
-                                         }
-                                     }
-                                 }
-                             }
-                         }
-                     }
-                 }
-             },
-             400: {
-                 "description": "Bad Request",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "detail": "Error message"
-                         }
-                     }
-                 }
-             }
-         })
+@app.get("/omsz/columns", responses=response_examples["/omsz/columns"])
 async def get_omsz_columns(station: int | None = None):
     """
     Get the columns of a given station's or all stations' data
@@ -211,65 +115,7 @@ async def get_omsz_columns(station: int | None = None):
     return {"Message": OMSZ_MESSAGE, "data": result}
 
 
-@app.get("/omsz/weather",
-         responses={
-             200: {
-                 "description": "Succesful Response",
-                 "content": {
-                     "application/json": {
-                         "examples": {
-                             "Specified Station": {
-                                 "value": {
-                                     "Message": "string",
-                                     "data": {
-                                         "2024-02-18 15:00:00": {
-                                             "Prec": 0,
-                                             "Temp": 10.7,
-                                             "...": "..."
-                                         },
-                                         "2024-02-18 15:10:00": {
-                                             "...": "..."
-                                         },
-                                         "...": "..."
-                                     }
-                                 }
-                             },
-                             "Unspecified Station": {
-                                 "value": {
-                                     "Message": "string",
-                                     "data": {
-                                         13704: {
-                                             "2024-02-18 15:00:00": {
-                                                 "Prec": 0,
-                                                 "Temp": 10.7,
-                                                 "...": "..."
-                                             },
-                                             "2024-02-18 15:10:00": {
-                                                 "..."
-                                             }
-                                         },
-                                         13711: {
-                                             "..."
-                                         },
-                                         "...": "..."
-                                     }
-                                 }
-                             }
-                         }
-                     }
-                 }
-             },
-             400: {
-                 "description": "Bad Request",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "detail": "Error message"
-                         }
-                     }
-                 }
-             }
-         })
+@app.get("/omsz/weather", responses=response_examples["/omsz/weather"])
 async def get_weather_station(start_date: datetime, end_date: datetime,
                               station: Annotated[list[int] | None, Query()] = None,
                               col: Annotated[list[str] | None, Query()] = None):
@@ -304,29 +150,7 @@ async def get_weather_station(start_date: datetime, end_date: datetime,
     return {"Message": OMSZ_MESSAGE, "data": result}
 
 
-@app.get("/mavir/meta",
-         responses={
-             200: {
-                 "description": "Succesful Response",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "Message": "string",
-                             "data": {
-                                 "NetPlanSystemProduction": {
-                                     "StartDate": "2011-11-01 23:10:00",
-                                     "EndDate": "2024-02-22 18:50:00",
-                                 },
-                                 "NetSystemLoad": {
-                                     "...": "..."
-                                 },
-                                 "...": "..."
-                             }
-                         }
-                     }
-                 }
-             }
-         })
+@app.get("/mavir/meta", responses=response_examples["/mavir/meta"])
 async def get_mavir_meta():
     """
     Retrieve the metadata for Electricity/MAVIR data
@@ -336,24 +160,7 @@ async def get_mavir_meta():
     return {"Message": MAVIR_MESSAGE, "data": df.to_dict(**DEFAULT_TO_DICT)}
 
 
-@app.get("/mavir/columns",
-         responses={
-             200: {
-                 "description": "Succesful Response",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "Message": "string",
-                             "data": {
-                                 0: "Time",
-                                 1: "NetSystemLoad",
-                                 "...": "..."
-                             }
-                         }
-                     }
-                 }
-             }
-         })
+@app.get("/mavir/columns", responses=response_examples["/mavir/columns"])
 async def get_electricity_columns():
     """
     Retrieve the columns of electricity data
@@ -362,40 +169,7 @@ async def get_electricity_columns():
     return {"Message": MAVIR_MESSAGE, "data": result}
 
 
-@app.get("/mavir/load",
-         responses={
-             200: {
-                 "description": "Succesful Response",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "Message": "string",
-                             "data": {
-                                 "2024-02-18 15:00:00": {
-                                     "NetSystemLoad": 4717.373,
-                                     "NetSystemLoadFactPlantManagment": 4689.369,
-                                     "...": "..."
-                                 },
-                                 "2024-02-18 15:10:00": {
-                                     "...": "..."
-                                 },
-                                 "...": "..."
-                             }
-                         }
-                     }
-                 }
-             },
-             400: {
-                 "description": "Bad Request",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "detail": "Error message"
-                         }
-                     }
-                 }
-             }
-         })
+@app.get("/mavir/load", responses=response_examples["/mavir/load"])
 async def get_electricity_load(start_date: datetime, end_date: datetime,
                                col: Annotated[list[str] | None, Query()] = None):
     """
