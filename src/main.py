@@ -9,6 +9,8 @@ import uvicorn
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query
 from fastapi_utils.tasks import repeat_every
+from fastapi.responses import FileResponse
+from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from datetime import datetime
 import numpy as np
 from typing import Annotated
@@ -23,6 +25,8 @@ last_weather_update: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
 last_electricity_update: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
 
 
+TITLE = "HUN EL&W API"
+FAVICON_PATH = Path(f"{__file__}/../favicon.ico").resolve()
 DEV_MODE = False
 OMSZ_MESSAGE = "Weather data is from OMSZ, source: (https://odp.met.hu/)"
 MAVIR_MESSAGE = "Electricity data is from MAVIR, source: (https://mavir.hu/web/mavir/rendszerterheles)"
@@ -39,7 +43,9 @@ async def lifespan(app: FastAPI):
     logger.info("Finished")
 
 app = FastAPI(
-    title="HUN EL&W API",
+    docs_url=None,
+    redoc_url=None,
+    title=TITLE,
     summary="Hungary Electricity Load and Weather API",
     description="Get live updates of Hungary's National Electricity Load and Weather stations",
     version="1.0.0",
@@ -70,6 +76,29 @@ async def update_check():
                      f"message: {str(e)} | "
                      f"Make sure you are connected to the internet and https://www.mavir.hu is available")
     # Change rollback is provided by the respective classes
+
+
+@app.get('/favicon.ico', include_in_schema=False)
+async def favicon():
+    return FileResponse(FAVICON_PATH)
+
+
+@app.get("/docs", include_in_schema=False)
+async def swagger_ui_html():
+    return get_swagger_ui_html(
+        openapi_url="/openapi.json",
+        title=TITLE,
+        swagger_favicon_url="/favicon.ico"
+    )
+
+
+@app.get("/redoc", include_in_schema=False)
+def overridden_redoc():
+    return get_redoc_html(
+        openapi_url="/openapi.json",
+        title="FastAPI",
+        redoc_favicon_url="/favicon.ico"
+    )
 
 
 @app.get("/", responses=response_examples['/'])
@@ -148,6 +177,14 @@ async def get_weather_station(start_date: datetime, end_date: datetime,
     except (LookupError, ValueError) as error:
         raise HTTPException(status_code=400, detail=str(error))
     return {"Message": OMSZ_MESSAGE, "data": result}
+
+
+@app.get("/mavir/logo", responses=response_examples['/mavir/logo'])
+async def get_mavir_logo():
+    """
+    Get url to MAVIR logo to use when displaying MAVIR data visually (optional)
+    """
+    return "https://www.mavir.hu/o/mavir-portal-theme/images/mavir_logo_white.png"
 
 
 @app.get("/mavir/meta", responses=response_examples["/mavir/meta"])

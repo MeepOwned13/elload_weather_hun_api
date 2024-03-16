@@ -154,6 +154,18 @@ response_examples = {
             }
         }
     },
+    "/mavir/logo": {
+        200: {
+            "description": "Succesful Response",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "https://www.mavir.hu/o/mavir-portal-theme/images/mavir_logo_white.png"
+                    }
+                }
+            }
+        }
+    },
     "/mavir/meta": {
         200: {
             "description": "Succesful Response",
