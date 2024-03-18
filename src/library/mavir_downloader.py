@@ -15,6 +15,9 @@ mavir_downloader_logger.addHandler(logging.NullHandler())
 
 class MAVIR_Downloader(DatabaseConnect):
     def __init__(self, db_path: Path):
+        """
+        :param db_path: Path to Database
+        """
         super().__init__(db_path, mavir_downloader_logger)
         self._sess: Session = Session()
         self._RENAME: dict = {"Időpont": "Time",  # Time of data

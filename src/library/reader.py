@@ -18,6 +18,9 @@ class Reader(DatabaseConnect):
     """
 
     def __init__(self, db_path: Path):
+        """
+        :param db_path: Path to Database
+        """
         super().__init__(db_path, reader_logger)
         self._SINGLE_TABLE_LIMIT = (3 * 365 + 2 * 366) * 24 * 60  # at least 5 years
         self._WEATHER_ALL_STATIONS_LIMIT = 7 * 24 * 60  # 1 week
