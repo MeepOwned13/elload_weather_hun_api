@@ -154,7 +154,7 @@ function makeOmszMap(datetime, column) {
             if (value === 0) {
                 continue // if windstrength is 0, then skip it
             }
-            angle = station[datetime][format.directionFeature]
+            angle = station[format.directionFeature]
             symbol = "arrow-wide"
             size = 27
         }
