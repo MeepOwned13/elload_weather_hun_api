@@ -322,6 +322,8 @@ class OMSZ_Downloader(DatabaseConnect):
         if self.unsafe_prev_write:
             self._curs_.execute("PRAGMA journal_mode = DEFAULT")
 
+        self._update_start_end_dates(station)
+
         self._logger.info(f"Updated OMSZ_data with historical/recent data for {station}")
 
     @DatabaseConnect._db_transaction
@@ -343,13 +345,12 @@ class OMSZ_Downloader(DatabaseConnect):
         # Historical csv-s contain data up to lastyear-12-31 23:50:00 UTC
         # Need to request it, if no EndDate is specified (meaning no data yet) or
         # The EndDate is from before this year => res.fetchall() will return a non-empty list
-        res = self._curs_.execute(f"SELECT * FROM OMSZ_data "
+        res = self._curs_.execute(f"SELECT * FROM OMSZ_meta "
                                   f"WHERE StationNumber = {station} AND "
-                                  f"(Time <= datetime(\"{last_year}-12-31 23:50:00\"))"
-                                  f"LIMIT 1"
+                                  f"(EndDate IS NULL OR EndDate < datetime(\"{last_year}-12-31 23:50:00\"))"
                                   )
 
-        return not bool(res.fetchone())
+        return bool(res.fetchone())
 
     def update_hist_weather_data(self) -> None:
         """
@@ -371,6 +372,32 @@ class OMSZ_Downloader(DatabaseConnect):
 
         self._logger.info("Finished downloading and updating with historical weather data")
 
+    @DatabaseConnect._db_transaction
+    def _is_rec_needed(self, url: str) -> bool:
+        """
+        Checks if given historical url would contain data we need
+        :param url: url to check
+        :returns: Should this data be downloaded?
+        """
+        # Technically, urls are pre-filtered to contain stations which are still active,
+        # but this method will check the year for safety
+        check = pd.Timestamp.now("UTC").tz_localize(None) - pd.Timedelta(days=1)
+        regex = re.compile(r".*_(\d{5})_.*")
+        match = regex.match(url)
+        if not match:
+            return False
+
+        station = match.group(1)
+        # Recent csv-s contain data up to 1 day (24 hours) ago
+        # Need to request it, if no EndDate is specified (meaning no data yet) or
+        # The EndDate is from before this year => res.fetchall() will return a non-empty list
+        res = self._curs_.execute(f"SELECT * FROM OMSZ_meta "
+                                  f"WHERE StationNumber = {station} AND "
+                                  f"(EndDate IS NULL OR EndDate <= datetime(\"{check.strftime('%Y-%m-%d %H-%M-%S')}\"))"
+                                  )
+
+        return bool(res.fetchone())
+
     def update_rec_weather_data(self):
         """
         Update recent weather data
@@ -380,10 +407,13 @@ class OMSZ_Downloader(DatabaseConnect):
 
         rec_urls = self._get_weather_downloads("https://odp.met.hu/climate/observations_hungary/10_minutes/recent/")
         for url in rec_urls:
-            data = self._download_prev_data(url)
-            if data is None:
-                continue
-            self._write_prev_weather_data(data)
+            if self._is_rec_needed(url):
+                data = self._download_prev_data(url)
+                if data is None:
+                    continue
+                self._write_prev_weather_data(data)
+            else:
+                self._logger.debug(f"Recent data not needed at {url}")
 
         self._logger.info("Finished downloading and updating with recent weather data")
 
@@ -438,6 +468,15 @@ class OMSZ_Downloader(DatabaseConnect):
         # Ignoring seemed slower, but for this little data, it's not noticable
         self._curs_.execute(f"INSERT OR IGNORE INTO OMSZ_data ({cols}) SELECT {cols} FROM _temp_omsz")
 
+        # Doing the EndDate update here since it is much faster than trying to find max (+min) in 100_000_000+ lines
+        for station in [s[0] for s in self._curs_.execute("SELECT StationNumber FROM OMSZ_meta")]:
+            end = self._curs_.execute(
+                f"SELECT MAX(Time) FROM _temp_omsz WHERE StationNumber = {station}").fetchone()[0]
+            if end:  # not None
+                self._curs_.execute(f"UPDATE OMSZ_meta SET "
+                                    f"EndDate = datetime(\"{end}\") WHERE StationNumber = {station} AND "
+                                    f"EndDate < datetime(\"{end}\")")
+
     @DatabaseConnect._db_transaction
     def update_past24h_weather_data(self) -> None:
         """
@@ -479,14 +518,21 @@ class OMSZ_Downloader(DatabaseConnect):
 
         self._logger.info("Finished downloading and updating with the most recent weather data")
 
-    @DatabaseConnect._db_transaction
-    def _update_start_end_dates(self):
-        for station in [s[0] for s in self._curs_.execute("SELECT StationNumber FROM OMSZ_meta")]:
+    @DatabaseConnect._assert_transaction
+    def _update_start_end_dates(self, station=None):
+        """
+        Update start and end date in meta
+        :param station: if specified will only perform update for corresponding station
+        """
+        stations = [station] if station else [s[0] for s in self._curs_.execute("SELECT StationNumber FROM OMSZ_meta")]
+        for station in stations:
             start, end = self._curs_.execute(
                 f"SELECT MIN(Time), MAX(Time) FROM OMSZ_data WHERE StationNumber = {station}").fetchone()
             if start and end:  # not None
                 self._curs_.execute(f"UPDATE OMSZ_meta SET StartDate = datetime(\"{start}\"), "
                                     f"EndDate = datetime(\"{end}\") WHERE StationNumber = {station}")
+
+        self._logger.info(f"Updated start and end dates for {station if len(stations) == 1 else 'all stations'}")
 
     @DatabaseConnect._db_transaction
     def _get_max_end_date(self) -> pd.Timestamp | None:
@@ -510,7 +556,6 @@ class OMSZ_Downloader(DatabaseConnect):
                 self.update_curr_weather_data()
             else:
                 self.update_past24h_weather_data()
-            self._update_start_end_dates()
             return True
         return False
 
@@ -532,8 +577,6 @@ class OMSZ_Downloader(DatabaseConnect):
         # (Theoretically reverse order could result in missing t-24h if it passes a 10 min mark during it)
         self.update_rec_weather_data()
         # Past24h again to ensure we have the most recent data before starting
-        # Recent update could result in passingMAX(Time),  a 10 min mark
+        # Recent update could result in passingMAX a 10 min mark
         self.update_past24h_weather_data()
-        self.update_curr_weather_data()
-        self._update_start_end_dates()
 
