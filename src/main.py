@@ -238,6 +238,7 @@ def main(logger: logging.Logger, skip_checks: bool):
                          f"message: {str(e)} | "
                          f"Make sure you are connected to the internet and https://odp.met.hu/ is available")
             exit(1)
+    exit(0)
     # MAVIR init
     if not skip_checks and not DEV_MODE:
         try:
@@ -257,9 +258,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="HUN Electricity and Weather API")
     parser.add_argument("-sc", "--skip_checks", help="Skip startup DB download checks", action="store_true")
     parser.add_argument("-d", "--dev", help="Developer mode, no downloads happen", action="store_true")
+    parser.add_argument("-us", "--unsafe_setup",
+                        help="Unsafe OMSZ setup, way faster but errors may result in corrupted Database",
+                        action="store_true")
     args = parser.parse_args()
 
     DEV_MODE = args.dev
+    if args.unsafe_setup:
+        omsz_dl = o_dl.OMSZ_Downloader(db_path, args.unsafe_setup)
 
     # Set up logging
     log_folder = Path(f"{__file__}/../../logs").resolve()

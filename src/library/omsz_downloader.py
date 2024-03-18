@@ -22,7 +22,12 @@ class OMSZ_Downloader(DatabaseConnect):
     Checking for the existence of OMSZ_meta isn't included to increase performance
     """
 
-    def __init__(self, db_path: Path):
+    def __init__(self, db_path: Path, unsafe_setup=False):
+        """
+        :param db_path: Path to Database
+        :param unsafe_setup: turns off journal for historical/recent data inserts, massive speedup
+                             but any error results in possibly corrupted data
+        """
         super().__init__(db_path, omsz_downloader_logger)
         self._sess: Session = Session()
         self._RENAME: dict = {"Station Number": "StationNumber",  # Station Number
@@ -53,6 +58,7 @@ class OMSZ_Downloader(DatabaseConnect):
                               "tsn": "MinNSTemp",  # Minimum Near-Surface Temperature
                               "tviz": "WTemp",  # Water Temperature
                               }
+        self.unsafe_prev_write = unsafe_setup
 
     def __del__(self):
         if self._con:
@@ -65,41 +71,6 @@ class OMSZ_Downloader(DatabaseConnect):
         self._curs_.execute("DROP TABLE IF EXISTS _temp_meta")
         self._curs_.execute("DROP TABLE IF EXISTS _temp_omsz")
         self._logger.debug("Dropped temporary tables if they existed")
-
-    @DatabaseConnect._db_transaction
-    def _write_meta(self, df: pd.DataFrame) -> None:
-        """
-        Write metadata to Database
-        :param df: DataFrame to write to Database
-        """
-        self._logger.info("Starting update to metadata table")
-        # StarDate and EndDate will be accessible through a VIEW named OMSZ_status
-        df.drop(columns=["StartDate", "EndDate"], inplace=True)
-
-        tables = self._curs_.execute("SELECT tbl_name FROM sqlite_master").fetchall()
-        tables = [t[0] for t in tables]
-        if "OMSZ_meta" not in tables:
-            self._logger.info("Creating metadata table")
-            df.to_sql(name="_temp_meta", con=self._con, if_exists='replace')
-            # I want a primary key for the table
-            sql = self._curs_.execute("SELECT sql FROM sqlite_master WHERE tbl_name = \"_temp_meta\"").fetchone()[0]
-            sql = sql.replace("_temp_meta", "OMSZ_meta")
-            sql = sql.replace("\"StationNumber\" INTEGER", "\"StationNumber\" INTEGER PRIMARY KEY")
-            self._curs_.execute(sql)
-            self._curs_.execute("CREATE INDEX ix_omsz_meta_StationNumber ON OMSZ_meta (StationNumber)")
-            self._logger.debug("Created metadata table")
-        else:
-            df.to_sql(name="_temp_meta", con=self._con, if_exists='replace')
-
-        # Copy over the data
-        cols = "StationNumber, " + str(tuple(df.columns))[1:-1].replace("\'", "")
-        # SQL should look like this:
-        # INSERT INTO table ([cols]) SELECT [cols] FROM temp WHERE Time NOT IN (SELECT Time FROM table)
-        # Watch the first set of cols need (), but the second don't, also gonna remove ' marks
-        self._curs_.execute(f"INSERT INTO OMSZ_meta ({cols}) SELECT {cols} FROM _temp_meta "
-                            f"WHERE StationNumber NOT IN (SELECT StationNumber FROM OMSZ_meta)")
-
-        self._logger.info("Metadata updated to database")
 
     @DatabaseConnect._db_transaction
     def _create_data_table(self):
@@ -137,27 +108,10 @@ class OMSZ_Downloader(DatabaseConnect):
                 )
             """
         )
-        self._curs_.execute("CREATE INDEX IF NOT EXISTS OMSZ_data_dual_index ON OMSZ_data(Time, StationNumber)")
         self._curs_.execute("CREATE INDEX IF NOT EXISTS OMSZ_data_station_index ON OMSZ_data(StationNumber)")
         self._curs_.execute("CREATE INDEX IF NOT EXISTS OMSZ_data_time_index ON OMSZ_data(Time)")
 
         self._logger.debug("Created data table if it didn't exist")
-
-    @DatabaseConnect._db_transaction
-    def _create_views(self):
-        self._curs_.execute(
-            """
-            CREATE VIEW IF NOT EXISTS OMSZ_status AS
-            SELECT OMSZ_meta.StationNumber, Latitude, Longitude, Elevation, StationName, StartDate, EndDate
-            FROM OMSZ_meta LEFT JOIN (
-                SELECT StationNumber, MIN(Time) StartDate, MAX(Time) EndDate
-                FROM OMSZ_data GROUP BY StationNumber
-                ) data
-            ON OMSZ_meta.StationNumber = data.StationNumber
-            """
-        )
-
-        self._logger.info("Views created")
 
     def _df_cols_to_sql_cols(self, df: pd.DataFrame):
         """
@@ -177,6 +131,41 @@ class OMSZ_Downloader(DatabaseConnect):
             col_str = col_str[:-1]  # tuple->str leaves a ',' if it has a single element
 
         return col_str
+
+    @DatabaseConnect._db_transaction
+    def _write_meta(self, df: pd.DataFrame) -> None:
+        """
+        Write metadata to Database
+        :param df: DataFrame to write to Database
+        """
+        self._logger.info("Starting update to metadata table")
+        # StarDate and EndDate will be accessible through a VIEW named OMSZ_status
+        df.loc[:, ["StartDate", "EndDate"]] = pd.NaT
+
+        tables = self._curs_.execute("SELECT tbl_name FROM sqlite_master").fetchall()
+        tables = [t[0] for t in tables]
+        if "OMSZ_meta" not in tables:
+            self._logger.info("Creating metadata table")
+            df.to_sql(name="_temp_meta", con=self._con, if_exists='replace')
+            # I want a primary key for the table
+            sql = self._curs_.execute("SELECT sql FROM sqlite_master WHERE tbl_name = \"_temp_meta\"").fetchone()[0]
+            sql = sql.replace("_temp_meta", "OMSZ_meta")
+            sql = sql.replace("\"StationNumber\" INTEGER", "\"StationNumber\" INTEGER PRIMARY KEY")
+            self._curs_.execute(sql)
+            self._curs_.execute("CREATE INDEX ix_omsz_meta_StationNumber ON OMSZ_meta (StationNumber)")
+            self._logger.debug("Created metadata table")
+        else:
+            df.to_sql(name="_temp_meta", con=self._con, if_exists='replace')
+
+        # Copy over the data
+        cols = "StationNumber, " + str(tuple(df.columns))[1:-1].replace("\'", "")
+        # SQL should look like this:
+        # INSERT INTO table ([cols]) SELECT [cols] FROM temp WHERE Time NOT IN (SELECT Time FROM table)
+        # Watch the first set of cols need (), but the second don't, also gonna remove ' marks
+        self._curs_.execute(f"INSERT INTO OMSZ_meta ({cols}) SELECT {cols} FROM _temp_meta "
+                            f"WHERE StationNumber NOT IN (SELECT StationNumber FROM OMSZ_meta)")
+
+        self._logger.info("Metadata updated to database")
 
     def _format_meta(self, meta: pd.DataFrame) -> pd.DataFrame:
         """
@@ -319,13 +308,19 @@ class OMSZ_Downloader(DatabaseConnect):
 
         station = df["StationNumber"].iloc[0]
         self._logger.debug(f"Starting historical/recent write with {station} to OMSZ_data")
-        df.to_sql(name="_temp_omsz", con=self._con, if_exists='replace')
 
-        # Specifying column names to be safe from different orderings of SQL columns
+        # Specifying column names to be safe from different orderings of columns
         cols = self._df_cols_to_sql_cols(df)
+
+        df.to_sql(name="_temp_omsz", con=self._con, if_exists='replace')
+        if self.unsafe_prev_write:
+            self._curs_.execute("PRAGMA journal_mode = OFF")
 
         self._curs_.execute(f"INSERT INTO OMSZ_data ({cols}) SELECT {cols} FROM _temp_omsz "
                             f"WHERE Time NOT IN (SELECT Time FROM OMSZ_data WHERE StationNumber = {station})")
+
+        if self.unsafe_prev_write:
+            self._curs_.execute("PRAGMA journal_mode = DEFAULT")
 
         self._logger.info(f"Updated OMSZ_data with historical/recent data for {station}")
 
@@ -348,12 +343,13 @@ class OMSZ_Downloader(DatabaseConnect):
         # Historical csv-s contain data up to lastyear-12-31 23:50:00 UTC
         # Need to request it, if no EndDate is specified (meaning no data yet) or
         # The EndDate is from before this year => res.fetchall() will return a non-empty list
-        res = self._curs_.execute(f"SELECT * FROM OMSZ_status "
+        res = self._curs_.execute(f"SELECT * FROM OMSZ_data "
                                   f"WHERE StationNumber = {station} AND "
-                                  f"(StartDate IS NULL OR StartDate >= datetime(\"{last_year}-12-31 23:50:00\"))"
+                                  f"(Time <= datetime(\"{last_year}-12-31 23:50:00\"))"
+                                  f"LIMIT 1"
                                   )
 
-        return bool(res.fetchall())
+        return not bool(res.fetchone())
 
     def update_hist_weather_data(self) -> None:
         """
@@ -484,6 +480,15 @@ class OMSZ_Downloader(DatabaseConnect):
         self._logger.info("Finished downloading and updating with the most recent weather data")
 
     @DatabaseConnect._db_transaction
+    def _update_start_end_dates(self):
+        for station in [s[0] for s in self._curs_.execute("SELECT StationNumber FROM OMSZ_meta")]:
+            start, end = self._curs_.execute(
+                f"SELECT MIN(Time), MAX(Time) FROM OMSZ_data WHERE StationNumber = {station}").fetchone()
+            if start and end:  # not None
+                self._curs_.execute(f"UPDATE OMSZ_meta SET StartDate = datetime(\"{start}\"), "
+                                    f"EndDate = datetime(\"{end}\") WHERE StationNumber = {station}")
+
+    @DatabaseConnect._db_transaction
     def _get_max_end_date(self) -> pd.Timestamp | None:
         """
         Gets the maximum of EndDate in omsz_meta
@@ -505,6 +510,7 @@ class OMSZ_Downloader(DatabaseConnect):
                 self.update_curr_weather_data()
             else:
                 self.update_past24h_weather_data()
+            self._update_start_end_dates()
             return True
         return False
 
@@ -516,7 +522,6 @@ class OMSZ_Downloader(DatabaseConnect):
         # Order of operations justified in comments
         self._create_data_table()
         self.update_meta()
-        self._create_views()
         # After tables are created it's time to update
         # Starting with historical since it doesn't affect any of the following ones and is a long running operation
         self.update_hist_weather_data()
@@ -530,5 +535,5 @@ class OMSZ_Downloader(DatabaseConnect):
         # Recent update could result in passingMAX(Time),  a 10 min mark
         self.update_past24h_weather_data()
         self.update_curr_weather_data()
-        exit(0)
+        self._update_start_end_dates()
 
