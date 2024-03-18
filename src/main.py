@@ -131,14 +131,10 @@ async def get_omsz_meta():
 @app.get("/omsz/columns", responses=response_examples["/omsz/columns"])
 async def get_omsz_columns(station: int | None = None):
     """
-    Get the columns of a given station's or all stations' data
-    - **station**: single number or nothing to get all stations
+    Get the columns available in weather data
     """
     try:
-        if station:
-            result = reader.get_weather_station_columns(station)
-        else:
-            result = reader.get_weather_all_columns()
+        result = reader.get_weather_station_columns()
     except (LookupError, ValueError) as error:
         raise HTTPException(status_code=400, detail=str(error))
     return {"Message": OMSZ_MESSAGE, "data": result}
@@ -147,13 +143,15 @@ async def get_omsz_columns(station: int | None = None):
 @app.get("/omsz/weather", responses=response_examples["/omsz/weather"])
 async def get_weather_station(start_date: datetime, end_date: datetime,
                               station: Annotated[list[int] | None, Query()] = None,
-                              col: Annotated[list[str] | None, Query()] = None):
+                              col: Annotated[list[str] | None, Query()] = None,
+                              date_first: bool = False):
     """
     Retrieve weather data
     - **start_date**: Date to start from
     - **end_date**: Date to end on
     - **station**: List of stations to retrieve or nothing to get all stations
     - **col**: List of columns to retrieve or nothing to get all columns
+    - **date_first**: On multistation query, results are grouped by date instead of station
 
     When retrieving a single station
     - limit of timeframe is 5 years
@@ -169,17 +167,22 @@ async def get_weather_station(start_date: datetime, end_date: datetime,
         station = []
     try:
         if len(station) == 1:
-            df: pd.DataFrame = reader.get_weather_station(station[0], start_date, end_date, cols=col)
+            df: pd.DataFrame = reader.get_weather_one_station(station[0], start_date, end_date, cols=col)
             result = df.replace({np.nan: None}).to_dict(**DEFAULT_TO_DICT)
         else:
-            result = reader.get_weather_time(start_date, end_date, cols=col,
-                                             stations=station, df_to_dict=DEFAULT_TO_DICT)
+            df: pd.DataFrame = reader.get_weather_multi_station(start_date, end_date, cols=col, stations=station)
+            result = {}
+            group_name = "Time" if date_first else "StationNumber"
+            grouped = df.groupby(group_name)
+            for gr in grouped.groups:
+                group = grouped.get_group(gr).set_index("StationNumber" if date_first else "Time")
+                result[gr] = group.drop(columns=group_name).replace({np.nan: None}).to_dict(**DEFAULT_TO_DICT)
     except (LookupError, ValueError) as error:
         raise HTTPException(status_code=400, detail=str(error))
     return {"Message": OMSZ_MESSAGE, "data": result}
 
 
-@app.get("/mavir/logo", responses=response_examples['/mavir/logo'])
+@ app.get("/mavir/logo", responses=response_examples['/mavir/logo'])
 async def get_mavir_logo():
     """
     Get url to MAVIR logo to use when displaying MAVIR data visually (optional)
@@ -187,7 +190,7 @@ async def get_mavir_logo():
     return "https://www.mavir.hu/o/mavir-portal-theme/images/mavir_logo_white.png"
 
 
-@app.get("/mavir/meta", responses=response_examples["/mavir/meta"])
+@ app.get("/mavir/meta", responses=response_examples["/mavir/meta"])
 async def get_mavir_meta():
     """
     Retrieve the metadata for Electricity/MAVIR data
@@ -197,7 +200,7 @@ async def get_mavir_meta():
     return {"Message": MAVIR_MESSAGE, "data": df.to_dict(**DEFAULT_TO_DICT)}
 
 
-@app.get("/mavir/columns", responses=response_examples["/mavir/columns"])
+@ app.get("/mavir/columns", responses=response_examples["/mavir/columns"])
 async def get_electricity_columns():
     """
     Retrieve the columns of electricity data
@@ -206,7 +209,7 @@ async def get_electricity_columns():
     return {"Message": MAVIR_MESSAGE, "data": result}
 
 
-@app.get("/mavir/load", responses=response_examples["/mavir/load"])
+@ app.get("/mavir/load", responses=response_examples["/mavir/load"])
 async def get_electricity_load(start_date: datetime, end_date: datetime,
                                col: Annotated[list[str] | None, Query()] = None):
     """

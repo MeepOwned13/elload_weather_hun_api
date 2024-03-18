@@ -56,30 +56,13 @@ response_examples = {
             "description": "Succesful Response",
             "content": {
                 "application/json": {
-                    "examples": {
-                        "Specified Station": {
-                            "value": {
-                                "Message": "string",
-                                "data": {
-                                    0: "Time",
-                                    1: "Prec",
-                                    2: "Temp",
-                                    "...": "..."
-                                }
-                            }
-                        },
-                        "Unspecified Station": {
-                            "value": {
-                                "Message": "string",
-                                "data": {
-                                    13704: {
-                                        0: "Time",
-                                        1: "Prec",
-                                        2: "Temp",
-                                        "...": "..."
-                                    }
-                                }
-                            }
+                    "example": {
+                        "Message": "string",
+                        "data": {
+                            0: "Time",
+                            1: "Prec",
+                            2: "Temp",
+                            "...": "..."
                         }
                     }
                 }

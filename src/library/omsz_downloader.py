@@ -401,21 +401,25 @@ class OMSZ_Downloader(DatabaseConnect):
     def update_rec_weather_data(self):
         """
         Update recent weather data
-        :returns: None
+        :returns: Any updates happened?
         """
         self._logger.info("Downloading and updating with recent weather data")
 
+        updated = False
         rec_urls = self._get_weather_downloads("https://odp.met.hu/climate/observations_hungary/10_minutes/recent/")
         for url in rec_urls:
             if self._is_rec_needed(url):
                 data = self._download_prev_data(url)
-                if data is None:
+                if data is None or data.empty or len(tuple(data.columns)) == 0:
                     continue
                 self._write_prev_weather_data(data)
+                updated = True
             else:
                 self._logger.debug(f"Recent data not needed at {url}")
 
         self._logger.info("Finished downloading and updating with recent weather data")
+
+        return updated
 
     def _format_past24h_weather(self, df: pd.DataFrame):
         df.columns = df.columns.str.strip()  # remove trailing whitespace
@@ -575,8 +579,8 @@ class OMSZ_Downloader(DatabaseConnect):
         # Recent comes next (current year)
         # Doing this after the past24h ensures that there are no gaps happening at the t-24h mark
         # (Theoretically reverse order could result in missing t-24h if it passes a 10 min mark during it)
-        self.update_rec_weather_data()
-        # Past24h again to ensure we have the most recent data before starting
-        # Recent update could result in passingMAX a 10 min mark
-        self.update_past24h_weather_data()
+        if self.update_rec_weather_data():
+            # Past24h again to ensure we have the most recent data before starting if any updates happened with recent
+            # Recent update could result in passingMAX a 10 min mark
+            self.update_past24h_weather_data()
 
