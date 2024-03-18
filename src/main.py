@@ -238,7 +238,6 @@ def main(logger: logging.Logger, skip_checks: bool):
                          f"message: {str(e)} | "
                          f"Make sure you are connected to the internet and https://odp.met.hu/ is available")
             exit(1)
-    exit(0)
     # MAVIR init
     if not skip_checks and not DEV_MODE:
         try:
