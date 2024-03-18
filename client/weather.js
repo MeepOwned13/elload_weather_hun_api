@@ -21,7 +21,7 @@ let omszRequestedMaxDate = null
 let omszMeta = null
 let omszData = null
 let omszLastUpdate = null
-let omszMapLotAxis =  [omszMapBaseLotAxis.min, omszMapBaseLotAxis.max]
+let omszMapLotAxis = [omszMapBaseLotAxis.min, omszMapBaseLotAxis.max]
 let omszResizeTimeout = null
 
 // map formatting Object
@@ -120,28 +120,27 @@ function makeOmszMap(datetime, column) {
         "</p>"
 
     let meta = omszMeta.data
-    let data = omszData.data
+    let data = omszData.data[datetime]
+    if (data === undefined) {
+        throw new Error("No data for " + datetime)
+    }
     let format = omszMapFormat[column]
 
     let plotData = []
 
-    for (let key in meta) {
+    for (let key in data) {
         let item = meta[key]
         let station = data[key]
 
         let color = null
         let value = null
         // station may be not retrieved, not have respective column or not have data for given time
-        if (!(station === undefined) &&
-            datetime in station &&
-            !((value = station[datetime][column]) === null) &&
-            !(value === undefined)
-        ) {
-            let interpol = linearGradient(format.gradient, getPercentageInRange(format.min, format.max, value))
-            color = arrToRGBA(interpol)
-        } else {
+        // since I'm assigning a value inside of the if statement, I'll need a solution with && (cause: lazy execution)
+        if (((value = station[column]) === null) || (value === undefined)) {
             continue
         }
+        let interpol = linearGradient(format.gradient, getPercentageInRange(format.min, format.max, value))
+        color = arrToRGBA(interpol)
 
         let text = value.toString() + format.measurement + ' ' + item.StationName.trim()
         let lon = item.Longitude
@@ -276,7 +275,7 @@ async function updateOmszMap(datetime, column) {
 
         omszData = await fetchData(
             apiUrl + 'omsz/weather?start_date=' + omszRequestedMinDate + '&end_date=' + omszRequestedMaxDate +
-            '&col=' + cols.join('&col=')
+            '&date_first=True&col=' + cols.join('&col=')
         )
 
         setOmszNavDisabled(false)
@@ -325,7 +324,7 @@ async function updateOmsz() {
 
 function updateOmszMapDimensions() {
     const width = window.getComputedStyle(document.getElementById(omszMapDivId)).getPropertyValue("width").slice(0, -2)
-    if(width == "au") return; // means width was auto, it isn't displayed
+    if (width == "au") return; // means width was auto, it isn't displayed
     const part = width / omszMapBaseWidth
     const newLotRange = (omszMapBaseLotAxis.max - omszMapBaseLotAxis.min) * part
     const centerLot = (omszMapBaseLotAxis.max + omszMapBaseLotAxis.min) / 2
@@ -354,8 +353,8 @@ function setupOmsz() {
     updateOmszMapDimensions()
     updateOmszPlot()
 
-    omszDateInput.addEventListener("change", updateOmszPlot) 
-    omszDropdown.addEventListener("change", updateOmszPlot) 
+    omszDateInput.addEventListener("change", updateOmszPlot)
+    omszDropdown.addEventListener("change", updateOmszPlot)
 
     omszForwardButton.addEventListener("click", () => {
         addMinutesToInputRounded10(omszDateInput, 10)
