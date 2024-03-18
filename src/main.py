@@ -11,6 +11,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi_utils.tasks import repeat_every
 from fastapi.responses import FileResponse
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
+from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 import numpy as np
 from typing import Annotated
@@ -50,6 +51,13 @@ app = FastAPI(
     description="Get live updates of Hungary's National Electricity Load and Weather stations",
     version="1.0.0",
     lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_headers=["*"],
+)
 
 
 @repeat_every(seconds=10)
