@@ -1,6 +1,7 @@
-import sqlite3
-from pathlib import Path
 import logging
+import pandas as pd
+import mysql.connector as connector
+import numpy as np
 
 
 class DatabaseConnect():
@@ -9,15 +10,15 @@ class DatabaseConnect():
     It also requires a logger, which can be used the child class
     """
 
-    def __init__(self, db_path: Path, logger: logging.Logger):
-        self._db_path: Path = db_path
-        self._con: sqlite3.Connection = sqlite3.connect(
-            self._db_path, timeout=120, autocommit=False, check_same_thread=False)
-        self._curs_: sqlite3.Cursor = None  # _ after a variable means it's not initiated druing __init__, but later
+    def __init__(self, db_connect_info: dict, logger: logging.Logger):
+        self._con: connector.CMySQLConnection = connector.connect(**db_connect_info)
+        self._curs: connector.cursor_cext.CMySQLCursor = None
         self._logger: logging.Logger = logger
         self._in_transaction = False
 
     def __del__(self):
+        if self._curs:
+            self._curs.close()
         if self._con:
             self._con.close()
 
@@ -30,13 +31,19 @@ class DatabaseConnect():
         def execute(self, *args, **kwargs):
             try:
                 self._in_transaction = True
-                with self._con as self._curs_:
-                    self._logger.debug("Database transaction begin")
-                    res = func(self, *args, **kwargs)
-                    self._curs_.commit()
+                self._curs = self._con.cursor()
+                self._curs.execute("BEGIN")
+                self._logger.debug("Database transaction begin")
+                res = func(self, *args, **kwargs)
+                self._curs.execute("COMMIT")
+                self._logger.debug("Database transaction commit")
+            except Exception:
+                self._curs.execute("ROLLBACK")
+                self._logger.debug("Database transaction rollback")
+                raise
             finally:
+                self._curs.close()
                 self._in_transaction = False
-            self._logger.debug("Database transaction commit")
             return res
         return execute
 
@@ -51,4 +58,47 @@ class DatabaseConnect():
                 raise RuntimeError("Function requires an ongoing transaction")
             return func(self, *args, **kwargs)
         return execute
+
+    def _df_cols_to_sql_cols(self, df: pd.DataFrame):
+        """
+        Convert column names to SQL viable string, needs at least 1 column
+        Useful to specify columns of Tables at insertion to avoid problems with orders
+        :param df: DataFrame to get columns of
+        :returns: SQL compatible string of column names
+        """
+        cols = tuple(df.columns)
+        if df.index.name:
+            cols = (df.index.name) + cols
+
+        if len(cols) < 1:
+            raise ValueError("No columns")
+
+        # SQLite prefers " instead of ', also removing () after tuple->str
+        col_str = str(cols).replace("'", "")[1:-1]
+        if len(cols) == 1:
+            col_str = col_str[:-1]  # tuple->str leaves a ',' if it has a single element
+
+        return col_str
+
+    def _df_to_sql(self, df: pd.DataFrame, table: str, method: str = 'INSERT IGNORE'):
+        """
+        Expects that df is indexed via datetime or timestamp
+        Df is modified in this process
+        :param df: DataFrame to insert
+        :param table: table name to insert into
+        :param method: INSERT, INSERT IGNORE or REPLACE?
+        """
+        if method not in ('INSERT', 'INSERT IGNORE', 'REPLACE'):
+            raise ValueError("method must be INSERT or REPLACE")
+
+        df.replace({np.nan: None, pd.NaT: None}, inplace=True)
+        df.reset_index(inplace=True)
+
+        cols = self._df_cols_to_sql_cols(df)
+        marks = "%s," * len(df.columns)
+        vals = df.values
+        for i in range(0, len(df), 4096):
+            inserts = [(*elements,) for elements in vals[i:i + 4096]]
+            self._curs.executemany(
+                f"{method} INTO {table} ({cols}) VALUES ({marks[:-1]})", inserts)
 

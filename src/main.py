@@ -16,15 +16,32 @@ from datetime import datetime
 import numpy as np
 from typing import Annotated
 from response_examples import response_examples
+from dotenv import dotenv_values
+import mysql.connector as connector
+
+db_connect_info = dotenv_values(".env")
+db_connect_info = {
+    "host": db_connect_info["HOST"],
+    "user": db_connect_info["USER"],
+    "password": db_connect_info["PASW"],
+    "database": db_connect_info["DBNM"]
+}
+# Setup DB, need to create DB with DBNM if it don't exist yet
+try:
+    conn = connector.connect(**db_connect_info)
+except connector.errors.ProgrammingError:
+    conn = connector.connect(host=db_connect_info["host"], user=db_connect_info["user"],
+                             password=db_connect_info["password"])
+    c = conn.cursor()
+    c.execute(f"CREATE DATABASE {db_connect_info['database']}")
+conn.close()
 
 logger = logging.getLogger("app")
-db_path = Path(f"{__file__}/../../data/sqlite.db").resolve()
-omsz_dl = o_dl.OMSZ_Downloader(db_path)
-mavir_dl = m_dl.MAVIR_Downloader(db_path)
-reader = rd.Reader(db_path)
+omsz_dl = o_dl.OMSZ_Downloader(db_connect_info)
+mavir_dl = m_dl.MAVIR_Downloader(db_connect_info)
+reader = rd.Reader(db_connect_info)
 last_weather_update: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
 last_electricity_update: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
-
 
 TITLE = "HUN EL&W API"
 FAVICON_PATH = Path(f"{__file__}/../favicon.ico").resolve()
@@ -130,21 +147,28 @@ async def get_omsz_logo():
 async def get_omsz_meta():
     """
     Retrieve the metadata for Weather/OMSZ stations
-    Contains info about stations location, start and end date for available data
+    Contains info about the stations' location
     """
     df: pd.DataFrame = reader.get_weather_meta()
     return {"Message": OMSZ_MESSAGE, "data": df.to_dict(**DEFAULT_TO_DICT)}
 
 
+@app.get("/omsz/status", responses=response_examples["/omsz/status"])
+async def get_omsz_status():
+    """
+    Retrieve the status for Weather/OMSZ stations
+    Contains info about the stations' location, Start and End dates of observations
+    """
+    df: pd.DataFrame = reader.get_weather_status()
+    return {"Message": OMSZ_MESSAGE, "data": df.to_dict(**DEFAULT_TO_DICT)}
+
+
 @app.get("/omsz/columns", responses=response_examples["/omsz/columns"])
-async def get_omsz_columns(station: int | None = None):
+async def get_omsz_columns():
     """
     Get the columns available in weather data
     """
-    try:
-        result = reader.get_weather_station_columns()
-    except (LookupError, ValueError) as error:
-        raise HTTPException(status_code=400, detail=str(error))
+    result = reader.get_weather_columns()
     return {"Message": OMSZ_MESSAGE, "data": result}
 
 
@@ -190,7 +214,7 @@ async def get_weather_station(start_date: datetime, end_date: datetime,
     return {"Message": OMSZ_MESSAGE, "data": result}
 
 
-@ app.get("/mavir/logo", responses=response_examples['/mavir/logo'])
+@app.get("/mavir/logo", responses=response_examples['/mavir/logo'])
 async def get_mavir_logo():
     """
     Get url to MAVIR logo to use when displaying MAVIR data visually (optional)
@@ -198,17 +222,17 @@ async def get_mavir_logo():
     return "https://www.mavir.hu/o/mavir-portal-theme/images/mavir_logo_white.png"
 
 
-@ app.get("/mavir/meta", responses=response_examples["/mavir/meta"])
+@app.get("/mavir/status", responses=response_examples["/mavir/status"])
 async def get_mavir_meta():
     """
-    Retrieve the metadata for Electricity/MAVIR data
+    Retrieve the status of Electricity/MAVIR data
     Contains info about each column of the electricity data, specifying the first and last date they are available
     """
     df: pd.DataFrame = reader.get_electricity_meta()
     return {"Message": MAVIR_MESSAGE, "data": df.to_dict(**DEFAULT_TO_DICT)}
 
 
-@ app.get("/mavir/columns", responses=response_examples["/mavir/columns"])
+@app.get("/mavir/columns", responses=response_examples["/mavir/columns"])
 async def get_electricity_columns():
     """
     Retrieve the columns of electricity data
@@ -217,7 +241,7 @@ async def get_electricity_columns():
     return {"Message": MAVIR_MESSAGE, "data": result}
 
 
-@ app.get("/mavir/load", responses=response_examples["/mavir/load"])
+@app.get("/mavir/load", responses=response_examples["/mavir/load"])
 async def get_electricity_load(start_date: datetime, end_date: datetime,
                                col: Annotated[list[str] | None, Query()] = None):
     """
@@ -239,7 +263,6 @@ async def get_electricity_load(start_date: datetime, end_date: datetime,
 def main(logger: logging.Logger, skip_checks: bool):
     # Setup, define variables, assign classes
     logger.debug("Setting up")
-    (db_path / "..").resolve().mkdir(exist_ok=True)
     # OMSZ init
     if not skip_checks and not DEV_MODE:
         try:
@@ -252,7 +275,7 @@ def main(logger: logging.Logger, skip_checks: bool):
     # MAVIR init
     if not skip_checks and not DEV_MODE:
         try:
-            mavir_dl.update_electricity_data()
+            mavir_dl.startup_sequence()
         except Exception as e:
             logger.error(f"Exception/Error {e.__class__.__name__} occured during MAVIR startup sequece, "
                          f"message: {str(e)} | "
@@ -268,14 +291,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="HUN Electricity and Weather API")
     parser.add_argument("-sc", "--skip_checks", help="Skip startup DB download checks", action="store_true")
     parser.add_argument("-d", "--dev", help="Developer mode, no downloads happen", action="store_true")
-    parser.add_argument("-us", "--unsafe_setup",
-                        help="Unsafe OMSZ setup, way faster but errors may result in corrupted Database",
-                        action="store_true")
     args = parser.parse_args()
 
     DEV_MODE = args.dev
-    if args.unsafe_setup:
-        omsz_dl = o_dl.OMSZ_Downloader(db_path, args.unsafe_setup)
 
     # Set up logging
     log_folder = Path(f"{__file__}/../../logs").resolve()
