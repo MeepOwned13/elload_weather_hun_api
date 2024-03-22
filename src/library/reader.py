@@ -241,11 +241,13 @@ class Reader(DatabaseConnect):
                           f"stations from {start_date} to {end_date}")
 
         if stations:
-            df = pd.read_sql(f"SELECT {columns} FROM OMSZ_data FORCE INDEX(OMSZ_data_time_index) "
+            # It'll use PRIMARY index (StationNumber, Time) => Very fast
+            df = pd.read_sql(f"SELECT {columns} FROM OMSZ_data "
                              f"WHERE StationNumber IN ({str(stations)[1:-1]}) AND "
                              f"Time BETWEEN \"{start_date}\" AND \"{end_date}\"",
                              con=self._con)
         else:
+            # It uses no index by default, need to force (Time) index => 3x faster
             df = pd.read_sql(f"SELECT {columns} FROM OMSZ_data FORCE INDEX(OMSZ_data_time_index) "
                              f"WHERE Time BETWEEN \"{start_date}\" AND \"{end_date}\"",
                              con=self._con)

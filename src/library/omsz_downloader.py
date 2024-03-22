@@ -75,7 +75,7 @@ class OMSZ_Downloader(DatabaseConnect):
                 )
             """
         )
-        # PRIMARY keys are always indexed
+        # PRIMARY KEYs are always indexed
 
         self._curs.execute(
             """
@@ -112,7 +112,7 @@ class OMSZ_Downloader(DatabaseConnect):
             )
             """
         )
-        # PRIMARY keys are always indexed
+        # PRIMARY KEYs are always indexed
 
         # View to get Start and End Dates for each station along with meta info
         self._curs.execute(

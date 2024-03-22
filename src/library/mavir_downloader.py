@@ -46,16 +46,19 @@ class MAVIR_Downloader(DatabaseConnect):
             f"""
             CREATE TABLE IF NOT EXISTS MAVIR_data(
                 Time DATETIME PRIMARY KEY,
-                {' REAL, '.join(cols)} REAL,
-                INDEX MAVIR_data_time_index (Time) USING BTREE
-                )
-            PARTITION BY HASH(YEAR(Time))
-            PARTITIONS 8;
+                {' REAL, '.join(cols)} REAL
+            )
             """
         )
+        # PRIMARY KEYs are always indexed
 
-        statements = [f"SELECT '{col}' `Column`, MIN(Time) StartDate, MAX(Time) EndDate FROM MAVIR_data "
-                      f"WHERE {col} IS NOT NULL" for col in cols]
+        # This statement isn't pretty, but it runs faster than selecting min, max time where columns is not null
+        #   since this uses that once a non null column is found
+        #   when selecting end we can also count on the fact that it's close to the last time entry (ordered)
+        statements = [f"(SELECT * FROM (SELECT '{col}' `Column`, Time StartDate FROM MAVIR_data "
+                      f"WHERE {col} IS NOT NULL ORDER BY Time ASC LIMIT 1) a NATURAL JOIN "
+                      f"(SELECT '{col}' `Column`, Time EndDate FROM MAVIR_data "
+                      f"WHERE {col} IS NOT NULL ORDER BY Time DESC LIMIT 1) b)" for col in cols]
         self._curs.execute(
             f"""
             CREATE OR REPLACE VIEW MAVIR_status AS
