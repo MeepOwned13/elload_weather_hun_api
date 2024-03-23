@@ -30,8 +30,8 @@ async function setup() {
     document.getElementById("pageLogo").src = apiUrl + 'favicon.ico'
     document.getElementById("siteLogoLink").href = apiUrl + 'favicon.ico'
 
-    await updateOmszMeta()
-    await updateMavirMeta()
+    await updateOmszStatus()
+    await updateMavirStatus()
 
     let index = await fetchData(apiUrl)
     omszLastUpdate = index.last_omsz_update
@@ -47,7 +47,7 @@ async function setup() {
 async function update() {
     let index = await fetchData(apiUrl)
     if (!(index.last_omsz_update === omszLastUpdate)) {
-        await updateOmszMeta()
+        await updateOmszStatus()
         omszLastUpdate = index.last_omsz_update
     }
     if (!(index.last_mavir_update === mavirLastUpdate)) {

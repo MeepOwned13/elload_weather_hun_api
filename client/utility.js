@@ -1,14 +1,15 @@
 const apiUrl = 'https://8000-01hq0fcfq8q8tabmwrb7nb3x24.cloudspaces.litng.ai/'
 
-function calcMinMaxDate(meta) {
+function calcMinMaxDate(status) {
     // calculate min and max based on meta, should work the same for omsz and mavir
-    data = meta.data
+    data = status.data
 
     minDate = '9999999999999999999999999999' // placeholder
-    maxDate = ''
+    maxDate = '0000000000000000000000000000' // placeholder
 
     for (let key in data) {
         let item = data[key]
+        if(item.StartDate === 'NaT' || item.EndDate === 'NaT') continue
         minDate = minDate > item.StartDate ? item.StartDate : minDate
         maxDate = maxDate < item.EndDate ? item.EndDate : maxDate
     }

@@ -16,7 +16,7 @@ let mavirMinDate = null
 let mavirMaxDate = null
 let mavirRequestedMinDate = null
 let mavirRequestedMaxDate = null
-let mavirMeta = null
+let mavirStatus = null
 let mavirData = null
 let mavirViewRange = mavirBaseViewRange
 let mavirLastUpdate = null
@@ -86,9 +86,9 @@ function setMavirNavDisabled(disabled) {
     mavirBackwardButton.disabled = disabled
 }
 
-async function updateMavirMeta() {
-    let meta = await fetchData(apiUrl + 'mavir/meta')
-    mavirMeta = meta
+async function updateMavirStatus() {
+    let status = await fetchData(apiUrl + 'mavir/status')
+    mavirStatus = status
 }
 
 function makeMavirLines(from, to) {
@@ -105,11 +105,10 @@ function makeMavirLines(from, to) {
     }
 
     for (let i = from; i <= to; i = addMinutesToISODate(i, 10)) {
-        let key = i.replace('T', ' ')
-        let item = data[key]
+        let item = data[i]
 
         // display date in local time
-        let date = new Date(key)
+        let date = new Date(i)
         date.setHours(date.getHours() - 2 * date.getTimezoneOffset() / 60)
         x.push(localToUtcString(date).replace('T', ' '))
 
@@ -189,8 +188,8 @@ function makeMavirLines(from, to) {
 
 async function updateMavirLines(datetime) {
     // update elload centered on given datetime
-    if (mavirMeta === null) {
-        await updateMavirMeta()
+    if (mavirStatus === null) {
+        await updateMavirStatus()
     }
 
     let from = addHoursToISODate(datetime, -mavirViewRange)
@@ -247,7 +246,7 @@ function updateMavirPlot() {
 
 async function updateMavir() {
     // update elements
-    let result = calcMinMaxDate(mavirMeta)
+    let result = calcMinMaxDate(mavirStatus)
     mavirMinDate = result.minDate
     mavirMaxDate = result.maxDate
     // min has to be set in local time while minDate remains in UTC for comparisons
@@ -265,13 +264,12 @@ function updateMavirPlotDimensions() {
     if (width == "au") return; // means width was auto, it isn't displayed
     const part = (width - 400) / (mavirPlotBaseWidth - 400)
     mavirViewRange = mavirMinViewRange + Math.round((mavirBaseViewRange - mavirMinViewRange) * part)
-    console.log(mavirViewRange)
     updateMavirPlot()
 }
 
 // construct elements
 function setupMavir() {
-    // setup function, assumes that meta is set
+    // setup function, assumes that status is set
     updateMavir()
     mavirDateInput.value = mavirDateInput.max
     addMinutesToInputRounded10(mavirDateInput, -60 * 24)

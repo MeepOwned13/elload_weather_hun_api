@@ -18,7 +18,7 @@ let omszMinDate = null
 let omszMaxDate = null
 let omszRequestedMinDate = null
 let omszRequestedMaxDate = null
-let omszMeta = null
+let omszStatus = null
 let omszData = null
 let omszLastUpdate = null
 let omszMapLotAxis = [omszMapBaseLotAxis.min, omszMapBaseLotAxis.max]
@@ -108,18 +108,18 @@ function setOmszNavDisabled(disabled) {
     omszBackwardButton.disabled = disabled
 }
 
-async function updateOmszMeta() {
-    let meta = await fetchData(apiUrl + 'omsz/meta')
-    omszMeta = meta
+async function updateOmszStatus() {
+    let status = await fetchData(apiUrl + 'omsz/status')
+    omszStatus = status
 }
 
 function makeOmszMap(datetime, column) {
     // Construct the stationMap
     omszMsgDiv.innerHTML = "<p>" +
-        omszMeta.Message.replace('OMSZ, source: (', '<a href=').replace(')', '>OMSZ</a>') +
+        omszStatus.Message.replace('OMSZ, source: (', '<a href=').replace(')', '>OMSZ</a>') +
         "</p>"
 
-    let meta = omszMeta.data
+    let status = omszStatus.data
     let data = omszData.data[datetime]
     if (data === undefined) {
         throw new Error("No data for " + datetime)
@@ -129,7 +129,7 @@ function makeOmszMap(datetime, column) {
     let plotData = []
 
     for (let key in data) {
-        let item = meta[key]
+        let item = status[key]
         let station = data[key]
 
         let color = null
@@ -241,8 +241,8 @@ function makeOmszMap(datetime, column) {
 
 async function updateOmszMap(datetime, column) {
     // update of map on given datetime, requests data on it's own
-    if (omszMeta === null) {
-        await updateOmszMeta()
+    if (omszStatus === null) {
+        await updateOmszStatus()
     }
 
     let reRequest = false
@@ -281,7 +281,7 @@ async function updateOmszMap(datetime, column) {
         setOmszNavDisabled(false)
     }
 
-    makeOmszMap(datetime.replace('T', ' '), column)
+    makeOmszMap(datetime, column)
 }
 
 function updateOmszPlot() {
@@ -309,7 +309,7 @@ function updateOmszPlot() {
 
 async function updateOmsz() {
     // update elements
-    let result = calcMinMaxDate(omszMeta)
+    let result = calcMinMaxDate(omszStatus)
     omszMinDate = result.minDate
     omszMaxDate = result.maxDate
     // min has to be set in local time while minDate remains in UTC for comparisons
@@ -334,7 +334,7 @@ function updateOmszMapDimensions() {
 
 // construct elements
 function setupOmsz() {
-    // setup function, assumes that meta is set
+    // setup function, assumes that status is set
     updateOmsz()
     omszDateInput.value = omszDateInput.max
 
