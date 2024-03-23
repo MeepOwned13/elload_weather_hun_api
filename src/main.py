@@ -223,12 +223,12 @@ async def get_mavir_logo():
 
 
 @app.get("/mavir/status", responses=response_examples["/mavir/status"])
-async def get_mavir_meta():
+async def get_mavir_status():
     """
     Retrieve the status of Electricity/MAVIR data
     Contains info about each column of the electricity data, specifying the first and last date they are available
     """
-    df: pd.DataFrame = reader.get_electricity_meta()
+    df: pd.DataFrame = reader.get_electricity_status()
     return {"Message": MAVIR_MESSAGE, "data": df.to_dict(**DEFAULT_TO_DICT)}
 
 
