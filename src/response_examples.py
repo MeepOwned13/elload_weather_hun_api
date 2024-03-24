@@ -58,8 +58,8 @@ response_examples = {
                         "Message": "string",
                         "data": {
                             13704: {
-                                "StartDate": "2005-07-27 18:10:00",
-                                "EndDate": "2024-02-21 18:30:00",
+                                "StartDate": "2005-07-27T18:10:00",
+                                "EndDate": "2024-02-21T18:30:00",
                                 "Latitude": 47.6783,
                                 "Longitude": 16.6022,
                                 "Elevation": 232.8,
@@ -114,12 +114,12 @@ response_examples = {
                             "value": {
                                 "Message": "string",
                                 "data": {
-                                    "2024-02-18 15:00:00": {
+                                    "2024-02-18T15:00:00": {
                                         "Prec": 0,
                                         "Temp": 10.7,
                                         "...": "..."
                                     },
-                                    "2024-02-18 15:10:00": {
+                                    "2024-02-18T15:10:00": {
                                         "...": "..."
                                     },
                                     "...": "..."
@@ -131,12 +131,12 @@ response_examples = {
                                 "Message": "string",
                                 "data": {
                                     13704: {
-                                        "2024-02-18 15:00:00": {
+                                        "2024-02-18T15:00:00": {
                                             "Prec": 0,
                                             "Temp": 10.7,
                                             "...": "..."
                                         },
-                                        "2024-02-18 15:10:00": {
+                                        "2024-02-18T15:10:00": {
                                             "..."
                                         }
                                     },
@@ -183,8 +183,8 @@ response_examples = {
                         "Message": "string",
                         "data": {
                             "NetPlanSystemProduction": {
-                                "StartDate": "2011-11-01 23:10:00",
-                                "EndDate": "2024-02-22 18:50:00",
+                                "StartDate": "2011-11-01T23:10:00",
+                                "EndDate": "2024-02-22T18:50:00",
                             },
                             "NetSystemLoad": {
                                 "...": "..."
@@ -221,12 +221,12 @@ response_examples = {
                     "example": {
                         "Message": "string",
                         "data": {
-                            "2024-02-18 15:00:00": {
+                            "2024-02-18T15:00:00": {
                                 "NetSystemLoad": 4717.373,
                                 "NetSystemLoadFactPlantManagment": 4689.369,
                                 "...": "..."
                             },
-                            "2024-02-18 15:10:00": {
+                            "2024-02-18T15:10:00": {
                                 "...": "..."
                             },
                             "...": "..."
@@ -246,4 +246,55 @@ response_examples = {
             }
         }
     },
+    "/ai/table": {
+        200: {
+            "description": "Succesful Response",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "10min": {
+                            "value": {
+                                "data": {
+                                    "2024-03-17T15:00:00": {
+                                        "NetSystemLoad": 4242.404,
+                                        "Prec": 0,
+                                        "Temp": 11.35,
+                                        "...": "..."
+                                    },
+                                    "2024-03-17T15:10:00": {
+                                        "...": "..."
+                                    }
+                                }
+                            }
+                        },
+                        "1hour": {
+                            "value": {
+                                "data": {
+                                    "2024-02-18T15:00:00": {
+                                        "NetSystemLoad": 4050.509,
+                                        "Prec": 1.5,
+                                        "Temp": 11.51,
+                                        "...": "..."
+                                    },
+                                    "2024-02-18 16:00:00": {
+                                        "...": "..."
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Error message"
+                    }
+                }
+            }
+        }
+    }
 }

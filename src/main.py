@@ -4,6 +4,7 @@ from pathlib import Path
 import library.omsz_downloader as o_dl
 import library.mavir_downloader as m_dl
 import library.reader as rd
+import library.ai_integrator as ai
 import pandas as pd
 import uvicorn
 from contextlib import asynccontextmanager
@@ -44,6 +45,7 @@ logger = logging.getLogger("app")
 omsz_dl = o_dl.OMSZDownloader(db_connect_info)
 mavir_dl = m_dl.MAVIRDownloader(db_connect_info)
 reader = rd.Reader(db_connect_info)
+ai_int = ai.AIIntegrator(db_connect_info)
 last_weather_update: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
 last_electricity_update: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
 
@@ -108,12 +110,12 @@ async def update_check():
 
 
 @app.get('/favicon.ico', include_in_schema=False)
-async def favicon():
+def favicon():
     return FileResponse(FAVICON_PATH)
 
 
 @app.get("/docs", include_in_schema=False)
-async def swagger_ui_html():
+def swagger_ui_html():
     return get_swagger_ui_html(
         openapi_url="/openapi.json",
         title=TITLE,
@@ -131,7 +133,7 @@ def overridden_redoc():
 
 
 @app.get("/", responses=response_examples['/'])
-async def index():
+def index():
     """
     Get message about usage and sources from OMSZ and MAVIR, and last update times
     """
@@ -140,7 +142,7 @@ async def index():
 
 
 @app.get("/omsz/logo", responses=response_examples['/omsz/logo'])
-async def get_omsz_logo():
+def get_omsz_logo():
     """
     Get url to OMSZ logo required when displaying OMSZ data visually.
     """
@@ -148,7 +150,7 @@ async def get_omsz_logo():
 
 
 @app.get("/omsz/meta", responses=response_examples["/omsz/meta"])
-async def get_omsz_meta():
+def get_omsz_meta():
     """
     Retrieve the metadata for Weather/OMSZ stations
     Contains info about the stations' location
@@ -158,7 +160,7 @@ async def get_omsz_meta():
 
 
 @app.get("/omsz/status", responses=response_examples["/omsz/status"])
-async def get_omsz_status():
+def get_omsz_status():
     """
     Retrieve the status for Weather/OMSZ stations
     Contains info about the stations' location, Start and End dates of observations
@@ -168,7 +170,7 @@ async def get_omsz_status():
 
 
 @app.get("/omsz/columns", responses=response_examples["/omsz/columns"])
-async def get_omsz_columns():
+def get_omsz_columns():
     """
     Get the columns available in weather data
     """
@@ -177,10 +179,10 @@ async def get_omsz_columns():
 
 
 @app.get("/omsz/weather", responses=response_examples["/omsz/weather"])
-async def get_weather_station(start_date: datetime, end_date: datetime,
-                              station: Annotated[list[int] | None, Query()] = None,
-                              col: Annotated[list[str] | None, Query()] = None,
-                              date_first: bool = False):
+def get_weather_station(start_date: datetime, end_date: datetime,
+                        station: Annotated[list[int] | None, Query()] = None,
+                        col: Annotated[list[str] | None, Query()] = None,
+                        date_first: bool = False):
     """
     Retrieve weather data
     - **start_date**: Date to start from
@@ -219,7 +221,7 @@ async def get_weather_station(start_date: datetime, end_date: datetime,
 
 
 @app.get("/mavir/logo", responses=response_examples['/mavir/logo'])
-async def get_mavir_logo():
+def get_mavir_logo():
     """
     Get url to MAVIR logo to use when displaying MAVIR data visually (optional)
     """
@@ -227,7 +229,7 @@ async def get_mavir_logo():
 
 
 @app.get("/mavir/status", responses=response_examples["/mavir/status"])
-async def get_mavir_status():
+def get_mavir_status():
     """
     Retrieve the status of Electricity/MAVIR data
     Contains info about each column of the electricity data, specifying the first and last date they are available
@@ -237,7 +239,7 @@ async def get_mavir_status():
 
 
 @app.get("/mavir/columns", responses=response_examples["/mavir/columns"])
-async def get_electricity_columns():
+def get_electricity_columns():
     """
     Retrieve the columns of electricity data
     """
@@ -246,8 +248,8 @@ async def get_electricity_columns():
 
 
 @app.get("/mavir/load", responses=response_examples["/mavir/load"])
-async def get_electricity_load(start_date: datetime, end_date: datetime,
-                               col: Annotated[list[str] | None, Query()] = None):
+def get_electricity_load(start_date: datetime, end_date: datetime,
+                         col: Annotated[list[str] | None, Query()] = None):
     """
     Retrieve electricity data
     - **start_date**: Date to start from
@@ -262,6 +264,23 @@ async def get_electricity_load(start_date: datetime, end_date: datetime,
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
     return {"Message": MAVIR_MESSAGE, "data": result}
+
+
+@app.get("/ai/table", responses=response_examples["/ai/table"])
+def get_ai_table(start_date: pd.Timestamp | datetime | None = None,
+                 end_date: pd.Timestamp | datetime | None = None, which: str = '10min'):
+    """
+    Retrieve AI time-series ready table
+    - **start_date**: Date to start from, if unspecified starts at earliest
+    - **end_date**: Date to end on, if unspecified starts at latest
+    - **which**: aggregation level, one of '10min', '1hour'
+    """
+    try:
+        df: pd.DataFrame = reader.get_ai_table(start_date, end_date, which)
+        result = df.replace({np.nan: None}).to_dict(**DEFAULT_TO_DICT)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    return {"data": result}
 
 
 def main(logger: logging.Logger, skip_checks: bool):
@@ -285,6 +304,8 @@ def main(logger: logging.Logger, skip_checks: bool):
                          f"message: {str(e)} | "
                          f"Make sure you are connected to the internet and https://www.mavir.hu is available")
             exit(1)
+    # AI init
+    ai_int.startup_sequence()
 
     # Start the app
     uvicorn.run(app, port=8000)
@@ -321,11 +342,13 @@ if __name__ == "__main__":
     o_dl.omsz_downloader_logger.addHandler(log_fh)
     m_dl.mavir_downloader_logger.addHandler(log_fh)
     rd.reader_logger.addHandler(log_fh)
+    ai.ai_integrator_logger.addHandler(log_fh)
 
     logger.addHandler(log_ch)
     o_dl.omsz_downloader_logger.addHandler(log_ch)
     m_dl.mavir_downloader_logger.addHandler(log_ch)
     rd.reader_logger.addHandler(log_ch)
+    ai.ai_integrator_logger.addHandler(log_ch)
 
     main(logger, args.skip_checks)
 

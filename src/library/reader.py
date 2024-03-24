@@ -254,3 +254,32 @@ class Reader(DatabaseConnect):
 
         return df
 
+    @DatabaseConnect._db_transaction
+    def get_ai_table(self, start_date: pd.Timestamp | datetime | None,
+                     end_date: pd.Timestamp | datetime | None, which: str = '10min') -> pd.DataFrame:
+        """
+        Get electricity load for given timeframe
+        :param start_date: Date to start at in UTC
+        :param end_date: Date to end on in UTC
+        :param which: 10min or 1hour aggregation?
+        :returns: pandas.DataFrame with the data
+        :raises ValueError: if param types or 'which' is wrong
+        """
+        if start_date:
+            self._check_date(start_date, "start_date")
+        if end_date:
+            self._check_date(end_date, "end_date")
+        if which not in ('10min', '1hour'):
+            raise ValueError("'which' must be 1 of the following: '10min', '1hour'")
+
+        self._logger.info(f"Reading AI_{which} from {start_date or 'start'} to {end_date or 'end'}")
+
+        start_str = f"Time >= \"{start_date}\"" if start_date else "TRUE"
+        end_str = f"Time <= \"{end_date}\"" if end_date else "TRUE"
+
+        df = pd.read_sql(f"SELECT * FROM AI_{which} WHERE {start_str} AND {end_str}",
+                         con=self._con)
+        df.set_index("Time", drop=True, inplace=True)
+
+        return df
+
