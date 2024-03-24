@@ -49,7 +49,7 @@ class AIIntegrator(DatabaseConnect):
             NATURAL JOIN (
                 SELECT Time, SUM(Prec) Prec, AVG(Temp) Temp, AVG(RHum) RHum,
                        AVG(GRad) GRad, AVG(Pres) Pres, AVG(AvgWS) Wind
-                FROM omsz_data FORCE INDEX(OMSZ_data_time_index)
+                FROM OMSZ_data FORCE INDEX(OMSZ_data_time_index)
                 WHERE Time > "{from_time}" GROUP BY Time) o
             """
         )
