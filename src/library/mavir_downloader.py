@@ -11,7 +11,13 @@ mavir_downloader_logger.setLevel(logging.DEBUG)
 mavir_downloader_logger.addHandler(logging.NullHandler())
 
 
-class MAVIR_Downloader(DatabaseConnect):
+class MAVIRDownloader(DatabaseConnect):
+    """
+    Class to update MAVIR data inside given Database
+    CALL startup_sequence() TO CREATE ALL REQUIRED TABLES
+    Checking for the existence of tables isn't included to increase performance
+    """
+
     def __init__(self, db_connect_info: dict):
         """
         :param db_connect_info: connection info for MySQL connector

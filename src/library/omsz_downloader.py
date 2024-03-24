@@ -13,11 +13,11 @@ omsz_downloader_logger.setLevel(logging.DEBUG)
 omsz_downloader_logger.addHandler(logging.NullHandler())
 
 
-class OMSZ_Downloader(DatabaseConnect):
+class OMSZDownloader(DatabaseConnect):
     """
     Class to update OMSZ data inside given Database
     CALL startup_sequence() TO CREATE ALL REQUIRED TABLES
-    Checking for the existence of OMSZ_meta isn't included to increase performance
+    Checking for the existence of tables isn't included to increase performance
     """
 
     def __init__(self, db_connect_info: dict):
@@ -461,7 +461,7 @@ class OMSZ_Downloader(DatabaseConnect):
 
     def startup_sequence(self) -> None:
         """
-        Sets up tables, views, triggers, calls meta, historical/recent and past24h updates
+        Sets up tables, views, calls meta, historical/recent and past24h updates
         :returns: None
         """
         # Order of operations justified in comments

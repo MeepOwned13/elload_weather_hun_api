@@ -41,8 +41,8 @@ except connector.errors.ProgrammingError:
 conn.close()
 
 logger = logging.getLogger("app")
-omsz_dl = o_dl.OMSZ_Downloader(db_connect_info)
-mavir_dl = m_dl.MAVIR_Downloader(db_connect_info)
+omsz_dl = o_dl.OMSZDownloader(db_connect_info)
+mavir_dl = m_dl.MAVIRDownloader(db_connect_info)
 reader = rd.Reader(db_connect_info)
 last_weather_update: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
 last_electricity_update: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)

@@ -8,6 +8,7 @@ class DatabaseConnect():
     """
     Inherit this class to have Database Connection with custom transaction handling
     It also requires a logger, which can be used the child class
+    CALLING __del__ IN CHILD CLASSES IS REQUIRED FOR CLOSING THE CONNECTION
     """
 
     def __init__(self, db_connect_info: dict, logger: logging.Logger):
