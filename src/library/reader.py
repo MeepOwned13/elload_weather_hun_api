@@ -202,7 +202,7 @@ class Reader(DatabaseConnect):
                          con=self._con)
         df.set_index("Time", drop=True, inplace=True)
 
-        return df.drop(columns="StationNumber")
+        return df.drop(columns="StationNumber", errors='ignore')
 
     @DatabaseConnect._db_transaction
     def get_weather_multi_station(self, start_date: pd.Timestamp | datetime, end_date: pd.Timestamp | datetime,

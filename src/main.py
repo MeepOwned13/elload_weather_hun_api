@@ -18,6 +18,10 @@ from typing import Annotated
 from response_examples import response_examples
 from dotenv import dotenv_values
 import mysql.connector as connector
+from warnings import filterwarnings
+
+# Known Warning in Reader, all cases tested and working
+filterwarnings("ignore", category=UserWarning, message='.*pandas only supports SQLAlchemy connectable.*')
 
 db_connect_info = dotenv_values(".env")
 db_connect_info = {
