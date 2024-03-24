@@ -161,13 +161,13 @@ function makeMavirLines(from, to) {
             x : 0.5
         },
         height: 700,
-        paper_bgcolor: 'rgba(0, 0, 0, 1)',
+        paper_bgcolor: 'rgba(0, 0, 0, 0)',
         plot_bgcolor: 'rgba(0, 0, 0, 0)',
         hoverlabel: {
             font: {
                 size: 18,
             },
-            namelength: -1
+            namelength: -1,
         }
     }
 

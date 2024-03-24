@@ -209,11 +209,11 @@ function makeOmszMap(datetime, column) {
             lakecolor: '#0c1ba3',
             showland: true,
             showcountries: true,
-            landcolor: '#0e010d',
+            landcolor: '#0e010d00',
             countrycolor: '#e8e4c9',
             countrywidth: 3,
             subunitcolor: '#a1a1a1',
-            bgcolor: '#e8e4c9',
+            bgcolor: '#e8e4c900',
         },
         autosize: true,
         margin: {

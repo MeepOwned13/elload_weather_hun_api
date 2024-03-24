@@ -113,26 +113,27 @@ div.text {
 }
 
 div.container {
-    background-color: var(--primary);
+    background-color: rgba(150, 150, 150, 0.15);
     color: var(--onprimary);
     border-radius: 20px;
+    backdrop-filter: hue-rotate(120deg);
 }
 
 .main-svg {
     border-radius: 25px;
 }
 
-#omszStationMapDiv {
+#omszStationMapDiv{
     position: relative;
 }
 
-#hider {
+.hider {
     position: absolute;
     width: 100%;
     left: 0;
     top: 0;
     height: 100%;
-    border: 5px solid var(--background);
+    border: 3px solid #e8e4c9;
     border-radius: 20px;
     box-sizing: border-box;
     pointer-events: none;
