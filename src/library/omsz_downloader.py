@@ -126,7 +126,7 @@ class OMSZDownloader(DatabaseConnect):
             """
         )
 
-        self._logger.info("Created tables/triggers that didn't exist")
+        self._logger.info("Created tables/views that didn't exist")
 
     @DatabaseConnect._db_transaction
     def _write_meta(self, df: pd.DataFrame) -> None:
