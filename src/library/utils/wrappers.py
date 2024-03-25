@@ -1,4 +1,4 @@
-from tsm_wrapper import TSMWrapper
+from .tsm_wrapper import TSMWrapper
 from torch import nn
 import torch
 import numpy as np

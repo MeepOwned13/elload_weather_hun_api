@@ -7,7 +7,7 @@ from sklearn.model_selection import TimeSeriesSplit
 from math import sqrt as math_sqrt
 import matplotlib.pyplot as plt
 from timeit import default_timer as timer
-from ai_utils import mape, mpe, TimeSeriesDataset, EarlyStopper, Grid
+from .ai_utils import mape, mpe, TimeSeriesDataset, EarlyStopper, Grid
 
 TSMWRAPPER_DEVICE = torch.device("cpu")
 if torch.cuda.is_available():
@@ -31,7 +31,7 @@ class TSMWrapper(ABC):
     def __del__(self):
         """WARNING: deletion of the object will delete the model as well!"""
         del self._model
-        if TSMWRAPPER_DEVICE != torch.device('cpu'):
+        if torch and TSMWRAPPER_DEVICE != torch.device('cpu'):
             torch.cuda.empty_cache()
 
     # endregion

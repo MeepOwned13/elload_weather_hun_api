@@ -3,6 +3,31 @@ from torch.utils.data import Dataset
 import torch
 from torch import nn
 from copy import deepcopy
+import pandas as pd
+
+
+def make_ai_df(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Construct ai ready DataFrame
+    :param df: pandas DataFrame that has Time index and NetSystemLoad, Prec, GRad columns and
+    :return: df ready for ai training as specified by my own TDK (Sebők Mátyás)
+    """
+    import holidays
+    holidays_hu = holidays.country_holidays('HU', years=list(range(df.index.min().year, df.index.max().year)))
+
+    df['Holiday'] = df.index.map(lambda x: 1 if holidays_hu.get(x) else 0)
+    df['Weekend'] = df.index.map(lambda x: 1 if x.weekday() >= 5 else 0)
+
+    df['Hour'] = df.index.hour
+    df['Weekday'] = df.index.weekday
+    df['DayOfYear'] = df.index.dayofyear
+    df['Month'] = df.index.month
+    df['Year'] = df.index.year
+
+    df['NetSystemLoadLag24'] = df['NetSystemLoad'].shift(24, fill_value=0)
+
+    return df[['NetSystemLoad', 'Prec', 'GRad', 'Holiday', 'Weekend', 'Hour',
+               'Weekday', 'DayOfYear', 'Month', 'Year', 'NetSystemLoadLag24']]
 
 
 def mape(p, t):
