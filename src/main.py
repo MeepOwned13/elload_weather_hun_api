@@ -21,7 +21,7 @@ from dotenv import dotenv_values
 import mysql.connector as connector
 from warnings import filterwarnings
 
-# Known Warning in Reader, all cases that are required tested and working
+# Known Warning in Reader and AIIntegrator, all cases that are required tested and working
 filterwarnings("ignore", category=UserWarning, message='.*pandas only supports SQLAlchemy connectable.*')
 
 db_connect_info = dotenv_values(".env")
@@ -45,7 +45,7 @@ logger = logging.getLogger("app")
 omsz_dl = o_dl.OMSZDownloader(db_connect_info)
 mavir_dl = m_dl.MAVIRDownloader(db_connect_info)
 reader = rd.Reader(db_connect_info)
-ai_int = ai.AIIntegrator(db_connect_info)
+ai_int = ai.AIIntegrator(db_connect_info, Path(f"{__file__}/../../models").resolve())
 last_weather_update: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
 last_electricity_update: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
 
