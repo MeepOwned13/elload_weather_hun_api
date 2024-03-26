@@ -5,7 +5,7 @@ import numpy as np
 from warnings import filterwarnings
 from library.utils.ai_utils import make_ai_df
 from library.utils.torch_model_definitions import Seq2seq
-from library.utils.wrappers import S2STSWRAPPER
+from library.utils.wrappers import S2STSWrapper
 from pathlib import Path
 import argparse
 import sys
@@ -53,7 +53,7 @@ if __name__ == '__main__':
     x_val = val.to_numpy(dtype=np.float32)
     y_val = val["NetSystemLoad"].to_numpy(dtype=np.float32)
 
-    wrapper = S2STSWRAPPER(Seq2seq(11, 3, 10, 1, True, 0.5, 0.05), 24, 3)
+    wrapper = S2STSWrapper(Seq2seq(11, 3, 10, 1, True, 0.5, 0.05), 24, 3)
     print("Training model...")
     losses = wrapper.train_strategy(x_train, y_train, x_val, y_val, epochs=1000,
                                     lr=0.001, batch_size=2048, es_p=20, cp=True)

@@ -66,7 +66,7 @@ class MIMOTSWrapper(TSMWrapper):
     # endregion
 
 
-class S2STSWRAPPER(MIMOTSWrapper):
+class S2STSWrapper(MIMOTSWrapper):
     """
     Wraps the sequence-to-sequence strategy for Time-series prediction.
     """
@@ -79,7 +79,7 @@ class S2STSWRAPPER(MIMOTSWrapper):
         :param pred_len: length of predictions given
         :param teacher_forcing_decay: how fast teacher forcing should decay
         """
-        super(S2STSWRAPPER, self).__init__(model, seq_len, pred_len)
+        super(S2STSWrapper, self).__init__(model, seq_len, pred_len)
         if pred_len <= 1:
             raise ValueError("pred_len must be greater than 1")
         self.teacher_forcing_ratio = 0.5
