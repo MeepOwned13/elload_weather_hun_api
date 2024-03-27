@@ -124,7 +124,7 @@ class AIIntegrator(DatabaseConnect):
                   SELECT SUM(Prec) Prec, AVG(Temp) Temp, AVG(RHum) RHum,
                      AVG(GRad) GRad, AVG(Pres) Pres, AVG(AvgWS) Wind
                   INTO Prec_, Temp_, RHum_, GRad_, Pres_, Wind_
-                  FROM omsz_data
+                  FROM OMSZ_data
                   WHERE Time = NEW.Time GROUP BY Time;
 
                   INSERT INTO AI_10min(Time, Prec, Temp, RHum, GRad, Pres, Wind)
