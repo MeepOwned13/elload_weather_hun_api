@@ -9,6 +9,7 @@ from library.utils.wrappers import S2STSWrapper
 from pathlib import Path
 import argparse
 import sys
+from copy import deepcopy
 
 if __name__ == '__main__':
     # Known Warning with pd.read_sql, all cases that are required tested and working
@@ -17,6 +18,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train model for API's predictions")
     parser.add_argument("-y", "--year", help="Which year should the model be ready for?", type=int, required=True)
     parser.add_argument("-np", "--no_plot", help="Don't plot losses after training", action="store_true")
+    parser.add_argument("-tc", "--train_cycles",
+                        help="How many training cycles to attempt (saves best performer)", type=int, default=3)
     args = parser.parse_args()
 
     db_connect_info = dotenv_values(".env")
@@ -53,21 +56,29 @@ if __name__ == '__main__':
     x_val = val.to_numpy(dtype=np.float32)
     y_val = val["NetSystemLoad"].to_numpy(dtype=np.float32)
 
-    wrapper = S2STSWrapper(Seq2seq(11, 3, 10, 1, True, 0.5, 0.05), 24, 3)
-    print("Training model...")
-    losses = wrapper.train_strategy(x_train, y_train, x_val, y_val, epochs=1000,
-                                    lr=0.001, batch_size=2048, es_p=20, cp=True)
-
-    if not args.no_plot:
-        print("Plotting losses")
-        wrapper.plot_losses([losses[0]], [losses[1]], [[]])
-
     name = f"seq2seq_{args.year}.pth"
     path = Path(f"{__file__}/../../models").resolve()
     path.mkdir(parents=True, exist_ok=True)
     path = path / name
-    print(f"Saving model to {path}")
 
-    wrapper.save_state(path)
+    best_val_loss = 500_000  # More than enough with normalization
+    saved_losses = None
+    for i in range(1, args.train_cycles + 1):
+        wrapper = S2STSWrapper(Seq2seq(11, 3, 10, 1, True, 0.5, 0.05), 24, 3)
+        print(f"Training model {i}....")
+        losses = wrapper.train_strategy(x_train, y_train, x_val, y_val, epochs=1000,
+                                        lr=0.001, batch_size=2048, es_p=20, cp=True)
+
+        end_val_loss = min(losses[1][-21:])  # early stop patience is 20, model checkpoints back to best one
+        if best_val_loss > end_val_loss:
+            print(f"Training {i}. performed best so far, saving model to {path}")
+            wrapper.save_state(path)
+            best_val_loss = end_val_loss
+            saved_losses = deepcopy(losses)
+
+    if not args.no_plot:
+        print("Plotting losses for best training")
+        wrapper.plot_losses([saved_losses[0]], [saved_losses[1]], [[]])
+
     print("Model saved")
 
