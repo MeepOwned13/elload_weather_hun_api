@@ -87,20 +87,25 @@ app.add_middleware(
 async def update_check():
     if DEV_MODE:
         return
-    logger.info("Checking for updates to data sources")
     try:
-        if omsz_dl.choose_curr_update():
-            global last_weather_update
-            last_weather_update = pd.Timestamp.now("UTC").tz_localize(None)
+        global last_weather_update
+        # Check if we have updated in this 10 min time period
+        if pd.Timestamp.now("UTC").tz_localize(None).floor('10min') != last_weather_update.floor('10min'):
+            logger.info("Checking for updates to omsz sources")
+            if omsz_dl.choose_curr_update():
+                last_weather_update = pd.Timestamp.now("UTC").tz_localize(None)
     except Exception as e:
         logger.error(f"Exception/Error {e.__class__.__name__} occured during OMSZ update, "
                      f"Changes were rolled back, resuming app"
                      f"message: {str(e)} | "
                      f"Make sure you are connected to the internet and https://odp.met.hu/ is available")
     try:
-        if mavir_dl.choose_update():
-            global last_electricity_update
-            last_electricity_update = pd.Timestamp.now("UTC").tz_localize(None)
+        global last_electricity_update
+        # Check if we have updated in this 10 min time period
+        if pd.Timestamp.now("UTC").tz_localize(None).floor('10min') != last_electricity_update.floor('10min'):
+            logger.info("Checking for updates to mavir sources")
+            if mavir_dl.choose_update():
+                last_electricity_update = pd.Timestamp.now("UTC").tz_localize(None)
     except Exception as e:
         logger.error(f"Exception/Error {e.__class__.__name__} occured during MAVIR update, "
                      f"Changes were rolled back, resuming app"

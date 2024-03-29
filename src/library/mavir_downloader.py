@@ -193,7 +193,8 @@ class MAVIRDownloader(DatabaseConnect):
         """
         end: pd.Timestamp = self._get_end_date_netload()
         now: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
-        if now > (end + pd.Timedelta(minutes=10)):
+        # MAVIR provides updates for ongoing 10 minute timeframes too (so at 14:41:00 -> 14:50:00 is already updated)
+        if now > end:
             self.update_electricity_data()
             return True
         return False
