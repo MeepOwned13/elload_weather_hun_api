@@ -12,7 +12,8 @@ class DatabaseConnect():
     """
 
     def __init__(self, db_connect_info: dict, logger: logging.Logger):
-        self._con: connector.CMySQLConnection = connector.connect(**db_connect_info)
+        self._con: connector.CMySQLConnection = connector.connect(
+            **db_connect_info, conn_attrs={'autoReconnect': 'True'})
         self._curs: connector.cursor_cext.CMySQLCursor = None
         self._logger: logging.Logger = logger
         self._in_transaction = False
