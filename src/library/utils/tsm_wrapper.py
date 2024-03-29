@@ -24,7 +24,7 @@ class TSMWrapper(ABC):
         self._y_norm_mean: np.ndarray | None = None
         self._y_norm_std: np.ndarray | None = None
 
-        self._model = model
+        self._model = model.to(TSMWRAPPER_DEVICE)
 
     # region magic methods
 
