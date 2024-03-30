@@ -80,5 +80,3 @@ if __name__ == '__main__':
         print("Plotting losses for best training")
         wrapper.plot_losses([saved_losses[0]], [saved_losses[1]], [[]])
 
-    print("Model saved")
-
