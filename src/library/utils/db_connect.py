@@ -88,7 +88,7 @@ class DatabaseConnect():
         Df is modified in this process
         :param df: DataFrame to insert
         :param table: table name to insert into
-        :param method: INSERT, INSERT IGNORE or REPLACE?
+        :param method: INSERT, INSERT IGNORE or REPLACE
         """
         if method not in ('INSERT', 'INSERT IGNORE', 'REPLACE'):
             raise ValueError("method must be INSERT or REPLACE")
