@@ -12,8 +12,7 @@ class DatabaseConnect():
     """
 
     def __init__(self, db_connect_info: dict, logger: logging.Logger):
-        self._con: connector.CMySQLConnection = connector.connect(
-            **db_connect_info, conn_attrs={'autoReconnect': 'True'})
+        self._con: connector.CMySQLConnection = connector.connect(**db_connect_info)
         self._curs: connector.cursor_cext.CMySQLCursor = None
         self._logger: logging.Logger = logger
         self._in_transaction = False
@@ -31,6 +30,8 @@ class DatabaseConnect():
         """
 
         def execute(self, *args, **kwargs):
+            if not self._con.is_connected():
+                self._con.reconnect(attempts=2, delay=5)
             try:
                 self._in_transaction = True
                 self._curs = self._con.cursor()
