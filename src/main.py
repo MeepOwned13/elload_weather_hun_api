@@ -48,7 +48,8 @@ reader = rd.Reader(db_connect_info)
 ai_int = ai.AIIntegrator(db_connect_info, Path(f"{__file__}/../../models").resolve())
 last_weather_update: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
 last_electricity_update: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
-last_s2s_update: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
+# S2S needs 10 minutes removed, because omsz is in delay (-> at 14:05:00 the update for 14:00:00 cannot happen)
+last_s2s_update: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None) - pd.DateOffset(minutes=10)
 
 TITLE = "HUN EL&W API"
 FAVICON_PATH = Path(f"{__file__}/../favicon.ico").resolve()
@@ -157,7 +158,7 @@ def index():
     Get message about usage and sources from OMSZ and MAVIR, and last update times
     """
     return {"Message": f"{OMSZ_MESSAGE}, {MAVIR_MESSAGE}", "last_omsz_update": last_weather_update,
-            "last_mavir_update": last_electricity_update}
+            "last_mavir_update": last_electricity_update, "last_s2s_update": last_s2s_update}
 
 
 @ app.get("/omsz/logo", responses=response_examples['/omsz/logo'])

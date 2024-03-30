@@ -7,7 +7,8 @@ response_examples = {
                     "example": {
                         "Message": "message",
                         "last_omsz_update": "2024-02-23T11:29:56.031130",
-                        "last_mavir_update": "2024-02-23T11:29:56.031130"
+                        "last_mavir_update": "2024-02-23T11:29:56.031130",
+                        "last_s2s_update": "2024-02-23T11:10:56.031130"
                     }
                 }
             }
@@ -276,7 +277,7 @@ response_examples = {
                                         "Temp": 11.51,
                                         "...": "..."
                                     },
-                                    "2024-02-18 16:00:00": {
+                                    "2024-02-18T16:00:00": {
                                         "...": "..."
                                     }
                                 }
