@@ -48,6 +48,7 @@ reader = rd.Reader(db_connect_info)
 ai_int = ai.AIIntegrator(db_connect_info, Path(f"{__file__}/../../models").resolve())
 last_weather_update: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
 last_electricity_update: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
+last_s2s_update: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
 
 TITLE = "HUN EL&W API"
 FAVICON_PATH = Path(f"{__file__}/../favicon.ico").resolve()
@@ -87,39 +88,52 @@ app.add_middleware(
 async def update_check():
     if DEV_MODE:
         return
+    now = pd.Timestamp.now("UTC").tz_localize(None)
     try:
         global last_weather_update
         # Check if we have updated in this 10 min time period
-        if pd.Timestamp.now("UTC").tz_localize(None).floor('10min') != last_weather_update.floor('10min'):
+        if now.floor('10min') != last_weather_update.floor('10min'):
             logger.info("Checking for updates to omsz sources")
             if omsz_dl.choose_curr_update():
                 last_weather_update = pd.Timestamp.now("UTC").tz_localize(None)
     except Exception as e:
         logger.error(f"Exception/Error {e.__class__.__name__} occured during OMSZ update, "
-                     f"Changes were rolled back, resuming app"
-                     f"message: {str(e)} | "
+                     f"Changes were rolled back, resuming app | message: {str(e)} | "
                      f"Make sure you are connected to the internet and https://odp.met.hu/ is available")
     try:
         global last_electricity_update
         # Check if we have updated in this 10 min time period
-        if pd.Timestamp.now("UTC").tz_localize(None).floor('10min') != last_electricity_update.floor('10min'):
+        if now.floor('10min') != last_electricity_update.floor('10min'):
             logger.info("Checking for updates to mavir sources")
             if mavir_dl.choose_update():
                 last_electricity_update = pd.Timestamp.now("UTC").tz_localize(None)
     except Exception as e:
         logger.error(f"Exception/Error {e.__class__.__name__} occured during MAVIR update, "
-                     f"Changes were rolled back, resuming app"
-                     f"message: {str(e)} | "
+                     f"Changes were rolled back, resuming app | message: {str(e)} | "
                      f"Make sure you are connected to the internet and https://www.mavir.hu is available")
     # Change rollback is provided by the respective classes
 
+    # Check if we updated in this hour and the data is available (omsz and mavir have already updated)
+    # Looking at -10 minutes for weather since omsz data is delayed by 10 minutes
+    try:
+        global last_s2s_update
+        if now.floor('h') != last_s2s_update.floor('h') and\
+           now.floor('h') == (last_weather_update - pd.DateOffset(minutes=10)).floor('h') and\
+           now.floor('h') == last_electricity_update.floor('h'):
+            logger.info("Updating S2S predictions")
+            if ai_int.choose_update():
+                last_s2s_update = pd.Timestamp.now("UTC").tz_localize(None)
+    except Exception as e:
+        logger.error(f"Exception/Error {e.__class__.__name__} occured during S2S update, "
+                     f"Changes were rolled back, resuming app | message: {str(e)}")
 
-@app.get('/favicon.ico', include_in_schema=False)
+
+@ app.get('/favicon.ico', include_in_schema=False)
 def favicon():
     return FileResponse(FAVICON_PATH)
 
 
-@app.get("/docs", include_in_schema=False)
+@ app.get("/docs", include_in_schema=False)
 def swagger_ui_html():
     return get_swagger_ui_html(
         openapi_url="/openapi.json",
@@ -128,7 +142,7 @@ def swagger_ui_html():
     )
 
 
-@app.get("/redoc", include_in_schema=False)
+@ app.get("/redoc", include_in_schema=False)
 def overridden_redoc():
     return get_redoc_html(
         openapi_url="/openapi.json",
@@ -137,7 +151,7 @@ def overridden_redoc():
     )
 
 
-@app.get("/", responses=response_examples['/'])
+@ app.get("/", responses=response_examples['/'])
 def index():
     """
     Get message about usage and sources from OMSZ and MAVIR, and last update times
@@ -146,7 +160,7 @@ def index():
             "last_mavir_update": last_electricity_update}
 
 
-@app.get("/omsz/logo", responses=response_examples['/omsz/logo'])
+@ app.get("/omsz/logo", responses=response_examples['/omsz/logo'])
 def get_omsz_logo():
     """
     Get url to OMSZ logo required when displaying OMSZ data visually.
@@ -154,7 +168,7 @@ def get_omsz_logo():
     return "https://www.met.hu/images/logo/omsz_logo_1362x492_300dpi.png"
 
 
-@app.get("/omsz/meta", responses=response_examples["/omsz/meta"])
+@ app.get("/omsz/meta", responses=response_examples["/omsz/meta"])
 def get_omsz_meta():
     """
     Retrieve the metadata for Weather/OMSZ stations
@@ -164,7 +178,7 @@ def get_omsz_meta():
     return {"Message": OMSZ_MESSAGE, "data": df.to_dict(**DEFAULT_TO_DICT)}
 
 
-@app.get("/omsz/status", responses=response_examples["/omsz/status"])
+@ app.get("/omsz/status", responses=response_examples["/omsz/status"])
 def get_omsz_status():
     """
     Retrieve the status for Weather/OMSZ stations
@@ -174,7 +188,7 @@ def get_omsz_status():
     return {"Message": OMSZ_MESSAGE, "data": df.to_dict(**DEFAULT_TO_DICT)}
 
 
-@app.get("/omsz/columns", responses=response_examples["/omsz/columns"])
+@ app.get("/omsz/columns", responses=response_examples["/omsz/columns"])
 def get_omsz_columns():
     """
     Get the columns available in weather data
@@ -183,7 +197,7 @@ def get_omsz_columns():
     return {"Message": OMSZ_MESSAGE, "data": result}
 
 
-@app.get("/omsz/weather", responses=response_examples["/omsz/weather"])
+@ app.get("/omsz/weather", responses=response_examples["/omsz/weather"])
 def get_weather_station(start_date: datetime, end_date: datetime,
                         station: Annotated[list[int] | None, Query()] = None,
                         col: Annotated[list[str] | None, Query()] = None,
@@ -225,7 +239,7 @@ def get_weather_station(start_date: datetime, end_date: datetime,
     return {"Message": OMSZ_MESSAGE, "data": result}
 
 
-@app.get("/mavir/logo", responses=response_examples['/mavir/logo'])
+@ app.get("/mavir/logo", responses=response_examples['/mavir/logo'])
 def get_mavir_logo():
     """
     Get url to MAVIR logo to use when displaying MAVIR data visually (optional)
@@ -233,7 +247,7 @@ def get_mavir_logo():
     return "https://www.mavir.hu/o/mavir-portal-theme/images/mavir_logo_white.png"
 
 
-@app.get("/mavir/status", responses=response_examples["/mavir/status"])
+@ app.get("/mavir/status", responses=response_examples["/mavir/status"])
 def get_mavir_status():
     """
     Retrieve the status of Electricity/MAVIR data
@@ -243,7 +257,7 @@ def get_mavir_status():
     return {"Message": MAVIR_MESSAGE, "data": df.to_dict(**DEFAULT_TO_DICT)}
 
 
-@app.get("/mavir/columns", responses=response_examples["/mavir/columns"])
+@ app.get("/mavir/columns", responses=response_examples["/mavir/columns"])
 def get_electricity_columns():
     """
     Retrieve the columns of electricity data
@@ -252,7 +266,7 @@ def get_electricity_columns():
     return {"Message": MAVIR_MESSAGE, "data": result}
 
 
-@app.get("/mavir/load", responses=response_examples["/mavir/load"])
+@ app.get("/mavir/load", responses=response_examples["/mavir/load"])
 def get_electricity_load(start_date: datetime, end_date: datetime,
                          col: Annotated[list[str] | None, Query()] = None):
     """
@@ -271,7 +285,7 @@ def get_electricity_load(start_date: datetime, end_date: datetime,
     return {"Message": MAVIR_MESSAGE, "data": result}
 
 
-@app.get("/ai/table", responses=response_examples["/ai/table"])
+@ app.get("/ai/table", responses=response_examples["/ai/table"])
 def get_ai_table(start_date: pd.Timestamp | datetime | None = None,
                  end_date: pd.Timestamp | datetime | None = None, which: str = '10min'):
     """
@@ -282,6 +296,23 @@ def get_ai_table(start_date: pd.Timestamp | datetime | None = None,
     """
     try:
         df: pd.DataFrame = reader.get_ai_table(start_date, end_date, which)
+        result = df.replace({np.nan: None}).to_dict(**DEFAULT_TO_DICT)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    return {"data": result}
+
+
+@ app.get("/ai/s2s", responses=response_examples["/ai/s2s"])
+def get_s2s_preds(start_date: pd.Timestamp | datetime | None = None,
+                  end_date: pd.Timestamp | datetime | None = None, aligned: bool = False):
+    """
+    Retrieve predictions of Seq2Seq model
+    - **start_date**: Date to start from, if unspecified starts at earliest
+    - **end_date**: Date to end on, if unspecified starts at latest
+    - **aligned**: align true-pred or just return predictions at time
+    """
+    try:
+        df: pd.DataFrame = reader.get_s2s_preds(start_date, end_date, aligned)
         result = df.replace({np.nan: None}).to_dict(**DEFAULT_TO_DICT)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
@@ -300,6 +331,7 @@ def main(logger: logging.Logger, skip_checks: bool):
                          f"message: {str(e)} | "
                          f"Make sure you are connected to the internet and https://odp.met.hu/ is available")
             exit(1)
+
     # MAVIR init
     if not skip_checks and not DEV_MODE:
         try:
@@ -309,6 +341,7 @@ def main(logger: logging.Logger, skip_checks: bool):
                          f"message: {str(e)} | "
                          f"Make sure you are connected to the internet and https://www.mavir.hu is available")
             exit(1)
+
     # AI init
     ai_int.startup_sequence()
 

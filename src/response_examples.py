@@ -296,5 +296,56 @@ response_examples = {
                 }
             }
         }
+    },
+
+    "/ai/s2s": {
+        200: {
+            "description": "Succesful Response",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "non-aligned": {
+                            "value": {
+                                "data": {
+                                    "2020-06-23T16:00:00": {
+                                        "NSLTplus1": 4982.53,
+                                        "NSLTplus2": 5064.72,
+                                        "NSLTplus3": 5075.42,
+                                    },
+                                    "2020-06-23T17:00:00": {
+                                        "...": "..."
+                                    }
+                                }
+                            }
+                        },
+                        "aligned": {
+                            "value": {
+                                "data": {
+                                    "2020-06-23T17:00:00": {
+                                        "NetSystemLoad": 4961.13,
+                                        "NSLP1ago": 4982.53,
+                                        "NSLP2ago": 4997.66,
+                                        "NSLP3ago": 4946.14,
+                                    },
+                                    "2020-06-23T18:00:00": {
+                                        "...": "..."
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        400: {
+            "description": "Bad Request",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Error message"
+                    }
+                }
+            }
+        }
     }
 }

@@ -274,11 +274,44 @@ class Reader(DatabaseConnect):
 
         self._logger.info(f"Reading AI_{which} from {start_date or 'start'} to {end_date or 'end'}")
 
-        start_str = f"Time >= \"{start_date}\"" if start_date else "TRUE"
-        end_str = f"Time <= \"{end_date}\"" if end_date else "TRUE"
+        start_sql = f"Time >= \"{start_date}\"" if start_date else "TRUE"
+        end_sql = f"Time <= \"{end_date}\"" if end_date else "TRUE"
 
-        df = pd.read_sql(f"SELECT * FROM AI_{which} WHERE {start_str} AND {end_str}",
+        df = pd.read_sql(f"SELECT * FROM AI_{which} WHERE {start_sql} AND {end_sql}",
                          con=self._con)
+        df.set_index("Time", drop=True, inplace=True)
+
+        return df
+
+    @DatabaseConnect._db_transaction
+    def get_s2s_preds(self, start_date: pd.Timestamp | datetime | None,
+                      end_date: pd.Timestamp | datetime | None, aligned=False) -> pd.DataFrame:
+        """
+        Get predictions of Seq2Seq model for given timeframe
+        :param start_date: Date to start at in UTC
+        :param end_date: Date to end on in UTC
+        :param aligned: align true-pred or just return predictions at time
+        :returns: pandas.DataFrame with the data
+        :raises ValueError: if param types are wrong
+        """
+        if start_date:
+            self._check_date(start_date, "start_date")
+        if end_date:
+            self._check_date(end_date, "end_date")
+
+        start_sql = f"s2s.Time >= \"{start_date}\"" if start_date else "TRUE"
+        end_sql = f"s2s.Time <= \"{end_date}\"" if end_date else "TRUE"
+
+        if aligned:
+            self._logger.info(f"Reading S2S_aligned_preds and AI_1hour from {start_date or 'start'} "
+                              f"to {end_date or 'end'}")
+            df = pd.read_sql(f"SELECT s2s.Time, tr.NetSystemLoad, s2s.NSLP1ago, s2s.NSLP2ago, s2s.NSLP3ago "
+                             f"FROM (SELECT Time, NetSystemLoad FROM AI_1hour) tr RIGHT JOIN S2S_aligned_preds s2s "
+                             f"ON tr.Time = s2s.Time WHERE {start_sql} AND {end_sql}", con=self._con)
+        else:
+            self._logger.info(f"Reading S2S_raw_preds from {start_date or 'start'} to {end_date or 'end'}")
+            df = pd.read_sql(f"SELECT * FROM S2S_raw_preds s2s WHERE {start_sql} AND {end_sql}", con=self._con)
+
         df.set_index("Time", drop=True, inplace=True)
 
         return df
