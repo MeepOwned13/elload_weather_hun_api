@@ -451,8 +451,9 @@ class OMSZDownloader(DatabaseConnect):
         """
         now: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
         end: pd.Timestamp = self._get_max_end_date()
-        if now > (end + pd.Timedelta(minutes=20)):
-            if now < (end + pd.Timedelta(minutes=30)):
+        # adding 10 seconds, because there is a little delay in updates on omsz
+        if now > (end + pd.DateOffset(minutes=20, seconds=10)):
+            if now < (end + pd.DateOffset(minutes=30)):
                 self.update_curr_weather_data()
             else:
                 self.update_past24h_weather_data()
