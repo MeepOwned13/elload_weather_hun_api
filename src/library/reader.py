@@ -255,6 +255,16 @@ class Reader(DatabaseConnect):
         return df
 
     @DatabaseConnect._db_transaction
+    def get_ai_table_columns(self) -> list[str]:
+        """
+        Retrieves columns for AI_10min and AI_1hour
+        :returns: list of columns
+        """
+        self._curs.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='AI_1hour'")
+        table_cols = self._curs.fetchall()
+        return [tc[0] for tc in table_cols]
+
+    @DatabaseConnect._db_transaction
     def get_ai_table(self, start_date: pd.Timestamp | datetime | None,
                      end_date: pd.Timestamp | datetime | None, which: str = '10min') -> pd.DataFrame:
         """

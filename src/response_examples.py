@@ -247,6 +247,24 @@ response_examples = {
             }
         }
     },
+    "/ai/columns": {
+        200: {
+            "description": "Succesful Response",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "Message": "string",
+                        "data": {
+                            0: "Time",
+                            1: "NetSystemLoad",
+                            2: "Prec",
+                            "...": "..."
+                        }
+                    }
+                }
+            }
+        }
+    },
     "/ai/table": {
         200: {
             "description": "Succesful Response",

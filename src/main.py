@@ -211,13 +211,9 @@ def get_weather_station(start_date: datetime, end_date: datetime,
     - **col**: List of columns to retrieve or nothing to get all columns
     - **date_first**: On multistation query, results are grouped by date instead of station
 
-    When retrieving a single station
-    - limit of timeframe is 5 years
-    - col(s) get checked for existence, error if no columns are valid
+    When retrieving a single station limit of timeframe is 4 years
 
-    When retrieving more than 1 station
-    - limit of timeframe is 1 week
-    - col(s) get checked but return no errors, they are only left out of the result
+    When retrieving more than 1 station the limit of timeframe is 1 week
 
     Time is used as a key and will be returned no matter if it's in the specified columns
     """
@@ -284,6 +280,15 @@ def get_electricity_load(start_date: datetime, end_date: datetime,
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
     return {"Message": MAVIR_MESSAGE, "data": result}
+
+
+@ app.get("/ai/columns", responses=response_examples["/ai/columns"])
+def get_ai_columns():
+    """
+    Retrieve the columns of ai table(s)
+    """
+    result = reader.get_ai_table_columns()
+    return {"data": result}
 
 
 @ app.get("/ai/table", responses=response_examples["/ai/table"])
