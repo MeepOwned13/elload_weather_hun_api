@@ -41,6 +41,7 @@ except connector.errors.ProgrammingError:
     c.execute(f"CREATE DATABASE {db_connect_info['database']}")
 conn.close()
 
+log_config = Path(f"{__file__}/../../logs/log.ini").resolve().absolute().as_posix()
 logger = logging.getLogger("app")
 omsz_dl = o_dl.OMSZDownloader(db_connect_info)
 mavir_dl = m_dl.MAVIRDownloader(db_connect_info)
@@ -325,13 +326,15 @@ def get_s2s_preds(start_date: pd.Timestamp | datetime | None = None,
     return {"data": result}
 
 
-def main(logger: logging.Logger, skip_checks: bool):
+def main(skip_checks: bool):
     # Setup, define variables, assign classes
     logger.debug("Setting up")
     # OMSZ init
     if not skip_checks and not DEV_MODE:
         try:
             omsz_dl.startup_sequence()
+            global last_weather_update
+            last_weather_update = pd.Timestamp.now("UTC").tz_localize(None)
         except Exception as e:
             logger.error(f"Exception/Error {e.__class__.__name__} occured during OMSZ startup sequece, "
                          f"message: {str(e)} | "
@@ -342,6 +345,8 @@ def main(logger: logging.Logger, skip_checks: bool):
     if not skip_checks and not DEV_MODE:
         try:
             mavir_dl.startup_sequence()
+            global last_electricity_update
+            last_electricity_update = pd.Timestamp.now("UTC").tz_localize(None)
         except Exception as e:
             logger.error(f"Exception/Error {e.__class__.__name__} occured during MAVIR startup sequece, "
                          f"message: {str(e)} | "
@@ -350,9 +355,11 @@ def main(logger: logging.Logger, skip_checks: bool):
 
     # AI init
     ai_int.startup_sequence()
+    global last_s2s_update
+    last_s2s_update = pd.Timestamp.now("UTC").tz_localize(None) - pd.DateOffset(minutes=10)
 
     # Start the app
-    uvicorn.run(app, port=8000)
+    uvicorn.run(app, port=8000, log_config=log_config)
 
 
 if __name__ == "__main__":
@@ -365,34 +372,7 @@ if __name__ == "__main__":
     DEV_MODE = args.dev
 
     # Set up logging
-    log_folder = Path(f"{__file__}/../../logs").resolve()
-    log_folder.mkdir(exist_ok=True)
+    logging.config.fileConfig(log_config, disable_existing_loggers=False)
 
-    logger.setLevel(logging.DEBUG)
-
-    log_fh = logging.FileHandler(log_folder / "app.log")
-    log_fh.setLevel(logging.DEBUG)
-
-    log_ch = logging.StreamHandler()
-    log_ch.setLevel(logging.INFO)
-
-    log_format = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-
-    log_fh.setFormatter(log_format)
-    log_ch.setFormatter(log_format)
-
-    # Start loggers
-    logger.addHandler(log_fh)
-    o_dl.omsz_downloader_logger.addHandler(log_fh)
-    m_dl.mavir_downloader_logger.addHandler(log_fh)
-    rd.reader_logger.addHandler(log_fh)
-    ai.ai_integrator_logger.addHandler(log_fh)
-
-    logger.addHandler(log_ch)
-    o_dl.omsz_downloader_logger.addHandler(log_ch)
-    m_dl.mavir_downloader_logger.addHandler(log_ch)
-    rd.reader_logger.addHandler(log_ch)
-    ai.ai_integrator_logger.addHandler(log_ch)
-
-    main(logger, args.skip_checks)
+    main(args.skip_checks)
 
