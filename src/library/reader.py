@@ -237,7 +237,7 @@ class Reader(DatabaseConnect):
             columns = ["StationNumber"] + columns
         columns = self._cols_to_str(columns)
 
-        self._logger.info(f"Reading {'all' if not stations else len(stations)}"
+        self._logger.info(f"Reading {'all' if not stations else len(stations)} "
                           f"stations from {start_date} to {end_date}")
 
         if stations:

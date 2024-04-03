@@ -41,11 +41,13 @@ class DatabaseConnect():
                 self._curs.execute("COMMIT")
                 self._logger.debug("Database transaction commit")
             except Exception:
-                self._curs.execute("ROLLBACK")
-                self._logger.debug("Database transaction rollback")
+                if self._curs:
+                    self._curs.execute("ROLLBACK")
+                    self._logger.debug("Database transaction rollback")
                 raise
             finally:
-                self._curs.close()
+                if self._curs:
+                    self._curs.close()
                 self._in_transaction = False
             return res
         return execute

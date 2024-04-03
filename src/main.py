@@ -130,13 +130,13 @@ async def update_check():
                      f"Changes were rolled back, resuming app | message: {str(e)}")
 
 
-@ app.get('/favicon.ico', include_in_schema=False)
-def favicon():
+@app.get('/favicon.ico', include_in_schema=False)
+async def favicon():
     return FileResponse(FAVICON_PATH)
 
 
-@ app.get("/docs", include_in_schema=False)
-def swagger_ui_html():
+@app.get("/docs", include_in_schema=False)
+async def swagger_ui_html():
     return get_swagger_ui_html(
         openapi_url="/openapi.json",
         title=TITLE,
@@ -144,8 +144,8 @@ def swagger_ui_html():
     )
 
 
-@ app.get("/redoc", include_in_schema=False)
-def overridden_redoc():
+@app.get("/redoc", include_in_schema=False)
+async def overridden_redoc():
     return get_redoc_html(
         openapi_url="/openapi.json",
         title="FastAPI",
@@ -153,8 +153,8 @@ def overridden_redoc():
     )
 
 
-@ app.get("/", responses=response_examples['/'])
-def index():
+@app.get("/", responses=response_examples['/'])
+async def index():
     """
     Get message about usage and sources from OMSZ and MAVIR, and last update times
     """
@@ -162,16 +162,16 @@ def index():
             "last_mavir_update": last_electricity_update, "last_s2s_update": last_s2s_update}
 
 
-@ app.get("/omsz/logo", responses=response_examples['/omsz/logo'])
-def get_omsz_logo():
+@app.get("/omsz/logo", responses=response_examples['/omsz/logo'])
+async def get_omsz_logo():
     """
     Get url to OMSZ logo required when displaying OMSZ data visually.
     """
     return "https://www.met.hu/images/logo/omsz_logo_1362x492_300dpi.png"
 
 
-@ app.get("/omsz/meta", responses=response_examples["/omsz/meta"])
-def get_omsz_meta():
+@app.get("/omsz/meta", responses=response_examples["/omsz/meta"])
+async def get_omsz_meta():
     """
     Retrieve the metadata for Weather/OMSZ stations
     Contains info about the stations' location
@@ -180,8 +180,8 @@ def get_omsz_meta():
     return {"Message": OMSZ_MESSAGE, "data": df.to_dict(**DEFAULT_TO_DICT)}
 
 
-@ app.get("/omsz/status", responses=response_examples["/omsz/status"])
-def get_omsz_status():
+@app.get("/omsz/status", responses=response_examples["/omsz/status"])
+async def get_omsz_status():
     """
     Retrieve the status for Weather/OMSZ stations
     Contains info about the stations' location, Start and End dates of observations
@@ -190,8 +190,8 @@ def get_omsz_status():
     return {"Message": OMSZ_MESSAGE, "data": df.to_dict(**DEFAULT_TO_DICT)}
 
 
-@ app.get("/omsz/columns", responses=response_examples["/omsz/columns"])
-def get_omsz_columns():
+@app.get("/omsz/columns", responses=response_examples["/omsz/columns"])
+async def get_omsz_columns():
     """
     Get the columns available in weather data
     """
@@ -199,8 +199,8 @@ def get_omsz_columns():
     return {"Message": OMSZ_MESSAGE, "data": result}
 
 
-@ app.get("/omsz/weather", responses=response_examples["/omsz/weather"])
-def get_weather_station(start_date: datetime, end_date: datetime,
+@app.get("/omsz/weather", responses=response_examples["/omsz/weather"])
+async def get_weather_station(start_date: datetime, end_date: datetime,
                         station: Annotated[list[int] | None, Query()] = None,
                         col: Annotated[list[str] | None, Query()] = None,
                         date_first: bool = False):
@@ -237,16 +237,16 @@ def get_weather_station(start_date: datetime, end_date: datetime,
     return {"Message": OMSZ_MESSAGE, "data": result}
 
 
-@ app.get("/mavir/logo", responses=response_examples['/mavir/logo'])
-def get_mavir_logo():
+@app.get("/mavir/logo", responses=response_examples['/mavir/logo'])
+async def get_mavir_logo():
     """
     Get url to MAVIR logo to use when displaying MAVIR data visually (optional)
     """
     return "https://www.mavir.hu/o/mavir-portal-theme/images/mavir_logo_white.png"
 
 
-@ app.get("/mavir/status", responses=response_examples["/mavir/status"])
-def get_mavir_status():
+@app.get("/mavir/status", responses=response_examples["/mavir/status"])
+async def get_mavir_status():
     """
     Retrieve the status of Electricity/MAVIR data
     Contains info about each column of the electricity data, specifying the first and last date they are available
@@ -255,8 +255,8 @@ def get_mavir_status():
     return {"Message": MAVIR_MESSAGE, "data": df.to_dict(**DEFAULT_TO_DICT)}
 
 
-@ app.get("/mavir/columns", responses=response_examples["/mavir/columns"])
-def get_electricity_columns():
+@app.get("/mavir/columns", responses=response_examples["/mavir/columns"])
+async def get_electricity_columns():
     """
     Retrieve the columns of electricity data
     """
@@ -264,8 +264,8 @@ def get_electricity_columns():
     return {"Message": MAVIR_MESSAGE, "data": result}
 
 
-@ app.get("/mavir/load", responses=response_examples["/mavir/load"])
-def get_electricity_load(start_date: datetime, end_date: datetime,
+@app.get("/mavir/load", responses=response_examples["/mavir/load"])
+async def get_electricity_load(start_date: datetime, end_date: datetime,
                          col: Annotated[list[str] | None, Query()] = None):
     """
     Retrieve electricity data
@@ -283,8 +283,8 @@ def get_electricity_load(start_date: datetime, end_date: datetime,
     return {"Message": MAVIR_MESSAGE, "data": result}
 
 
-@ app.get("/ai/columns", responses=response_examples["/ai/columns"])
-def get_ai_columns():
+@app.get("/ai/columns", responses=response_examples["/ai/columns"])
+async def get_ai_columns():
     """
     Retrieve the columns of ai table(s)
     """
@@ -292,8 +292,8 @@ def get_ai_columns():
     return {"data": result}
 
 
-@ app.get("/ai/table", responses=response_examples["/ai/table"])
-def get_ai_table(start_date: pd.Timestamp | datetime | None = None,
+@app.get("/ai/table", responses=response_examples["/ai/table"])
+async def get_ai_table(start_date: pd.Timestamp | datetime | None = None,
                  end_date: pd.Timestamp | datetime | None = None, which: str = '10min'):
     """
     Retrieve AI time-series ready table
@@ -309,8 +309,8 @@ def get_ai_table(start_date: pd.Timestamp | datetime | None = None,
     return {"data": result}
 
 
-@ app.get("/ai/s2s", responses=response_examples["/ai/s2s"])
-def get_s2s_preds(start_date: pd.Timestamp | datetime | None = None,
+@app.get("/ai/s2s", responses=response_examples["/ai/s2s"])
+async def get_s2s_preds(start_date: pd.Timestamp | datetime | None = None,
                   end_date: pd.Timestamp | datetime | None = None, aligned: bool = False):
     """
     Retrieve predictions of Seq2Seq model
