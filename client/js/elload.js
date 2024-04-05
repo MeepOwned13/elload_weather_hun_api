@@ -6,6 +6,7 @@ const mavirLegendCheckbox = document.getElementById("mavirShowLegend")
 const mavirMsgDiv = document.getElementById("mavirMsgDiv")
 const mavirLogoImg = document.getElementById("mavirLogo")
 const mavirPlotDivId = "mavirPlotDiv"
+const mavirLoadingOverlay = document.getElementById("mavirLoadingOverlay")
 const mavirPlotBaseWidth = 1080 // maximal width defined via css
 const mavirBaseViewRange = 6
 const mavirMinViewRange = 2
@@ -83,6 +84,7 @@ const mavirPlotFormat = {
 function setMavirNavDisabled(disabled) {
     mavirForwardButton.disabled = disabled
     mavirBackwardButton.disabled = disabled
+    mavirLoadingOverlay.className = disabled ? "loading" : ""
 }
 
 async function updateMavirStatus() {

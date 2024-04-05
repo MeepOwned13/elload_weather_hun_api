@@ -1,6 +1,7 @@
 // global constants
 const omszMsgDiv = document.getElementById("omszMsgDiv")
 const omszMapDivId = "omszStationMapDiv"
+const omszLoadingOverlay = document.getElementById("omszLoadingOverlay")
 const omszForwardButton = document.getElementById("omszForwardButton")
 const omszBackwardButton = document.getElementById("omszBackwardButton")
 const omszDateInput = document.getElementById("omszDateInput")
@@ -27,7 +28,7 @@ let omszResizeTimeout = null
 // map formatting Object
 const omszMapFormat = {
     Temp: {
-        name: 'Temperature',
+        name: langStringText('temp'),
         min: -10,
         max: 35,
         gradient: [
@@ -39,31 +40,7 @@ const omszMapFormat = {
         measurement: '°C',
     },
     AvgTemp: {
-        name: 'Average Temperature',
-        min: -10,
-        max: 35,
-        gradient: [
-            [0, 212, 255, 1],
-            [254, 255, 0, 1],
-            [255, 128, 0, 1],
-            [255, 0, 0, 1],
-        ],
-        measurement: '°C',
-    },
-    MinTemp: {
-        name: 'Minimum Temperature',
-        min: -10,
-        max: 35,
-        gradient: [
-            [0, 212, 255, 1],
-            [254, 255, 0, 1],
-            [255, 128, 0, 1],
-            [255, 0, 0, 1],
-        ],
-        measurement: '°C',
-    },
-    MaxTemp: {
-        name: 'Maximum Temperature',
+        name: langStringText('avgTemp'),
         min: -10,
         max: 35,
         gradient: [
@@ -75,7 +52,7 @@ const omszMapFormat = {
         measurement: '°C',
     },
     Prec: {
-        name: 'Precipitation',
+        name: langStringText('prec'),
         min: 0,
         max: 0.3,
         gradient: [
@@ -85,8 +62,8 @@ const omszMapFormat = {
         ],
         measurement: 'mm'
     },
-        RHum: {
-        name: 'Relative Humidity',
+    RHum: {
+        name: langStringText('rHum'),
         min: 0,
         max: 100,
         gradient: [
@@ -98,7 +75,7 @@ const omszMapFormat = {
         measurement: '%'
     },
     GRad: {
-        name: 'Global Radiation',
+        name: langStringText('gRad'),
         min: 0,
         max: 650,
         gradient: [
@@ -111,7 +88,7 @@ const omszMapFormat = {
         measurement: 'W/m²'
     },
     AvgWS: {
-        name: 'Average Wind',
+        name: langStringText('avgWS'),
         min: 0,
         max: 25,
         gradient: [
@@ -131,6 +108,7 @@ function setOmszNavDisabled(disabled) {
     omszDropdown.disabled = disabled
     omszForwardButton.disabled = disabled
     omszBackwardButton.disabled = disabled
+    omszLoadingOverlay.className = disabled ? "loading" : ""
 }
 
 async function updateOmszStatus() {

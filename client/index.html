@@ -13,15 +13,17 @@
     <link id="siteLogoLink" rel="icon" type="image/x-icon" href="">
     <script src="https://kit.fontawesome.com/92e9c214ca.js" crossorigin="anonymous"></script>
     <script src="https://cdn.plot.ly/plotly-2.29.1.min.js" charset="UTF-8"></script>
+    <script src="js/language.js" charset="UTF-8"></script>
 </head>
 
 <body>
     <header>
         <div>
             <img id="pageLogo"></img>
-            <h1>Title text</h1>
+            <h1><abbr title="Hungarian ELectricity and Weather">HELaW</abbr></h1>
         </div>
         <nav>
+            <button id="language"><img src="pics/hungarian.png"></img></button>
             <button id="omszPageButton" value="omsz">OMSZ page</button>
             <button id="mavirPageButton" value="mavir">MAVIR page</button>
         </nav>
@@ -29,18 +31,22 @@
     <main>
         <div id="omszPage" class="page">
             <div class="block text">
-                <h2>OMSZ page title</h2>
+                <h2>
+                    <script>langHTMLText("omszTitle")</script>
+                </h2>
             </div>
             <div class="block text">
-                <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent a dictum nunc. Praesent sit amet
-                    nisi vitae odio interdum dignissim molestie eu massa. Aenean rhoncus sodales elementum. Aenean
-                    auctor, lacus eu ornare euismod, erat mi interdum purus, euismod vestibulum tortor nisi nec erat.
-                    Fusce mollis sagittis dui. Duis auctor dolor id lorem volutpat, quis imperdiet nisi auctor.</p>
+                <p>
+                    <script>langHTMLText("omszDesc")</script>
+                </p>
             </div>
             <div class="block container">
 
                 <img id="omszLogo" src="">
                 <div id="omszStationMapDiv">
+                    <div id="omszLoadingOverlay">
+                        <div class="spinner"></div>
+                    </div>
                     <div class="hider"></div>
                 </div>
                 <div class="inputs">
@@ -66,7 +72,11 @@
             </div>
             <div class="block container">
                 <img id="mavirLogo" src="">
-                <div id="mavirPlotDiv"></div>
+                <div id="mavirPlotDiv">
+                    <div id="mavirLoadingOverlay">
+                        <div class="spinner"></div>
+                    </div>
+                </div>
                 <div class="inputs">
                     <input id="mavirDateInput" type="datetime-local" name="observedate" min="2018-01-01T00:00:00"
                         max="2024-03-02T15:00:00" step="600" />
