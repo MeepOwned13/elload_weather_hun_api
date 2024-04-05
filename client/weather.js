@@ -85,6 +85,31 @@ const omszMapFormat = {
         ],
         measurement: 'mm'
     },
+        RHum: {
+        name: 'Relative Humidity',
+        min: 0,
+        max: 100,
+        gradient: [
+            [255, 51, 0, 1],
+            [0, 255, 115, 1],
+            [28, 189, 227, 1],
+            [12, 0, 255, 1]
+        ],
+        measurement: '%'
+    },
+    GRad: {
+        name: 'Global Radiation',
+        min: 0,
+        max: 650,
+        gradient: [
+            [28, 189, 227, 0.5],
+            [181, 208, 43, 1],
+            [232, 255, 0, 1],
+            [255, 179, 0, 1],
+            [255, 51, 0, 1]
+        ],
+        measurement: 'W/m²'
+    },
     AvgWS: {
         name: 'Average Wind',
         min: 0,
@@ -109,8 +134,7 @@ function setOmszNavDisabled(disabled) {
 }
 
 async function updateOmszStatus() {
-    let status = await fetchData(apiUrl + 'omsz/status')
-    omszStatus = status
+    omszStatus = await fetchData(apiUrl + 'omsz/status')
 }
 
 function makeOmszMap(datetime, column) {

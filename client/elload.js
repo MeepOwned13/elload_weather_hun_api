@@ -1,5 +1,4 @@
 // global constants
-const mavirUpdateButton = document.getElementById("mavirUpdateButton")
 const mavirForwardButton = document.getElementById("mavirForwardButton")
 const mavirBackwardButton = document.getElementById("mavirBackwardButton")
 const mavirDateInput = document.getElementById("mavirDateInput")
@@ -87,8 +86,7 @@ function setMavirNavDisabled(disabled) {
 }
 
 async function updateMavirStatus() {
-    let status = await fetchData(apiUrl + 'mavir/status')
-    mavirStatus = status
+    mavirStatus = await fetchData(apiUrl + 'mavir/status')
 }
 
 function makeMavirLines(from, to) {
@@ -120,7 +118,7 @@ function makeMavirLines(from, to) {
     let plotData = []
 
     for (let fet in mavirPlotFormat) {
-        format = mavirPlotFormat[fet]
+        let format = mavirPlotFormat[fet]
         plotData.push({
             type: 'scatter',
             x: x,
@@ -244,7 +242,7 @@ function updateMavirPlot() {
     updateMavirLines(datetime).then()
 }
 
-async function updateMavir() {
+function updateMavir() {
     // update elements
     let result = calcMinMaxDate(mavirStatus)
     mavirMinDate = result.minDate
@@ -261,7 +259,7 @@ async function updateMavir() {
 
 function updateMavirPlotDimensions() {
     const width = window.getComputedStyle(document.getElementById(mavirPlotDivId)).getPropertyValue("width").slice(0, -2)
-    if (width == "au") return; // means width was auto, it isn't displayed
+    if (width === "au") return; // means width was auto, it isn't displayed
     const part = (width - 400) / (mavirPlotBaseWidth - 400)
     mavirViewRange = mavirMinViewRange + Math.round((mavirBaseViewRange - mavirMinViewRange) * part)
     updateMavirPlot()

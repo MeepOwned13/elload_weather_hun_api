@@ -4,8 +4,8 @@ function calcMinMaxDate(status) {
     // calculate min and max based on meta, should work the same for omsz and mavir
     data = status.data
 
-    minDate = '9999999999999999999999999999' // placeholder
-    maxDate = '0000000000000000000000000000' // placeholder
+    let minDate = '9999999999999999999999999999' // placeholder
+    let maxDate = '0000000000000000000000000000' // placeholder
 
     for (let key in data) {
         let item = data[key]
@@ -75,9 +75,7 @@ async function fetchData(url) {
         throw new Error("Couldn't fetch " + url)
     }
 
-    const data = await response.json()
-
-    return data
+    return await response.json()
 }
 
 function floorTo10Min(timeString) {
@@ -98,8 +96,7 @@ function floorTo10Min(timeString) {
 
 function localToUtcString(localDate) {
     // convert given Date to utcstring HTML elements understand
-    const utcDatetime = localDate.toISOString().replace(/.\d{3}Z$/, '') // Remove milliseconds and append 'Z'
-    return utcDatetime
+    return localDate.toISOString().replace(/.\d{3}Z$/, '') // Remove milliseconds and append 'Z'
 }
 
 function addHoursToISODate(date, hours) {
