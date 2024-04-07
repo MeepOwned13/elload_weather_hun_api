@@ -180,7 +180,6 @@ function makeOmszMap(datetime, column) {
             ],
             hoverlabel: {
                 font: {
-                    color: "rgb(0, 0, 0)",
                     size: 20,
                 },
                 namelength: -1

@@ -143,6 +143,11 @@ div.container {
 
 #omszStationMapDiv {
     position: relative;
+    min-height: 600px;
+}
+
+#mavirPlotDiv {
+    min-height: 600px;
 }
 
 div.loading {
