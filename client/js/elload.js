@@ -3,7 +3,7 @@ class MavirController extends PlotController {
     #legendCheckbox = document.getElementById("mavirShowLegend")
     #urlA = document.getElementById("mavirUrlA")
     #logoImg = document.getElementById("mavirLogo")
-    #plotDivId = "mavirPlotDiv"
+    #plotDiv = document.getElementById("mavirPlotDiv")
     #plotBaseWidth = 1080 // maximal width defined via css
     #baseViewRange = 6
     #minViewRange = 2
@@ -49,7 +49,8 @@ class MavirController extends PlotController {
         }
 
         let plotData = []
-
+        
+        let i = 0
         for (let fet in this.#plotFormat) {
             let format = this.#plotFormat[fet]
             plotData.push({
@@ -62,7 +63,8 @@ class MavirController extends PlotController {
                     dash: format.dash,
                     color: format.color,
                     width: 3
-                }
+                },
+                visible: this.#plotDiv.data ? this.#plotDiv.data[i++].visible : "true"
             })
         }
 
@@ -113,8 +115,9 @@ class MavirController extends PlotController {
                 'resetScale2d'
             ]
         }
+        console.log(plotData, this.#plotDiv.data)
 
-        Plotly.newPlot(this.#plotDivId, plotData, plotLayout, plotConfig)
+        Plotly.react(this.#plotDiv, plotData, plotLayout, plotConfig)
     }
 
     async #updateLines(datetime) {
@@ -176,7 +179,7 @@ class MavirController extends PlotController {
     }
 
     updatePlotAndDimensions() {
-        const width = window.getComputedStyle(document.getElementById(this.#plotDivId)).getPropertyValue("width").slice(0, -2)
+        const width = window.getComputedStyle(this.#plotDiv).getPropertyValue("width").slice(0, -2)
         if (width === "au") return; // means width was auto, it isn't displayed
         const part = (width - 400) / (this.#plotBaseWidth - 400)
         this.#viewRange = this.#minViewRange + Math.round((this.#baseViewRange - this.#minViewRange) * part)

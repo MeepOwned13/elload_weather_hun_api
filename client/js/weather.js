@@ -1,7 +1,7 @@
 class OmszController extends PlotController {
     // constants
     #urlA = document.getElementById("omszUrlA")
-    #mapDivId = "omszStationMapDiv"
+    #mapDiv = document.getElementById("omszStationMapDiv")
     #dropdown = document.getElementById("omszDropdown")
     #logoImg = document.getElementById("omszLogo")
     #mapBaseLotAxis = {
@@ -150,7 +150,7 @@ class OmszController extends PlotController {
             ]
         }
 
-        Plotly.newPlot(this.#mapDivId, plotData, plotLayout, plotConfig);
+        Plotly.react(this.#mapDiv, plotData, plotLayout, plotConfig);
     }
 
     async #updateMap(datetime, column) {
@@ -222,7 +222,7 @@ class OmszController extends PlotController {
     }
 
     updateMapDimensions() {
-        const width = window.getComputedStyle(document.getElementById(this.#mapDivId)).getPropertyValue("width").slice(0, -2)
+        const width = window.getComputedStyle(this.#mapDiv).getPropertyValue("width").slice(0, -2)
         if (width === "au") return; // means width was auto, it isn't displayed
         const part = width / this.#mapBaseWidth
         const newLotRange = (this.#mapBaseLotAxis.max - this.#mapBaseLotAxis.min) * part
