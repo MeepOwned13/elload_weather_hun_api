@@ -1,96 +1,28 @@
-class MavirController {
+class MavirController extends PlotController {
     // constants
-    #forwardButton = document.getElementById("mavirForwardButton")
-    #backwardButton = document.getElementById("mavirBackwardButton")
-    #dateInput = document.getElementById("mavirDateInput")
     #legendCheckbox = document.getElementById("mavirShowLegend")
     #urlA = document.getElementById("mavirUrlA")
     #logoImg = document.getElementById("mavirLogo")
     #plotDivId = "mavirPlotDiv"
-    #loadingOverlay = document.getElementById("mavirLoadingOverlay")
     #plotBaseWidth = 1080 // maximal width defined via css
     #baseViewRange = 6
     #minViewRange = 2
+    #plotFormat
 
     // variables
-    #minDate = null
-    #maxDate = null
     #requestedMinDate = null
     #requestedMaxDate = null
-    #status = null
     #data = null
     #viewRange = this.#baseViewRange
     #resizeTimeout = null
     #showLegend = true
 
-    // plot format
-    plotFormat = {
-        // net load
-        NetSystemLoad: {
-            name: langStringText('NetSystemLoad'),
-            color: 'rgb(102, 68, 196)',
-            dash: 'solid'
-        },
-        NetSystemLoadFactPlantManagment: {
-            name: langStringText('NetSystemLoadFactPlantManagment'),
-            color: 'rgb(136, 204, 238)',
-            dash: 'solid'
-        },
-        NetSystemLoadNetTradeSettlement: {
-            name: langStringText('NetSystemLoadNetTradeSettlement'),
-            color: 'rgb(68, 170, 153)',
-            dash: 'solid'
-        },
-        NetPlanSystemLoad: {
-            name: langStringText('NetPlanSystemLoad'),
-            color: 'rgb(17, 119, 51)',
-            dash: 'solid'
-        },
-        NetSystemLoadDayAheadEstimate: {
-            name: langStringText('NetSystemLoadDayAheadEstimate'),
-            color: 'rgb(153, 153, 51)',
-            dash: 'solid'
-        },
-        // production
-        NetPlanSystemProduction: {
-            name: langStringText('NetPlanSystemProduction'),
-            color: 'rgb(255, 255, 255)',
-            dash: 'dashdot'
-        },
-        // gross load
-        GrossSystemLoad: {
-            name: langStringText('GrossSystemLoad'),
-            color: 'rgb(204, 102, 119)',
-            dash: 'dash'
-        },
-        GrossCertifiedSystemLoad: {
-            name: langStringText('GrossCertifiedSystemLoad'),
-            color: 'rgb(136, 34, 85)',
-            dash: 'dash'
-        },
-        GrossPlanSystemLoad: {
-            name: langStringText('GrossPlanSystemLoad'),
-            color: 'rgb(170, 68, 153)',
-            dash: 'dash'
-        },
-        GrossSystemLoadDayAheadEstimate: {
-            name: langStringText('GrossSystemLoadDayAheadEstimate'),
-            color: 'rgb(221, 204, 119)',
-            dash: 'dash'
-        },
+    constructor(apiUrl, dateInputId, forwardButtonId, backwardButtonId, loadingOverlayId, plotFormat) {
+        super(apiUrl, dateInputId, forwardButtonId, backwardButtonId, loadingOverlayId)
+        this.#plotFormat = structuredClone(plotFormat)
     }
 
     // functions
-    #mavirNavDisabled(disabled) {
-        this.#forwardButton.disabled = disabled
-        this.#backwardButton.disabled = disabled
-        this.#loadingOverlay.className = disabled ? "loading" : ""
-    }
-
-    async updateStatus() {
-        this.#status = await fetchData(apiUrl + 'mavir/status')
-    }
-
     #makeLines(from, to) {
         // update mavir lineplot with given range, expects: from < to
         this.#urlA.href = this.#data.Message.match(/\(([^)]+)\)/)[1]
@@ -99,7 +31,7 @@ class MavirController {
         let x = []
         let ys = {}
 
-        for (let key in this.plotFormat) {
+        for (let key in this.#plotFormat) {
             ys[key] = []
         }
 
@@ -110,7 +42,7 @@ class MavirController {
             let date = new Date(i)
             date.setHours(date.getHours() - 2 * date.getTimezoneOffset() / 60)
             x.push(localToUtcString(date).replace('T', ' '))
-            for (let fet in this.plotFormat) {
+            for (let fet in this.#plotFormat) {
                 ys[fet].push(item[fet])
             }
 
@@ -118,8 +50,8 @@ class MavirController {
 
         let plotData = []
 
-        for (let fet in this.plotFormat) {
-            let format = this.plotFormat[fet]
+        for (let fet in this.#plotFormat) {
+            let format = this.#plotFormat[fet]
             plotData.push({
                 type: 'scatter',
                 x: x,
@@ -187,7 +119,7 @@ class MavirController {
 
     async #updateLines(datetime) {
         // update elload centered on given datetime
-        if (this.#status === null) {
+        if (this._status === null) {
             await this.updateStatus()
         }
 
@@ -205,21 +137,21 @@ class MavirController {
             this.#requestedMinDate = addHoursToISODate(datetime, -24)
             this.#requestedMaxDate = addHoursToISODate(datetime, 24)
 
-            if (this.#requestedMaxDate > this.#maxDate) {
-                this.#requestedMaxDate = this.#maxDate
+            if (this.#requestedMaxDate > this._maxDate) {
+                this.#requestedMaxDate = this._maxDate
             }
 
             reRequest = true
         }
 
         if (reRequest) {
-            this.#mavirNavDisabled(true)
+            this._setNavDisabled(true)
 
             this.#data = await fetchData(
-                apiUrl + "mavir/load?start_date=" + this.#requestedMinDate + "&end_date=" + this.#maxDate
+                apiUrl + "mavir/load?start_date=" + this.#requestedMinDate + "&end_date=" + this._maxDate
             )
 
-            this.#mavirNavDisabled(false)
+            this._setNavDisabled(false)
         }
 
         this.#makeLines(from, to)
@@ -227,15 +159,15 @@ class MavirController {
 
     updatePlot() {
         // update all plots with data from datetime-local input
-        let rounded = floorTo10Min(this.#dateInput.value + ":00")
-        if (!validDate(localToUtcString(rounded), this.#minDate, this.#maxDate)) {
-            rounded = new Date(this.#maxDate)
+        let rounded = floorTo10Min(this._dateInput.value + ":00")
+        if (!validDate(localToUtcString(rounded), this._minDate, this._maxDate)) {
+            rounded = new Date(this._maxDate)
             rounded.setHours(rounded.getHours() - rounded.getTimezoneOffset() / 60)
         }
 
         // Return to local time to set the element, and then back to utc
         rounded.setHours(rounded.getHours() - rounded.getTimezoneOffset() / 60)
-        this.#dateInput.value = localToUtcString(rounded)
+        this._dateInput.value = localToUtcString(rounded)
         rounded.setHours(rounded.getHours() + rounded.getTimezoneOffset() / 60)
 
         let datetime = localToUtcString(rounded)
@@ -243,26 +175,11 @@ class MavirController {
         this.#updateLines(datetime).then()
     }
 
-    update() {
-        // update elements
-        let result = calcMinMaxDate(this.#status)
-        this.#minDate = result.minDate
-        this.#maxDate = result.maxDate
-        // min has to be set in local time while minDate remains in UTC for comparisons
-        let inMin = new Date(this.#minDate)
-        inMin.setHours(inMin.getHours() - 2 * inMin.getTimezoneOffset() / 60)
-        this.#dateInput.min = localToUtcString(inMin)
-        // max has to be set in local time while maxDate remains in UTC for comparisons
-        let inMax = new Date(this.#maxDate)
-        inMax.setHours(inMax.getHours() - 2 * inMax.getTimezoneOffset() / 60)
-        this.#dateInput.max = localToUtcString(inMax)
-    }
-
-    updateMavirPlotDimensions() {
+    updatePlotAndDimensions() {
         const width = window.getComputedStyle(document.getElementById(this.#plotDivId)).getPropertyValue("width").slice(0, -2)
         if (width === "au") return; // means width was auto, it isn't displayed
         const part = (width - 400) / (this.#plotBaseWidth - 400)
-        this.#viewRange =this.#minViewRange + Math.round((this.#baseViewRange - this.#minViewRange) * part)
+        this.#viewRange = this.#minViewRange + Math.round((this.#baseViewRange - this.#minViewRange) * part)
         this.updatePlot()
     }
 
@@ -270,27 +187,26 @@ class MavirController {
     async setup() {
         // setup function, call before use
         await this.updateStatus()
-        this.update()
-        this.#dateInput.value = this.#dateInput.max
-        addMinutesToInputRounded10(this.#dateInput, -60 * 24)
+        this._dateInput.value = this._dateInput.max
+        addMinutesToInputRounded10(this._dateInput, -60 * 24)
 
         fetchData(apiUrl + 'mavir/logo').then((resp) => {
             this.#logoImg.src = resp
         })
 
-        this.updatePlot()
+        this.updatePlotAndDimensions() // this also calls updatePlot
 
-        this.#dateInput.addEventListener("change", () => {
+        this._dateInput.addEventListener("change", () => {
             this.updatePlot()
         })
 
-        addIntervalToButton(this.#forwardButton, () => {
-            addMinutesToInputRounded10(this.#dateInput, 10)
+        addIntervalToButton(this._forwardButton, () => {
+            addMinutesToInputRounded10(this._dateInput, 10)
             this.updatePlot()
         }, 100, "mavirForward")
 
-        addIntervalToButton(this.#backwardButton, () => {
-            addMinutesToInputRounded10(this.#dateInput, -10)
+        addIntervalToButton(this._backwardButton, () => {
+            addMinutesToInputRounded10(this._dateInput, -10)
             this.updatePlot()
         }, 100, "mavirForward")
 
@@ -303,14 +219,13 @@ class MavirController {
         window.addEventListener('resize', () => {
             clearTimeout(this.#resizeTimeout)
             this.#resizeTimeout = setTimeout(() => {
-                this.updateMavirPlotDimensions()
+                this.updatePlotAndDimensions()
             }, 50)
         })
     }
 
-    switch() {
-        this.update()
-        this.updateMavirPlotDimensions()
-        this.updatePlot()
+    display() {
+        this.updateDateInput()
+        this.updatePlotAndDimensions()
     }
 }
