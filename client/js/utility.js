@@ -1,4 +1,22 @@
 const apiUrl = 'https://8000-01hq0fcfq8q8tabmwrb7nb3x24.cloudspaces.litng.ai/'
+let intervals = {
+    omszForward: null,
+    omszBackward: null,
+    mavirForward: null,
+    mavirBackward: null,
+}
+
+function addIntervalToButton(button, func, ms, intervalName) {
+    button.addEventListener("mousedown", () => {
+        func()
+        intervals[intervalName] = setInterval(() => {
+            if (button.disabled) return
+            func()
+        }, ms)
+    })
+    button.addEventListener("mouseup", () => clearInterval(intervals[intervalName]))
+    button.addEventListener("mouseleave", () => clearInterval(intervals[intervalName]))
+}
 
 function calcMinMaxDate(status) {
     // calculate min and max based on meta, should work the same for omsz and mavir
@@ -9,7 +27,7 @@ function calcMinMaxDate(status) {
 
     for (let key in data) {
         let item = data[key]
-        if(item.StartDate === 'NaT' || item.EndDate === 'NaT') continue
+        if (item.StartDate === 'NaT' || item.EndDate === 'NaT') continue
         minDate = minDate > item.StartDate ? item.StartDate : minDate
         maxDate = maxDate < item.EndDate ? item.EndDate : maxDate
     }
