@@ -20,6 +20,14 @@ class PlotController {
         if (this.display === undefined) {
             throw new TypeError("Must implement display method")
         }
+
+        if (this.setup === undefined) {
+            throw new TypeError("Must implement setup method")
+        }
+
+        if (this.updatePlot === undefined) {
+            throw new TypeError("Must implement updatePlot method")
+        }
     }
 
     // functions
