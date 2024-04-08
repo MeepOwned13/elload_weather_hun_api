@@ -127,13 +127,13 @@ class MavirController extends PlotController {
         let reRequest = false
         if (this.#requestedMinDate === null || this.#requestedMaxDate === null) {
             // setting a smaller range to reduce load times
-            this.#requestedMinDate = addHoursToISODate(datetime, -10)
-            this.#requestedMaxDate = addHoursToISODate(datetime, 10)
+            this.#requestedMinDate = addHoursToISODate(datetime, -this.#viewRange * 2)
+            this.#requestedMaxDate = addHoursToISODate(datetime, this.#viewRange * 2)
 
             reRequest = true
         } else if (force || (from < this.#requestedMinDate) || (to > this.#requestedMaxDate)) {
-            this.#requestedMinDate = addHoursToISODate(datetime, -24)
-            this.#requestedMaxDate = addHoursToISODate(datetime, 24)
+            this.#requestedMinDate = addHoursToISODate(datetime, -this.#viewRange * 4)
+            this.#requestedMaxDate = addHoursToISODate(datetime, this.#viewRange * 4)
 
             if (this.#requestedMaxDate > this._maxDate) {
                 this.#requestedMaxDate = this._maxDate
@@ -146,7 +146,7 @@ class MavirController extends PlotController {
             this._setNavDisabled(true)
 
             this.#data = await fetchData(
-                this._apiUrl + "load?start_date=" + this.#requestedMinDate + "&end_date=" + this._maxDate
+                this._apiUrl + "load?start_date=" + this.#requestedMinDate + "&end_date=" + this.#requestedMaxDate
             )
 
             this._setNavDisabled(false)
@@ -158,19 +158,17 @@ class MavirController extends PlotController {
     updatePlot(force = false) {
         // update all plots with data from datetime-local input
         let rounded = floorTo10Min(this._dateInput.value + ":00")
-        if (!validDate(localToUtcString(rounded), this._minDate, this._maxDate)) {
-            rounded = new Date(this._maxDate)
-            rounded.setHours(rounded.getHours() - rounded.getTimezoneOffset() / 60)
+        
+        if (addHoursToISODate(rounded, this.#viewRange) > this._maxDate) {
+            rounded = addHoursToISODate(this._maxDate, -this.#viewRange)
+        }
+        if (addHoursToISODate(rounded, this.#viewRange) < this._minDate) {
+            rounded = addHoursToISODate(this._minDate, this.#viewRange)
         }
 
-        // Return to local time to set the element, and then back to utc
-        rounded.setHours(rounded.getHours() - rounded.getTimezoneOffset() / 60)
-        this._dateInput.value = localToUtcString(rounded)
-        rounded.setHours(rounded.getHours() + rounded.getTimezoneOffset() / 60)
-
-        let datetime = localToUtcString(rounded)
-
-        this.#updateLines(datetime, force).then()
+        this._dateInput.value = addMinutesToISODate(rounded, -getTZOffset())
+        
+        this.#updateLines(rounded, force).then()
     }
 
     updatePlotAndDimensions() {

@@ -141,6 +141,14 @@ async function fetchData(url) {
 }
 
 /**
+* Get current timezones offset
+* @returns {number} timezone offset in minutes
+*/
+function getTZOffset() {
+    return (new Date()).getTimezoneOffset()
+}
+
+/**
 * Floor an ISO time to 10 minutes
 * @param {string} timeString - ISO time string to floor
 * @returns {string} ISO time string that's floored to 10 minutes
@@ -151,14 +159,14 @@ function floorTo10Min(timeString) {
 
     const roundedMinutes = Math.floor(datetime.getMinutes() / 10) * 10;
 
-    return new Date(
+    return localToUtcString(new Date(
         datetime.getFullYear(),
         datetime.getMonth(),
         datetime.getDate(),
         datetime.getHours(),
         roundedMinutes,
         0
-    );
+    ));
 }
 
 /**
@@ -170,14 +178,14 @@ function floorToHour(timeString) {
     // floor given timestring to hour
     const datetime = new Date(timeString);
 
-    return new Date(
+    return localToUtcString(new Date(
         datetime.getFullYear(),
         datetime.getMonth(),
         datetime.getDate(),
         datetime.getHours(),
         0,
         0
-    );
+    ));
 }
 
 /**
@@ -220,10 +228,8 @@ function addMinutesToISODate(date, minutes) {
 * @param {number} minutes - minutes to add after flooring
 */
 function addMinutesToInputFloored10(dateInput, minutes) {
-    // floors input value to 10 Min before addition 
+    // floors input value to 10 Min before addition
     let rounded = floorTo10Min(dateInput.value + ":00")
-    rounded.setHours(rounded.getHours() - rounded.getTimezoneOffset() / 60)
-    rounded.setMinutes(rounded.getMinutes() + minutes)
-    dateInput.value = localToUtcString(rounded)
-
+    rounded = addMinutesToISODate(rounded, minutes)
+    dateInput.value = addMinutesToISODate(rounded, -getTZOffset())
 }

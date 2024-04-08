@@ -162,7 +162,7 @@ class OmszController extends PlotController {
             this.#requestedMinDate = addHoursToISODate(datetime, -1)
 
             reRequest = true
-        } else if (!validDate(datetime, this.#requestedMinDate, this.#requestedMaxDate)) {
+        } else if (datetime < this.#requestedMinDate || datetime > this.#requestedMaxDate) {
             this.#requestedMinDate = addHoursToISODate(datetime, -3)
             this.#requestedMaxDate = addHoursToISODate(datetime, 3)
             if (this.#requestedMaxDate > this._maxDate) {
@@ -197,24 +197,18 @@ class OmszController extends PlotController {
     updatePlot() {
         // update all plots with data from datetime-local input
         let rounded = floorTo10Min(this._dateInput.value + ":00")
-        if (!validDate(localToUtcString(rounded), this._minDate, this._maxDate)) {
-            rounded = new Date(this._maxDate)
-            rounded.setHours(rounded.getHours() - rounded.getTimezoneOffset() / 60)
+        if (rounded < this.#requestedMinDate || rounded > this.#requestedMaxDate) {
+            rounded = this._maxDate
         }
 
-        // Return to local time to set the element, and then back to utc
-        rounded.setHours(rounded.getHours() - rounded.getTimezoneOffset() / 60)
-        this._dateInput.value = localToUtcString(rounded)
-        rounded.setHours(rounded.getHours() + rounded.getTimezoneOffset() / 60)
-
-        let datetime = localToUtcString(rounded)
+        this._dateInput.value = addMinutesToISODate(rounded, -getTZOffset())
 
         let column = this.#dropdown.value
         if (!(column in this.#mapFormat)) {
             throw new Error("Selected option (" + column + ") unavailable")
         }
 
-        this.#updateMap(datetime, column).then()
+        this.#updateMap(rounded, column).then()
     }
 
     updateMapDimensions() {
@@ -277,6 +271,6 @@ class OmszController extends PlotController {
     display() {
         this.updateMapDimensions()
         // redraw, screenwidth might have changed while on other page
-        if (this.#mapDiv.layout !== undefined) Plotly.relayout(this.#mapDiv, this.#mapDiv.layout)
+        if (this.#mapDiv.layout !== undefined) this.updatePlot()
     }
 }
