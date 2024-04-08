@@ -317,7 +317,7 @@ async def get_s2s_status():
     (relevant to when prediction were made, not for what date)
     """
     df: pd.DataFrame = reader.get_s2s_status()
-    return {"data": df.to_dict(**DEFAULT_TO_DICT)[0]}
+    return {"data": df.to_dict(**DEFAULT_TO_DICT)}
 
 
 @app.get("/ai/s2s", responses=response_examples["/ai/s2s"])

@@ -297,6 +297,8 @@ class Reader(DatabaseConnect):
     def get_s2s_status(self) -> pd.DataFrame:
         self._logger.info("Reading S2S_status")
         df = pd.read_sql("SELECT * FROM S2S_status", con=self._con)
+        df["Type"] = ["S2S"]
+        df.set_index("Type", inplace=True, drop=True)
         return df
 
     @DatabaseConnect._db_transaction
