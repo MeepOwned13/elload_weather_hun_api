@@ -157,7 +157,7 @@ class AIIntegrator(DatabaseConnect):
 
         self._curs.execute(
             """
-            CREATE OR REPLACE VIEW S2S_status as
+            CREATE OR REPLACE VIEW S2S_status AS
             SELECT MIN(Time) StartDate, MAX(Time) EndDate FROM S2S_raw_preds;
             """
         )
