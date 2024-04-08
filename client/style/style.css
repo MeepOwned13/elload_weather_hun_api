@@ -146,7 +146,7 @@ div.container {
     min-height: 672px; /* KEEP CONSISTENT WITH omszMapHeight!!! */
 }
 
-#mavirPlotDiv {
+#mavirPlotDiv, #aiPlotDiv {
     min-height: 600px;
 }
 

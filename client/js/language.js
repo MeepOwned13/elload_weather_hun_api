@@ -77,19 +77,19 @@ const langTexts = {
         eng: "Legend",
     },
     NetSystemLoad: {
-        hun: "Nettó rendszertehelés",
+        hun: "Nettó rendszerterhelés",
         eng: "Net system load",
     },
     NetSystemLoadFactPlantManagment: {
-        hun: "Nettó tény rendszertehelés - üzemirányítási",
+        hun: "Nettó tény rendszerterhelés - üzemirányítási",
         eng: "Net system load fact - plant managment",
     },
     NetSystemLoadNetTradeSettlement: {
-        hun: "Nettó tény rendszertehelés - net.ker.elsz.meres",
+        hun: "Nettó tény rendszerterhelés - net.ker.elsz.meres",
         eng: "Net system load - net trade settlement",
     },
     NetPlanSystemLoad: {
-        hun: "Nettó terv rendszertehelés",
+        hun: "Nettó terv rendszerterhelés",
         eng: "Net planned system load",
     },
     NetSystemLoadDayAheadEstimate: {
@@ -101,26 +101,37 @@ const langTexts = {
         eng: "Net planned system production",
     },
     GrossSystemLoad: {
-        hun: "Bruttó rendszertehelés",
+        hun: "Bruttó rendszerterhelés",
         eng: "Gross system load",
     },
     GrossCertifiedSystemLoad: {
-        hun: "Bruttó hitelesített rendszertehelés",
+        hun: "Bruttó hitelesített rendszerterhelés",
         eng: "Gross certified system load",
     },
     GrossPlanSystemLoad: {
-        hun: "Bruttó terv rendszertehelés",
+        hun: "Bruttó terv rendszerterhelés",
         eng: "Gross planned system load",
     },
     GrossSystemLoadDayAheadEstimate: {
-        hun: "Bruttó rendszertehelés becslés (dayahead)",
+        hun: "Bruttó rendszerterhelés becslés (dayahead)",
         eng: "Gross system load estimate (dayahead)",
     },
     aiDesc: {
         hun: "Az alábbi grafikonok láthatók egy Sequence-to-Sequence Mesterséges intelligencia modell előrejelzései a nettó fogyasztásra. Az előrejelzés 3 órára (óránként) történik, az egyes vonalak az egyes távok előrejelzéseit mutatják. A grafikon alatti gombokkal megtekinthetők az előrejelzések bármely korábbi időpontra.",
         eng: "The graph below displays the predictions of a Sequence-to-Sequence Artifical intelligence model for net system load. Predictions are made for the next 3 hours (by-hour), each line displays different horizons. The buttons below the graph allow You to view the predictions at any historical time.",
-    }
-
+    },
+    NSLP1ago: {
+        hun: "1 órával ezelőtti predikció",
+        eng: "Prediction from 1 hour ago",
+    },
+    NSLP2ago: {
+        hun: "2 órával ezelőtti predikció",
+        eng: "Prediction from 2 hour ago",
+    },
+    NSLP3ago: {
+        hun: "3 órával ezelőtti predikció",
+        eng: "Prediction from 3 hour ago",
+    },
 }
 
 function langHTMLText(textOf) {
@@ -130,6 +141,7 @@ function langHTMLText(textOf) {
 
 function langStringText(textOf) {
     // Used in code
+    if (langTexts[textOf] === undefined) return "UNDEFINED"
     return langTexts[textOf][lang]
 }
 

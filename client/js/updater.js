@@ -131,6 +131,29 @@ const mavirPlotFormat = {
     },
 }
 
+const aiPlotFormat = {
+    NetSystemLoad: {
+        name: langStringText('NetSystemLoad'),
+        color: 'rgb(102, 68, 196)',
+        dash: 'solid'
+    },
+    NSLP1ago: {
+        name: langStringText('NSLP1ago'),
+        color: 'rgb(204, 102, 119)',
+        dash: 'solid'
+    },
+    NSLP2ago: {
+        name: langStringText('NSLP2ago'),
+        color: 'rgb(17, 119, 51)',
+        dash: 'solid'
+    },
+    NSLP3ago: {
+        name: langStringText('NSLP3ago'),
+        color: 'rgb(136, 204, 238)',
+        dash: 'solid'
+    },
+}
+
 const pages = {
     omsz: new PageController("omszPageButton", "omszPage"),
     mavir: new PageController("mavirPageButton", "mavirPage")
@@ -140,6 +163,8 @@ pages.omsz.addController("omsz", new OmszController(apiUrl + "omsz/", "last_omsz
 
 pages.mavir.addController("mavir", new MavirController(apiUrl + "mavir/", "last_mavir_update", "mavirDateInput",
     "mavirForwardButton", "mavirBackwardButton", "mavirLoadingOverlay", mavirPlotFormat))
+pages.mavir.addController("s2s", new AIController(apiUrl + "ai/s2s/", "last_s2s_update", "aiDateInput",
+    "aiForwardButton", "aiBackwardButton", "aiLoadingOverlay", aiPlotFormat))
 
 if (localStorage.getItem("page") === null) {
     localStorage.setItem("page", "omsz")
@@ -170,8 +195,11 @@ async function update() {
     let updated = await pages.mavir.updateControllers(index)
 
     if (("mavir" in updated) && (currentPage === pages.mavir)) {
-        console.log("mavirupdateplot")
-        pages.mavir.ctl.updatePlot(true)
+        pages.mavir.controllers["mavir"].updatePlot(true)
+    }
+
+    if (("ai" in updated) && (currentPage === pages.mavir)) {
+        pages.mavir.controllers["ai"].updatePlot(true)
     }
 }
 
