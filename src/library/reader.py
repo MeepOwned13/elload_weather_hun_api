@@ -294,6 +294,12 @@ class Reader(DatabaseConnect):
         return df
 
     @DatabaseConnect._db_transaction
+    def get_s2s_status(self) -> pd.DataFrame:
+        self._logger.info("Reading S2S_status")
+        df = pd.read_sql("SELECT * FROM S2S_status", con=self._con)
+        return df
+
+    @DatabaseConnect._db_transaction
     def get_s2s_preds(self, start_date: pd.Timestamp | datetime | None,
                       end_date: pd.Timestamp | datetime | None, aligned=False) -> pd.DataFrame:
         """

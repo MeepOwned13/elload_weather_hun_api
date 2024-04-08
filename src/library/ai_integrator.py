@@ -155,6 +155,13 @@ class AIIntegrator(DatabaseConnect):
             """
         )
 
+        self._curs.execute(
+            """
+            CREATE OR REPLACE VIEW S2S_status as
+            SELECT MIN(Time) StartDate, MAX(Time) EndDate FROM S2S_raw_preds;
+            """
+        )
+
         # Adding 3 extra rows so we can see all the predictions even at the end
         # where for example 1ago doesn't exits but 2ago does and so on...
         self._curs.execute(
@@ -210,9 +217,11 @@ class AIIntegrator(DatabaseConnect):
         if start:
             # Need to request 24 before, to have lag feature after make_ai_df
             df: pd.DataFrame = pd.read_sql(f"SELECT Time, NetSystemLoad, Prec, GRad FROM AI_1hour "
-                                           f"WHERE Time >= \"{start - pd.DateOffset(hours=24)}\"", con=self._con)
+                                           f"WHERE Time >= \"{start - pd.DateOffset(hours=24)}\" ORDER BY Time ASC",
+                                           con=self._con)
         else:
-            df: pd.DataFrame = pd.read_sql("SELECT Time, NetSystemLoad, Prec, GRad FROM AI_1hour", con=self._con)
+            df: pd.DataFrame = pd.read_sql("SELECT Time, NetSystemLoad, Prec, GRad FROM AI_1hour ORDER BY Time ASC",
+                                           con=self._con)
         df.set_index("Time", inplace=True, drop=True)
         return make_ai_df(df)[start:]
 

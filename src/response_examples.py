@@ -316,7 +316,21 @@ response_examples = {
             }
         }
     },
-
+    "/ai/s2s/status": {
+        200: {
+            "description": "Succesful Response",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "data": {
+                            "StartDate": "2017-01-01T00:00:00",
+                            "EndDate": "2024-04-02T17:00:00",
+                        }
+                    }
+                }
+            }
+        }
+    },
     "/ai/s2s": {
         200: {
             "description": "Succesful Response",

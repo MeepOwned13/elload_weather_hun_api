@@ -201,9 +201,9 @@ async def get_omsz_columns():
 
 @app.get("/omsz/weather", responses=response_examples["/omsz/weather"])
 async def get_weather_station(start_date: datetime, end_date: datetime,
-                        station: Annotated[list[int] | None, Query()] = None,
-                        col: Annotated[list[str] | None, Query()] = None,
-                        date_first: bool = False):
+                              station: Annotated[list[int] | None, Query()] = None,
+                              col: Annotated[list[str] | None, Query()] = None,
+                              date_first: bool = False):
     """
     Retrieve weather data
     - **start_date**: Date to start from
@@ -266,7 +266,7 @@ async def get_electricity_columns():
 
 @app.get("/mavir/load", responses=response_examples["/mavir/load"])
 async def get_electricity_load(start_date: datetime, end_date: datetime,
-                         col: Annotated[list[str] | None, Query()] = None):
+                               col: Annotated[list[str] | None, Query()] = None):
     """
     Retrieve electricity data
     - **start_date**: Date to start from
@@ -294,7 +294,7 @@ async def get_ai_columns():
 
 @app.get("/ai/table", responses=response_examples["/ai/table"])
 async def get_ai_table(start_date: pd.Timestamp | datetime | None = None,
-                 end_date: pd.Timestamp | datetime | None = None, which: str = '10min'):
+                       end_date: pd.Timestamp | datetime | None = None, which: str = '10min'):
     """
     Retrieve AI time-series ready table
     - **start_date**: Date to start from, if unspecified starts at earliest
@@ -309,9 +309,20 @@ async def get_ai_table(start_date: pd.Timestamp | datetime | None = None,
     return {"data": result}
 
 
+@app.get("/ai/s2s/status", responses=response_examples["/ai/s2s/status"])
+async def get_s2s_status():
+    """
+    Retrieve the status for S2S predictions
+    Contains info about the Start and End dates of predictions
+    (relevant to when prediction were made, not for what date)
+    """
+    df: pd.DataFrame = reader.get_s2s_status()
+    return {"data": df.to_dict(**DEFAULT_TO_DICT)[0]}
+
+
 @app.get("/ai/s2s", responses=response_examples["/ai/s2s"])
 async def get_s2s_preds(start_date: pd.Timestamp | datetime | None = None,
-                  end_date: pd.Timestamp | datetime | None = None, aligned: bool = False):
+                        end_date: pd.Timestamp | datetime | None = None, aligned: bool = False):
     """
     Retrieve predictions of Seq2Seq model
     - **start_date**: Date to start from, if unspecified starts at earliest
