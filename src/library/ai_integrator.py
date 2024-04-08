@@ -158,7 +158,8 @@ class AIIntegrator(DatabaseConnect):
         self._curs.execute(
             """
             CREATE OR REPLACE VIEW S2S_status AS
-            SELECT MIN(Time) StartDate, MAX(Time) EndDate FROM S2S_raw_preds;
+            SELECT FROM_UNIXTIME(UNIX_TIMESTAMP(MIN(Time)) + 3600) StartDate,
+                   FROM_UNIXTIME(UNIX_TIMESTAMP(MAX(Time)) + 3 * 3600) EndDate FROM S2S_raw_preds;
             """
         )
 
