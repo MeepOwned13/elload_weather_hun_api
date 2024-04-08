@@ -4,7 +4,7 @@ class OmszController extends PlotController {
     #mapDiv = document.getElementById("omszStationMapDiv")
     #dropdown = document.getElementById("omszDropdown")
     #logoImg = document.getElementById("omszLogo")
-    #mapBaseLotAxis = {
+    #mapBaseLonAxis = {
         "min": 15.7,
         "max": 23.3
     } // Longitude to fit Hungary map
@@ -16,11 +16,11 @@ class OmszController extends PlotController {
     #requestedMinDate = null
     #requestedMaxDate = null
     #data = null
-    #mapLotAxis = [this.#mapBaseLotAxis.min, this.#mapBaseLotAxis.max]
+    #mapLonAxis = [this.#mapBaseLonAxis.min, this.#mapBaseLonAxis.max]
     #resizeTimeout = null
 
-    constructor(apiUrl, dateInputId, forwardButtonId, backwardButtonId, loadingOverlayId, mapFormat) {
-        super(apiUrl, dateInputId, forwardButtonId, backwardButtonId, loadingOverlayId)
+    constructor(apiUrl, lastUpdateKey, dateInputId, forwardButtonId, backwardButtonId, loadingOverlayId, mapFormat) {
+        super(apiUrl, lastUpdateKey, dateInputId, forwardButtonId, backwardButtonId, loadingOverlayId)
         this.#mapFormat = structuredClone(mapFormat)
     }
 
@@ -111,7 +111,7 @@ class OmszController extends PlotController {
                     type: 'mercator'
                 },
                 lonaxis: {
-                    'range': this.#mapLotAxis
+                    'range': this.#mapLonAxis
                 },
                 lataxis: {
                     'range': [45.6, 48.8]
@@ -155,10 +155,6 @@ class OmszController extends PlotController {
 
     async #updateMap(datetime, column) {
         // update of map on given datetime, requests data on its own
-        if (this._status === null) {
-            await this.updateStatus()
-        }
-
         let reRequest = false
         if (this.#requestedMinDate === null || this.#requestedMaxDate === null) {
             this.#requestedMaxDate = datetime // first request is always current time
@@ -222,19 +218,20 @@ class OmszController extends PlotController {
     }
 
     updateMapDimensions() {
-        const width = window.getComputedStyle(this.#mapDiv).getPropertyValue("width").slice(0, -2)
+        let width = window.getComputedStyle(this.#mapDiv).getPropertyValue("width").slice(0, -2)
         if (width === "au") return; // means width was auto, it isn't displayed
+        width = parseInt(width)
         const part = width / this.#mapBaseWidth
-        const newLotRange = (this.#mapBaseLotAxis.max - this.#mapBaseLotAxis.min) * part
-        const centerLot = (this.#mapBaseLotAxis.max + this.#mapBaseLotAxis.min) / 2
-        this.#mapLotAxis[0] = centerLot - newLotRange / 2
-        this.#mapLotAxis[1] = centerLot + newLotRange / 2
+        const newLotRange = (this.#mapBaseLonAxis.max - this.#mapBaseLonAxis.min) * part
+        const centerLot = (this.#mapBaseLonAxis.max + this.#mapBaseLonAxis.min) / 2
+        this.#mapLonAxis[0] = centerLot - newLotRange / 2
+        this.#mapLonAxis[1] = centerLot + newLotRange / 2
     }
 
     // construct elements
-    async setup() {
-        // setup function, assumes that status is set
-        await this.updateStatus()
+    async setup(index) {
+        // index should contain lastUpdate times from API
+        await this.updateStatus(index)
         this._dateInput.value = this._dateInput.max
 
         let dropdownOptions = []
@@ -278,8 +275,8 @@ class OmszController extends PlotController {
     }
 
     display() {
-        this.updateDateInput()
         this.updateMapDimensions()
-        this.updatePlot()
+        // redraw, screenwidth might have changed while on other page
+        if (this.#mapDiv.layout !== undefined) Plotly.relayout(this.#mapDiv, this.#mapDiv.layout)
     }
 }

@@ -17,8 +17,8 @@ class MavirController extends PlotController {
     #resizeTimeout = null
     #showLegend = true
 
-    constructor(apiUrl, dateInputId, forwardButtonId, backwardButtonId, loadingOverlayId, plotFormat) {
-        super(apiUrl, dateInputId, forwardButtonId, backwardButtonId, loadingOverlayId)
+    constructor(apiUrl, lastUpdateKey, dateInputId, forwardButtonId, backwardButtonId, loadingOverlayId, plotFormat) {
+        super(apiUrl, lastUpdateKey, dateInputId, forwardButtonId, backwardButtonId, loadingOverlayId)
         this.#plotFormat = structuredClone(plotFormat)
     }
 
@@ -49,7 +49,7 @@ class MavirController extends PlotController {
         }
 
         let plotData = []
-        
+
         let i = 0
         for (let fet in this.#plotFormat) {
             let format = this.#plotFormat[fet]
@@ -115,12 +115,11 @@ class MavirController extends PlotController {
                 'resetScale2d'
             ]
         }
-        console.log(plotData, this.#plotDiv.data)
 
         Plotly.react(this.#plotDiv, plotData, plotLayout, plotConfig)
     }
 
-    async #updateLines(datetime) {
+    async #updateLines(datetime, force = false) {
         // update elload centered on given datetime
         if (this._status === null) {
             await this.updateStatus()
@@ -131,12 +130,12 @@ class MavirController extends PlotController {
 
         let reRequest = false
         if (this.#requestedMinDate === null || this.#requestedMaxDate === null) {
-            // setting a smaller range to reduce traffic
+            // setting a smaller range to reduce load times
             this.#requestedMinDate = addHoursToISODate(datetime, -10)
             this.#requestedMaxDate = addHoursToISODate(datetime, 10)
 
             reRequest = true
-        } else if ((from < this.#requestedMinDate) || (to > this.#requestedMaxDate)) {
+        } else if (force || (from < this.#requestedMinDate) || (to > this.#requestedMaxDate)) {
             this.#requestedMinDate = addHoursToISODate(datetime, -24)
             this.#requestedMaxDate = addHoursToISODate(datetime, 24)
 
@@ -160,7 +159,7 @@ class MavirController extends PlotController {
         this.#makeLines(from, to)
     }
 
-    updatePlot() {
+    updatePlot(force = false) {
         // update all plots with data from datetime-local input
         let rounded = floorTo10Min(this._dateInput.value + ":00")
         if (!validDate(localToUtcString(rounded), this._minDate, this._maxDate)) {
@@ -175,21 +174,25 @@ class MavirController extends PlotController {
 
         let datetime = localToUtcString(rounded)
 
-        this.#updateLines(datetime).then()
+        this.#updateLines(datetime, force).then()
     }
 
     updatePlotAndDimensions() {
-        const width = window.getComputedStyle(this.#plotDiv).getPropertyValue("width").slice(0, -2)
+        let width = window.getComputedStyle(this.#plotDiv).getPropertyValue("width").slice(0, -2)
         if (width === "au") return; // means width was auto, it isn't displayed
+        width = parseInt(width)
         const part = (width - 400) / (this.#plotBaseWidth - 400)
         this.#viewRange = this.#minViewRange + Math.round((this.#baseViewRange - this.#minViewRange) * part)
         this.updatePlot()
+
+        // legend slides into plot even after updatePlot, this seems to fix it
+        if (this.#plotDiv.layout !== undefined) Plotly.relayout(this.#plotDiv, this.#plotDiv.layout)
     }
 
     // construct elements
-    async setup() {
-        // setup function, call before use
-        await this.updateStatus()
+    async setup(index) {
+        // index should contain lastUpdate times from API
+        await this.updateStatus(index)
         this._dateInput.value = this._dateInput.max
         addMinutesToInputRounded10(this._dateInput, -60 * 24)
 
@@ -228,7 +231,6 @@ class MavirController extends PlotController {
     }
 
     display() {
-        this.updateDateInput()
         this.updatePlotAndDimensions()
     }
 }

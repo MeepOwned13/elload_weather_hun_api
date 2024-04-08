@@ -132,21 +132,14 @@ const mavirPlotFormat = {
 }
 
 const pages = {
-    omsz: {
-        button: document.getElementById("omszPageButton"),
-        div: document.getElementById("omszPage"),
-        ctl: new OmszController(apiUrl + "omsz/", "omszDateInput", "omszForwardButton",
-            "omszBackwardButton", "omszLoadingOverlay", omszMapFormat),
-        lastUpdate: null,
-    },
-    mavir: {
-        button: document.getElementById("mavirPageButton"),
-        div: document.getElementById("mavirPage"),
-        ctl: new MavirController(apiUrl + "mavir/", "mavirDateInput", "mavirForwardButton",
-            "mavirBackwardButton", "mavirLoadingOverlay", mavirPlotFormat),
-        lastUpdate: null,
-    }
+    omsz: new PageController("omszPageButton", "omszPage"),
+    mavir: new PageController("mavirPageButton", "mavirPage")
 }
+pages.omsz.addController("omsz", new OmszController(apiUrl + "omsz/", "last_omsz_update", "omszDateInput",
+    "omszForwardButton", "omszBackwardButton", "omszLoadingOverlay", omszMapFormat))
+
+pages.mavir.addController("mavir", new MavirController(apiUrl + "mavir/", "last_mavir_update", "mavirDateInput",
+    "mavirForwardButton", "mavirBackwardButton", "mavirLoadingOverlay", mavirPlotFormat))
 
 if (localStorage.getItem("page") === null) {
     localStorage.setItem("page", "omsz")
@@ -157,43 +150,38 @@ async function setup() {
     document.getElementById("pageLogo").src = apiUrl + 'favicon.ico'
     document.getElementById("siteLogoLink").href = apiUrl + 'favicon.ico'
 
-    for (let page in pages) {
-        pages[page].div.style.display = "none"
-    }
-    currentPage.div.style.display = "block"
-
-    for(let page in pages) {
-        await pages[page].ctl.setup()
-        pages[page].button.addEventListener("click", switchPage)
+    for (let key in pages) {
+        pages[key].switchAway()
     }
 
     let index = await fetchData(apiUrl)
-    pages.omsz.lastUpdate = index.last_omsz_update
-    pages.mavir.lastUpdate = index.last_mavir_update
+    for (let key in pages) {
+        pages[key].setupControllers(index).then(() => {
+            if (pages[key] === currentPage) currentPage.switchTo()
+            pages[key].button.addEventListener("click", switchPage)
+        })
+    }
 }
 
 async function update() {
     let index = await fetchData(apiUrl)
-    if (!(index.last_omsz_update === pages.omsz.lastUpdate)) {
-        await pages.mavir.ctl.updateStatus()
-        pages.omsz.lastUpdate = index.last_omsz_update
-    }
-    if (!(index.last_mavir_update === pages.mavir.lastUpdate)) {
-        await pages.mavir.ctl.updateStatus()
-        pages.mavir.lastUpdate = index.last_mavir_update
-        if (currentPage === pages.mavir) pages.mavir.ctl.updatePlot()
-    }
+    await pages.mavir.updateControllers(index)
 
-    currentPage.ctl.updateDateInput()
+    let updated = await pages.mavir.updateControllers(index)
+
+    if (("mavir" in updated) && (currentPage === pages.mavir)) {
+        console.log("mavirupdateplot")
+        pages.mavir.ctl.updatePlot(true)
+    }
 }
 
 function switchPage(event) {
     if (event.target === currentPage.button) return;
-    currentPage.div.style.display = "none"
+    currentPage.switchAway()
+
     currentPage = pages[event.target.value]
     localStorage.setItem("page", currentPage.button.value)
-    currentPage.div.style.display = "block"
-    currentPage.ctl.display()
+    currentPage.switchTo()
 }
 
 setup().then(() => {
