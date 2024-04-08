@@ -184,7 +184,7 @@ class OmszController extends PlotController {
             }
 
             this.#data = await fetchData(
-                apiUrl + 'omsz/weather?start_date=' + this.#requestedMinDate + '&end_date=' + this.#requestedMaxDate +
+                this._apiUrl + 'weather?start_date=' + this.#requestedMinDate + '&end_date=' + this.#requestedMaxDate +
                 '&date_first=True&col=' + cols.join('&col=')
             )
 
@@ -242,7 +242,7 @@ class OmszController extends PlotController {
         }
         this.#dropdown.innerHTML = dropdownOptions.join('\n')
 
-        fetchData(apiUrl + 'omsz/logo').then((resp) => {
+        fetchData(this._apiUrl + 'logo').then((resp) => {
             this.#logoImg.src = resp
         })
 
@@ -257,12 +257,12 @@ class OmszController extends PlotController {
         })
 
         addIntervalToButton(this._forwardButton, () => {
-            addMinutesToInputRounded10(this._dateInput, 10)
+            addMinutesToInputFloored10(this._dateInput, 10)
             this.updatePlot()
         }, 200, "omszForward")
 
         addIntervalToButton(this._backwardButton, () => {
-            addMinutesToInputRounded10(this._dateInput, -10)
+            addMinutesToInputFloored10(this._dateInput, -10)
             this.updatePlot()
         }, 200, "omszBackward")
 

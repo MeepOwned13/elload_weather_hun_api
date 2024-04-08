@@ -121,10 +121,6 @@ class MavirController extends PlotController {
 
     async #updateLines(datetime, force = false) {
         // update elload centered on given datetime
-        if (this._status === null) {
-            await this.updateStatus()
-        }
-
         let from = addHoursToISODate(datetime, -this.#viewRange)
         let to = addHoursToISODate(datetime, this.#viewRange)
 
@@ -150,7 +146,7 @@ class MavirController extends PlotController {
             this._setNavDisabled(true)
 
             this.#data = await fetchData(
-                apiUrl + "mavir/load?start_date=" + this.#requestedMinDate + "&end_date=" + this._maxDate
+                this._apiUrl + "load?start_date=" + this.#requestedMinDate + "&end_date=" + this._maxDate
             )
 
             this._setNavDisabled(false)
@@ -185,7 +181,7 @@ class MavirController extends PlotController {
         this.#viewRange = this.#minViewRange + Math.round((this.#baseViewRange - this.#minViewRange) * part)
         this.updatePlot()
 
-        // legend slides into plot even after updatePlot, this seems to fix it
+        // legend slides into plot even after updatePlot, seems like an oversight in Plotly.react, this solves it
         if (this.#plotDiv.layout !== undefined) Plotly.relayout(this.#plotDiv, this.#plotDiv.layout)
     }
 
@@ -194,9 +190,9 @@ class MavirController extends PlotController {
         // index should contain lastUpdate times from API
         await this.updateStatus(index)
         this._dateInput.value = this._dateInput.max
-        addMinutesToInputRounded10(this._dateInput, -60 * 24)
+        addMinutesToInputFloored10(this._dateInput, -60 * 24)
 
-        fetchData(apiUrl + 'mavir/logo').then((resp) => {
+        fetchData(this._apiUrl + 'logo').then((resp) => {
             this.#logoImg.src = resp
         })
 
@@ -207,14 +203,14 @@ class MavirController extends PlotController {
         })
 
         addIntervalToButton(this._forwardButton, () => {
-            addMinutesToInputRounded10(this._dateInput, 10)
+            addMinutesToInputFloored10(this._dateInput, 10)
             this.updatePlot()
         }, 100, "mavirForward")
 
         addIntervalToButton(this._backwardButton, () => {
-            addMinutesToInputRounded10(this._dateInput, -10)
+            addMinutesToInputFloored10(this._dateInput, -10)
             this.updatePlot()
-        }, 100, "mavirForward")
+        }, 100, "mavirBackward")
 
         this.#legendCheckbox.checked = true
         this.#legendCheckbox.addEventListener("change", () => {
