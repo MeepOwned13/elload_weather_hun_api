@@ -159,13 +159,17 @@ const pages = {
     omsz: new PageController("omszPageButton", "omszPage"),
     mavir: new PageController("mavirPageButton", "mavirPage")
 }
-pages.omsz.addController("omsz", new OmszController(apiUrl + "omsz/", "last_omsz_update", "omszDateInput",
-    "omszForwardButton", "omszBackwardButton", "omszLoadingOverlay", omszMapFormat))
+pages.omsz.addController("omsz", new OmszController(apiUrl + "omsz/", "last_omsz_update", "omszStationMapDiv",
+    "omszDateInput", "omszForwardButton", "omszBackwardButton", "omszLoadingOverlay",
+    omszMapFormat, 10))
 
-pages.mavir.addController("mavir", new MavirController(apiUrl + "mavir/", "last_mavir_update", "mavirDateInput",
-    "mavirForwardButton", "mavirBackwardButton", "mavirLoadingOverlay", mavirPlotFormat))
-pages.mavir.addController("s2s", new AIController(apiUrl + "ai/s2s/", "last_s2s_update", "aiDateInput",
-    "aiForwardButton", "aiBackwardButton", "aiLoadingOverlay", aiPlotFormat))
+pages.mavir.addController("mavir", new MavirController(apiUrl + "mavir/", "last_mavir_update", "mavirPlotDiv",
+    "mavirDateInput", "mavirForwardButton", "mavirBackwardButton", "mavirLoadingOverlay",
+    "load", 6, 2, mavirPlotFormat, 10))
+
+pages.mavir.addController("s2s", new AIController(apiUrl + "ai/s2s/", "last_s2s_update", "aiPlotDiv",
+    "aiDateInput", "aiForwardButton", "aiBackwardButton", "aiLoadingOverlay",
+    "preds?aligned=True", 16, 6, aiPlotFormat, 60))
 
 if (localStorage.getItem("page") === null) {
     localStorage.setItem("page", "omsz")

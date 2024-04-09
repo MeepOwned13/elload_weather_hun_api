@@ -1,14 +1,12 @@
 class OmszController extends PlotController {
     // constants
     #urlA = document.getElementById("omszUrlA")
-    #mapDiv = document.getElementById("omszStationMapDiv")
-    #dropdown = document.getElementById("omszDropdown")
     #logoImg = document.getElementById("omszLogo")
+    #dropdown = document.getElementById("omszDropdown")
     #mapBaseLonAxis = {
         "min": 15.7,
         "max": 23.3
     } // Longitude to fit Hungary map
-    #mapBaseWidth = 1080 // maximal width defined via css
     #mapHeight = 672 // adjusted for width of 1080 that is maximal in the css (1100 - 2 × 10)
     #mapFormat // formatting information for the map
 
@@ -19,8 +17,8 @@ class OmszController extends PlotController {
     #mapLonAxis = [this.#mapBaseLonAxis.min, this.#mapBaseLonAxis.max]
     #resizeTimeout = null
 
-    constructor(apiUrl, lastUpdateKey, dateInputId, forwardButtonId, backwardButtonId, loadingOverlayId, mapFormat) {
-        super(apiUrl, lastUpdateKey, dateInputId, forwardButtonId, backwardButtonId, loadingOverlayId)
+    constructor(apiUrl, lastUpdateKey, plotDivId, dateInputId, forwardButtonId, backwardButtonId, loadingOverlayId, mapFormat, stepSize = 10, maxWidth = 1080) {
+        super(apiUrl, lastUpdateKey, plotDivId, dateInputId, forwardButtonId, backwardButtonId, loadingOverlayId, stepSize, maxWidth)
         this.#mapFormat = structuredClone(mapFormat)
     }
 
@@ -150,7 +148,7 @@ class OmszController extends PlotController {
             ]
         }
 
-        Plotly.react(this.#mapDiv, plotData, plotLayout, plotConfig);
+        Plotly.react(this._plotDiv, plotData, plotLayout, plotConfig);
     }
 
     async #updateMap(datetime, column) {
@@ -159,12 +157,12 @@ class OmszController extends PlotController {
         if (this.#requestedMinDate === null || this.#requestedMaxDate === null) {
             this.#requestedMaxDate = datetime // first request is always current time
             // let's set it 1 hour back for the first time to reduce traffic
-            this.#requestedMinDate = addHoursToISODate(datetime, -1)
+            this.#requestedMinDate = addMinutesToISODate(datetime, -1 * 60)
 
             reRequest = true
         } else if (datetime < this.#requestedMinDate || datetime > this.#requestedMaxDate) {
-            this.#requestedMinDate = addHoursToISODate(datetime, -3)
-            this.#requestedMaxDate = addHoursToISODate(datetime, 3)
+            this.#requestedMinDate = addMinutesToISODate(datetime, -3 * 60)
+            this.#requestedMaxDate = addMinutesToISODate(datetime, 3 * 60)
             if (this.#requestedMaxDate > this._maxDate) {
                 this.#requestedMaxDate = this._maxDate
             }
@@ -196,7 +194,7 @@ class OmszController extends PlotController {
 
     updatePlot() {
         // update all plots with data from datetime-local input
-        let rounded = floorTo10Min(this._dateInput.value + ":00")
+        let rounded = floorToMinutes(this._dateInput.value + ":00", this._stepSize)
         if (rounded < this._minDate || rounded > this._maxDate) {
             rounded = this._maxDate
         }
@@ -212,10 +210,10 @@ class OmszController extends PlotController {
     }
 
     updateMapDimensions() {
-        let width = window.getComputedStyle(this.#mapDiv).getPropertyValue("width").slice(0, -2)
+        let width = window.getComputedStyle(this._plotDiv).getPropertyValue("width").slice(0, -2)
         if (width === "au") return; // means width was auto, it isn't displayed
         width = parseInt(width)
-        const part = width / this.#mapBaseWidth
+        const part = width / this._maxWidth
         const newLotRange = (this.#mapBaseLonAxis.max - this.#mapBaseLonAxis.min) * part
         const centerLot = (this.#mapBaseLonAxis.max + this.#mapBaseLonAxis.min) / 2
         this.#mapLonAxis[0] = centerLot - newLotRange / 2
@@ -251,12 +249,12 @@ class OmszController extends PlotController {
         })
 
         addIntervalToButton(this._forwardButton, () => {
-            addMinutesToInputFloored10(this._dateInput, 10)
+            addMinutesToInputFloored(this._dateInput, this._stepSize, this._stepSize)
             this.updatePlot()
         }, 200, "omszForward")
 
         addIntervalToButton(this._backwardButton, () => {
-            addMinutesToInputFloored10(this._dateInput, -10)
+            addMinutesToInputFloored(this._dateInput, this._stepSize, -this._stepSize)
             this.updatePlot()
         }, 200, "omszBackward")
 
@@ -271,6 +269,6 @@ class OmszController extends PlotController {
     display() {
         this.updateMapDimensions()
         // redraw, screenwidth might have changed while on other page
-        if (this.#mapDiv.layout !== undefined) this.updatePlot()
+        if (this._plotDiv.layout !== undefined) this.updatePlot()
     }
 }

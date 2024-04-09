@@ -157,13 +157,14 @@ function getTZOffset(timeString) {
 /**
 * Floor an ISO time to 10 minutes
 * @param {string} timeString - ISO time string to floor
+* @param {number} minutes - minutes to floor to (1-60)
 * @returns {string} ISO time string that's floored to 10 minutes
 */
-function floorTo10Min(timeString) {
+function floorToMinutes(timeString, minutes) {
     // floor given timestring to 10 min
     const datetime = new Date(timeString);
 
-    const roundedMinutes = Math.floor(datetime.getMinutes() / 10) * 10;
+    const roundedMinutes = Math.floor(datetime.getMinutes() / minutes) * minutes;
 
     return localToUtcString(new Date(
         datetime.getFullYear(),
@@ -176,25 +177,6 @@ function floorTo10Min(timeString) {
 }
 
 /**
-* Floor an ISO time to hour
-* @param {string} timeString - ISO time string to floor
-* @returns {string} ISO time string that's floored to hour
-*/
-function floorToHour(timeString) {
-    // floor given timestring to hour
-    const datetime = new Date(timeString);
-
-    return localToUtcString(new Date(
-        datetime.getFullYear(),
-        datetime.getMonth(),
-        datetime.getDate(),
-        datetime.getHours(),
-        0,
-        0
-    ));
-}
-
-/**
 * Convert Date to ISO string in UTC time
 * @param {Date} localDate - date to convert
 * @returns {string} ISO string in UTC time
@@ -202,18 +184,6 @@ function floorToHour(timeString) {
 function localToUtcString(localDate) {
     // convert given Date to utcstring HTML elements understand
     return localDate.toISOString().replace(/.\d{3}Z$/, '') // Remove milliseconds and append 'Z'
-}
-
-/**
-* Add hours to a date in ISO string format
-* @param {string} date - date to add to
-* @param {number} hours - hours to add
-* @returns {string} modified ISO string
-*/
-function addHoursToISODate(date, hours) {
-    let datetime = new Date(date)
-    datetime.setHours(datetime.getHours() + hours - datetime.getTimezoneOffset() / 60)
-    return localToUtcString(datetime)
 }
 
 /**
@@ -231,11 +201,12 @@ function addMinutesToISODate(date, minutes) {
 /**
 * Add minutes to an input's value after flooring it to 10 minutes
 * @param {HTMLElement} dateInput - datetime-local element to add to
+* @param {number} floorTo - minutes to floor to
 * @param {number} minutes - minutes to add after flooring
 */
-function addMinutesToInputFloored10(dateInput, minutes) {
+function addMinutesToInputFloored(dateInput, floorTo, minutes) {
     // floors input value to 10 Min before addition
-    let rounded = floorTo10Min(dateInput.value + ":00")
+    let rounded = floorToMinutes(dateInput.value + ":00", floorTo)
     rounded = addMinutesToISODate(rounded, minutes)
     dateInput.value = addMinutesToISODate(rounded, -getTZOffset(rounded))
 }
