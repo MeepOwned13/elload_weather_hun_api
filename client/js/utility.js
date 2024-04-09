@@ -142,10 +142,11 @@ async function fetchData(url) {
 
 /**
 * Get current timezones offset
+* @param {string} timeString - ISO time string to use (needed for daylight savings time offset)
 * @returns {number} timezone offset in minutes
 */
-function getTZOffset() {
-    return (new Date()).getTimezoneOffset()
+function getTZOffset(timeString) {
+    return (new Date(timeString)).getTimezoneOffset()
 }
 
 /**
@@ -231,5 +232,5 @@ function addMinutesToInputFloored10(dateInput, minutes) {
     // floors input value to 10 Min before addition
     let rounded = floorTo10Min(dateInput.value + ":00")
     rounded = addMinutesToISODate(rounded, minutes)
-    dateInput.value = addMinutesToISODate(rounded, -getTZOffset())
+    dateInput.value = addMinutesToISODate(rounded, -getTZOffset(rounded))
 }

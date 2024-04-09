@@ -162,7 +162,7 @@ class AIController extends PlotController {
             rounded = addHoursToISODate(this._minDate, this.#viewRange)
         }
 
-        this._dateInput.value = addMinutesToISODate(rounded, -getTZOffset())
+        this._dateInput.value = addMinutesToISODate(rounded, -getTZOffset(rounded))
 
         this.#updateLines(rounded, force).then()
     }

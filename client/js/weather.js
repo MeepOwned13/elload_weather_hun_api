@@ -197,11 +197,11 @@ class OmszController extends PlotController {
     updatePlot() {
         // update all plots with data from datetime-local input
         let rounded = floorTo10Min(this._dateInput.value + ":00")
-        if (rounded < this.#requestedMinDate || rounded > this.#requestedMaxDate) {
+        if (rounded < this._minDate || rounded > this._maxDate) {
             rounded = this._maxDate
         }
 
-        this._dateInput.value = addMinutesToISODate(rounded, -getTZOffset())
+        this._dateInput.value = addMinutesToISODate(rounded, -getTZOffset(rounded))
 
         let column = this.#dropdown.value
         if (!(column in this.#mapFormat)) {
