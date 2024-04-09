@@ -104,8 +104,7 @@ class AIController extends PlotController {
                 'zoom2d',
                 'zoomIn2d',
                 'zoomOut2d',
-                'autoScale2d',
-                'resetScale2d'
+                'autoScale2d'
             ]
         }
 
