@@ -19,11 +19,12 @@
 <body>
     <header>
         <div>
-            <img id="pageLogo" src="" alt="Logo of page, displays a cloud with the hungarian flag's colors with a lighting over it"/>
+            <img id="pageLogo" src=""
+                alt="Logo of page, displays a cloud with the hungarian flag's colors with a lighting over it" />
             <h1><abbr title="Hungarian ELectricity and Weather">HELaW</abbr></h1>
         </div>
         <nav>
-            <button id="language"><img src="pics/hungarian.png" alt="The flag of the selected language"/></button>
+            <button id="language"><img src="pics/hungarian.png" alt="The flag of the selected language" /></button>
             <button id="omszPageButton" value="omsz">
                 <script>langHTMLText("omszPage")</script>
             </button>
@@ -45,11 +46,8 @@
                 </p>
             </div>
             <div class="block container">
-                <img id="omszLogo" src="" alt="Logo of OMSZ"/>
+                <img id="omszLogo" src="" alt="Logo of OMSZ" />
                 <div id="omszStationMapDiv">
-                    <div id="omszLoadingOverlay" class="loading">
-                        <div class="spinner"></div>
-                    </div>
                     <div class="hider"></div>
                 </div>
                 <div class="inputs">
@@ -58,6 +56,9 @@
                     <button id="omszBackwardButton"><i class="fa-solid fa-backward"></i></button>
                     <button id="omszForwardButton"><i class="fa-solid fa-forward"></i></button>
                     <select id="omszDropdown"></select>
+                </div>
+                <div id="omszLoadingOverlay" class="loading">
+                    <div class="spinner"></div>
                 </div>
             </div>
             <div class="block text">
@@ -81,9 +82,6 @@
             <div class="block container">
                 <img id="mavirLogo" src="" alt="Logo of MAVIR">
                 <div id="mavirPlotDiv">
-                    <div id="mavirLoadingOverlay" class="loading">
-                        <div class="spinner"></div>
-                    </div>
                 </div>
                 <div class="inputs">
                     <input id="mavirDateInput" type="datetime-local" name="observedate" min="2018-01-01T00:00:00"
@@ -94,6 +92,9 @@
                     <label for="mavirShowLegend">
                         <script>langHTMLText("showLegend")</script>
                     </label>
+                </div>
+                <div id="mavirLoadingOverlay" class="loading">
+                    <div class="spinner"></div>
                 </div>
             </div>
             <div id="mavirMsgDiv" class="block text">
@@ -109,15 +110,15 @@
             </div>
             <div class="block container">
                 <div id="aiPlotDiv">
-                    <div id="aiLoadingOverlay" class="loading">
-                        <div class="spinner"></div>
-                    </div>
                 </div>
                 <div class="inputs">
                     <input id="aiDateInput" type="datetime-local" name="observedate" min="2017-01-01T00:00:00"
                         max="2024-03-02T15:00:00" step="3600" />
                     <button id="aiBackwardButton"><i class="fa-solid fa-backward"></i></button>
                     <button id="aiForwardButton"><i class="fa-solid fa-forward"></i></button>
+                </div>
+                <div id="aiLoadingOverlay" class="loading">
+                    <div class="spinner"></div>
                 </div>
             </div>
         </div>
