@@ -10,7 +10,13 @@ let intervals = {}
 */
 function addIntervalToButton(button, func, ms, intervalName) {
     intervals[intervalName] = null
+
     button.addEventListener("mousedown", () => {
+        // just in case it gets stuck, another press will remove the interval
+        if (intervals[intervalName] !== null) {
+            clearInterval(intervals[intervalName])
+        }
+
         func()
         intervals[intervalName] = setInterval(() => {
             if (button.disabled) return
@@ -77,14 +83,13 @@ function getPercentageInRange(min, max, value) {
 /**
 * Turn array into rgba string format
 * @param {Array} arr - 3 or 4 element array with RGB or RGBA elements
-* @param {number} alpha - use alpha?, doesn't use alpha if it's null or undefined
-* @returns {string} rgba color string
+* @returns {string} rgba color in string, alpha = 1 if array had 3 elements
 */
-function arrToRGBA(arr, alpha = null) {
-    if (alpha === null || alpha === undefined) {
-        alpha = arr[3]
+function arrToRGBA(arr) {
+    if (arr.length === 3) {
+        arr[3] = 1
     }
-    return "rgba(" + arr[0] + "," + arr[1] + "," + arr[2] + "," + alpha + ")"
+    return "rgba(" + arr[0] + "," + arr[1] + "," + arr[2] + "," + arr[3] + ")"
 }
 
 /**
