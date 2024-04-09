@@ -26,11 +26,12 @@ const omszMapFormat = {
     Prec: {
         name: langStringText('prec'),
         min: 0,
-        max: 0.3,
+        max: 1.2,
         gradient: [
-            [255, 255, 255, 0.05],
+            [28, 189, 227, 0.05],
             [28, 189, 227, 1],
-            [24, 0, 255, 1]
+            [61, 97, 255, 1],
+            [18, 0, 187, 1]
         ],
         measurement: 'mm'
     },
