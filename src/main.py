@@ -320,7 +320,7 @@ async def get_s2s_status():
     return {"data": df.to_dict(**DEFAULT_TO_DICT)}
 
 
-@app.get("/ai/s2s", responses=response_examples["/ai/s2s"])
+@app.get("/ai/s2s/preds", responses=response_examples["/ai/s2s/preds"])
 async def get_s2s_preds(start_date: pd.Timestamp | datetime | None = None,
                         end_date: pd.Timestamp | datetime | None = None, aligned: bool = False):
     """

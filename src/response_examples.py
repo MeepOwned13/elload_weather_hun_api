@@ -333,7 +333,7 @@ response_examples = {
             }
         }
     },
-    "/ai/s2s": {
+    "/ai/s2s/preds": {
         200: {
             "description": "Succesful Response",
             "content": {
