@@ -27,7 +27,7 @@ class OmszController extends PlotController {
     // functions
     _setNavDisabled(disabled) {
         super._setNavDisabled(disabled)
-        this._backwardButton.disabled = disabled
+        this.#dropdown.disabled = disabled
     }
 
     #makeMap(datetime, column) {
@@ -243,7 +243,7 @@ class OmszController extends PlotController {
         this.updateMapDimensions()
         this.updatePlot()
 
-        this._dateInput.addEventListener("focusout", () => {
+        this._dateInput.addEventListener("change", () => {
             this.updatePlot()
         })
         this.#dropdown.addEventListener("change", () => {

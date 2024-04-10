@@ -27,7 +27,7 @@ class MavirController extends LinePlotController {
 
         this.updatePlotAndDimensions() // this also calls updatePlot
 
-        this._dateInput.addEventListener("focusout", () => {
+        this._dateInput.addEventListener("change", () => {
             this.updatePlot()
         })
 
