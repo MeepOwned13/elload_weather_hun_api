@@ -143,10 +143,12 @@ div.container {
 
 #omszStationMapDiv {
     position: relative;
-    min-height: 672px; /* KEEP CONSISTENT WITH omszMapHeight!!! */
+    min-height: 672px;
+    /* KEEP CONSISTENT WITH omszMapHeight!!! */
 }
 
-#mavirPlotDiv, #aiPlotDiv {
+#mavirPlotDiv,
+#aiPlotDiv {
     min-height: 600px;
 }
 

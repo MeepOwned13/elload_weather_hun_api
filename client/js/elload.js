@@ -5,9 +5,9 @@ class MavirController extends LinePlotController {
     #legendCheckbox = document.getElementById("mavirShowLegend")
 
     constructor(apiUrl, lastUpdateKey, plotDivId, dateInputId, forwardButtonId, backwardButtonId, loadingOverlayId,
-                dataReqName, maxViewRange, minViewRange, plotFormat, stepSize = 10, maxWidth = 1080) {
+        dataReqName, maxViewRange, minViewRange, plotFormat, stepSize = 10, maxWidth = 1080) {
         super(apiUrl, lastUpdateKey, plotDivId, dateInputId, forwardButtonId, backwardButtonId,
-              loadingOverlayId, dataReqName, maxViewRange, minViewRange, plotFormat, stepSize, maxWidth)
+            loadingOverlayId, dataReqName, maxViewRange, minViewRange, plotFormat, stepSize, maxWidth)
     }
 
     _makeLines(from, to) {
@@ -27,12 +27,12 @@ class MavirController extends LinePlotController {
 
         this.updatePlotAndDimensions() // this also calls updatePlot
 
-        this._dateInput.addEventListener("change", () => {
+        this._dateInput.addEventListener("focusout", () => {
             this.updatePlot()
         })
 
         addIntervalToButton(this._forwardButton, () => {
-            addMinutesToInputFloored(this._dateInput,  this._stepSize, this._stepSize)
+            addMinutesToInputFloored(this._dateInput, this._stepSize, this._stepSize)
             this.updatePlot()
         }, 100, "mavirForward")
 

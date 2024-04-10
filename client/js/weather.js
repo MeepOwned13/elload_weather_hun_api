@@ -17,8 +17,10 @@ class OmszController extends PlotController {
     #mapLonAxis = [this.#mapBaseLonAxis.min, this.#mapBaseLonAxis.max]
     #resizeTimeout = null
 
-    constructor(apiUrl, lastUpdateKey, plotDivId, dateInputId, forwardButtonId, backwardButtonId, loadingOverlayId, mapFormat, stepSize = 10, maxWidth = 1080) {
-        super(apiUrl, lastUpdateKey, plotDivId, dateInputId, forwardButtonId, backwardButtonId, loadingOverlayId, stepSize, maxWidth)
+    constructor(apiUrl, lastUpdateKey, plotDivId, dateInputId, forwardButtonId, backwardButtonId,
+        loadingOverlayId, mapFormat, stepSize = 10, maxWidth = 1080) {
+        super(apiUrl, lastUpdateKey, plotDivId, dateInputId, forwardButtonId, backwardButtonId,
+            loadingOverlayId, stepSize, maxWidth)
         this.#mapFormat = structuredClone(mapFormat)
     }
 
@@ -241,7 +243,7 @@ class OmszController extends PlotController {
         this.updateMapDimensions()
         this.updatePlot()
 
-        this._dateInput.addEventListener("change", () => {
+        this._dateInput.addEventListener("focusout", () => {
             this.updatePlot()
         })
         this.#dropdown.addEventListener("change", () => {

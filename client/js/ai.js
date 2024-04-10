@@ -9,7 +9,7 @@ class AIController extends LinePlotController {
 
         this.updatePlotAndDimensions() // this also calls updatePlot
 
-        this._dateInput.addEventListener("change", () => {
+        this._dateInput.addEventListener("focusout", () => {
             this.updatePlot()
         })
 
