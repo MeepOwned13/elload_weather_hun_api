@@ -43,6 +43,7 @@ class PlotController {
     _setNavDisabled(disabled) {
         this._forwardButton.disabled = disabled
         this._backwardButton.disabled = disabled
+        this._dateInput.disabled = disabled
         this._loadingOverlay.className = disabled ? "loading" : ""
     }
 
