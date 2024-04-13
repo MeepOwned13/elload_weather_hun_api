@@ -8,7 +8,7 @@ import library.ai_integrator as ai
 import pandas as pd
 import uvicorn
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi_utils.tasks import repeat_every
 from fastapi.responses import FileResponse
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
@@ -57,9 +57,23 @@ FAVICON_PATH = Path(f"{__file__}/../favicon.ico").resolve()
 DEV_MODE = False
 OMSZ_MESSAGE = "Weather data is from OMSZ, source: (https://odp.met.hu/)"
 MAVIR_MESSAGE = "Electricity data is from MAVIR, source: (https://mavir.hu/web/mavir/rendszerterheles)"
-DEFAULT_TO_DICT = {
+DEFAULT_TO_JSON = {
     "orient": "index",
+    "date_format": "iso",
+    "date_unit": "s"
 }
+
+
+def df_json_resp(message: str, df: pd.DataFrame):
+    """
+    Allowing FastAPI to convert to JSON results in slow conversions with large data
+    :param message: Message field in response
+    :param df: pandas DataFrame to convert to json
+    :returns: Response where output JSON is {"Message": message, "data": json_df}
+    """
+    data = df.replace({np.nan: None}).to_json(**DEFAULT_TO_JSON)
+    return Response(content=f'{{"Message": "{message}", "data": {data}}}',
+                    media_type="application/json")
 
 
 @asynccontextmanager
@@ -176,8 +190,8 @@ async def get_omsz_meta():
     Retrieve the metadata for Weather/OMSZ stations
     Contains info about the stations' location
     """
-    df: pd.DataFrame = reader.get_weather_meta()
-    return {"Message": OMSZ_MESSAGE, "data": df.to_dict(**DEFAULT_TO_DICT)}
+    result: pd.DataFrame = reader.get_weather_meta()
+    return df_json_resp(OMSZ_MESSAGE, result)
 
 
 @app.get("/omsz/status", responses=response_examples["/omsz/status"])
@@ -186,8 +200,8 @@ async def get_omsz_status():
     Retrieve the status for Weather/OMSZ stations
     Contains info about the stations' location, Start and End dates of observations
     """
-    df: pd.DataFrame = reader.get_weather_status()
-    return {"Message": OMSZ_MESSAGE, "data": df.to_dict(**DEFAULT_TO_DICT)}
+    result: pd.DataFrame = reader.get_weather_status()
+    return df_json_resp(OMSZ_MESSAGE, result)
 
 
 @app.get("/omsz/columns", responses=response_examples["/omsz/columns"])
@@ -218,23 +232,26 @@ async def get_weather_station(start_date: datetime, end_date: datetime,
 
     Time is used as a key and will be returned no matter if it's in the specified columns
     """
-    if not station:
-        station = []
     try:
+        if not station:
+            station = []
         if len(station) == 1:
-            df: pd.DataFrame = reader.get_weather_one_station(station[0], start_date, end_date, cols=col)
-            result = df.replace({np.nan: None}).to_dict(**DEFAULT_TO_DICT)
-        else:
-            df: pd.DataFrame = reader.get_weather_multi_station(start_date, end_date, cols=col, stations=station)
-            result = {}
-            group_name = "Time" if date_first else "StationNumber"
-            grouped = df.groupby(group_name)
-            for gr in grouped.groups:
-                group = grouped.get_group(gr).set_index("StationNumber" if date_first else "Time")
-                result[gr] = group.drop(columns=group_name).replace({np.nan: None}).to_dict(**DEFAULT_TO_DICT)
+            result: pd.DataFrame = reader.get_weather_one_station(station[0], start_date, end_date, cols=col)
+            return df_json_resp(OMSZ_MESSAGE, result)
+        # multi-station, also returning a response directly, showed to be faster
+        df: pd.DataFrame = reader.get_weather_multi_station(start_date, end_date, cols=col, stations=station)
+        result = []
+        group_name = "Time" if date_first else "StationNumber"
+        grouped = df.groupby(group_name)
+        for gr in grouped.groups:
+            group = grouped.get_group(gr).set_index("StationNumber" if date_first else "Time")
+            data = group.drop(columns=group_name).replace({np.nan: None}).to_json(**DEFAULT_TO_JSON)
+            # str() and replace is for when Time group happens, only thing needed for ISO format at this point
+            result.append(f'"{str(gr).replace(" ", "T")}": {data}')
+        return Response(content=f'{{"Message": "{OMSZ_MESSAGE}", "data": {{ {", ".join(result)} }} }}',
+                        media_type="application/json")
     except (LookupError, ValueError) as error:
         raise HTTPException(status_code=400, detail=str(error))
-    return {"Message": OMSZ_MESSAGE, "data": result}
 
 
 @app.get("/mavir/logo", responses=response_examples['/mavir/logo'])
@@ -251,8 +268,8 @@ async def get_mavir_status():
     Retrieve the status of Electricity/MAVIR data
     Contains info about each column of the electricity data, specifying the first and last date they are available
     """
-    df: pd.DataFrame = reader.get_electricity_status()
-    return {"Message": MAVIR_MESSAGE, "data": df.to_dict(**DEFAULT_TO_DICT)}
+    result: pd.DataFrame = reader.get_electricity_status()
+    return df_json_resp(MAVIR_MESSAGE, result)
 
 
 @app.get("/mavir/columns", responses=response_examples["/mavir/columns"])
@@ -276,11 +293,10 @@ async def get_electricity_load(start_date: datetime, end_date: datetime,
     Time is used as a key and will be returned no matter if it's in the specified columns
     """
     try:
-        df: pd.DataFrame = reader.get_electricity_load(start_date, end_date, cols=col)
-        result = df.replace({np.nan: None}).to_dict(**DEFAULT_TO_DICT)
+        result: pd.DataFrame = reader.get_electricity_load(start_date, end_date, cols=col)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
-    return {"Message": MAVIR_MESSAGE, "data": result}
+    return df_json_resp(MAVIR_MESSAGE, result)
 
 
 @app.get("/ai/columns", responses=response_examples["/ai/columns"])
@@ -302,11 +318,10 @@ async def get_ai_table(start_date: pd.Timestamp | datetime | None = None,
     - **which**: aggregation level, one of '10min', '1hour'
     """
     try:
-        df: pd.DataFrame = reader.get_ai_table(start_date, end_date, which)
-        result = df.replace({np.nan: None}).to_dict(**DEFAULT_TO_DICT)
+        result: pd.DataFrame = reader.get_ai_table(start_date, end_date, which)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
-    return {"Message": f"{OMSZ_MESSAGE}, {MAVIR_MESSAGE}", "data": result}
+    return df_json_resp(f"{OMSZ_MESSAGE}, {MAVIR_MESSAGE}", result)
 
 
 @app.get("/ai/s2s/status", responses=response_examples["/ai/s2s/status"])
@@ -316,8 +331,8 @@ async def get_s2s_status():
     Contains info about the Start and End dates of predictions
     (relevant to when prediction were made, not for what date)
     """
-    df: pd.DataFrame = reader.get_s2s_status()
-    return {"data": df.to_dict(**DEFAULT_TO_DICT)}
+    result: pd.DataFrame = reader.get_s2s_status()
+    return df_json_resp(f"{OMSZ_MESSAGE}, {MAVIR_MESSAGE}", result)
 
 
 @app.get("/ai/s2s/preds", responses=response_examples["/ai/s2s/preds"])
@@ -330,11 +345,10 @@ async def get_s2s_preds(start_date: pd.Timestamp | datetime | None = None,
     - **aligned**: align true-pred or just return predictions at time
     """
     try:
-        df: pd.DataFrame = reader.get_s2s_preds(start_date, end_date, aligned)
-        result = df.replace({np.nan: None}).to_dict(**DEFAULT_TO_DICT)
+        result: pd.DataFrame = reader.get_s2s_preds(start_date, end_date, aligned)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
-    return {"data": result}
+    return df_json_resp(f"About the data used for prediction: {OMSZ_MESSAGE}, {MAVIR_MESSAGE}", result)
 
 
 def main(skip_checks: bool):

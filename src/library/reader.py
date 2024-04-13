@@ -75,7 +75,7 @@ class Reader(DatabaseConnect):
         self._curs.execute(f"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='{table}'")
         table_cols = self._curs.fetchall()
         table_cols = {tc[0].lower(): tc[0] for tc in table_cols}
-        cols = [c.lower() for c in cols]
+        cols = list(set([c.lower() for c in cols]))
 
         valid = []
         for col in cols:
