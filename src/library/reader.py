@@ -260,7 +260,7 @@ class Reader(DatabaseConnect):
         Retrieves columns for AI_10min and AI_1hour
         :returns: list of columns
         """
-        self._curs.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='AI_1hour'")
+        self._curs.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='AI_10min'")
         table_cols = self._curs.fetchall()
         return [tc[0] for tc in table_cols]
 
