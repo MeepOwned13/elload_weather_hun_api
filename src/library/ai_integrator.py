@@ -7,6 +7,7 @@ from .utils.tsm_wrapper import TSMWrapper
 from .utils.wrappers import S2STSWrapper
 from .utils.ai_utils import make_ai_df
 from .utils.torch_model_definitions import Seq2seq
+from copy import copy
 
 ai_integrator_logger = logging.getLogger("ai")
 ai_integrator_logger.setLevel(logging.DEBUG)
@@ -29,6 +30,21 @@ class AIIntegrator(DatabaseConnect):
         self._wrapper: TSMWrapper = None
         self._model_year: int = None
         self._from_time = pd.Timestamp("2015-01-01 0:00:00")
+        self._UNITS = {
+            "Time": "datetime",
+            "NetSystemLoad": "MW",
+            "Prec": "mm",
+            "Temp": "°C",
+            "RHum": "%",
+            "GRad": "W/m²",
+            "Pres": "hPa",
+            "Wind": "m/s",
+        }
+
+    @property
+    def units(self):
+        """Get the units for column names."""
+        return copy(self._UNITS)
 
     def __del__(self):
         super().__del__()

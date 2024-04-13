@@ -84,10 +84,10 @@ response_examples = {
                     "example": {
                         "Message": "string",
                         "data": {
-                            0: "Time",
-                            1: "StationNumber",
-                            2: "Prec",
-                            3: "Temp",
+                            "Time": "datetime",
+                            "StationNumber": "id",
+                            "Prec": "mm",
+                            "Temp": "°C",
                             "...": "..."
                         }
                     }
@@ -205,8 +205,8 @@ response_examples = {
                     "example": {
                         "Message": "string",
                         "data": {
-                            0: "Time",
-                            1: "NetSystemLoad",
+                            "Time": "datetime",
+                            "NetSystemLoad": "MW",
                             "...": "..."
                         }
                     }
@@ -255,9 +255,9 @@ response_examples = {
                     "example": {
                         "Message": "string",
                         "data": {
-                            0: "Time",
-                            1: "NetSystemLoad",
-                            2: "Prec",
+                            "Time": "datetime",
+                            "NetSystemLoad": "MW",
+                            "Prec": "mm",
                             "...": "..."
                         }
                     }
@@ -273,6 +273,7 @@ response_examples = {
                     "examples": {
                         "10min": {
                             "value": {
+                                "Message": "string",
                                 "data": {
                                     "2024-03-17T15:00:00": {
                                         "NetSystemLoad": 4242.404,
@@ -288,6 +289,7 @@ response_examples = {
                         },
                         "1hour": {
                             "value": {
+                                "Message": "string",
                                 "data": {
                                     "2024-02-18T15:00:00": {
                                         "NetSystemLoad": 4050.509,

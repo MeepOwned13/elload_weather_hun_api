@@ -5,6 +5,7 @@ import io
 import re
 import warnings
 from .utils.db_connect import DatabaseConnect
+from copy import copy
 
 mavir_downloader_logger = logging.getLogger("mavir")
 mavir_downloader_logger.setLevel(logging.DEBUG)
@@ -24,20 +25,28 @@ class MAVIRDownloader(DatabaseConnect):
         """
         super().__init__(db_connect_info, mavir_downloader_logger)
         self._sess: Session = Session()
-        self._RENAME: dict = {"Időpont": "Time",  # Time of data
-                              # Net load and estimates
-                              "Nettó terhelés": "NetSystemLoad",
-                              "Nettó rendszerterhelés tény - üzemirányítási": "NetSystemLoadFactPlantManagment",
-                              "Nettó tény rendszerterhelés - net.ker.elsz.meres": "NetSystemLoadNetTradeSettlement",
-                              "Nettó terv rendszerterhelés": "NetPlanSystemLoad",
-                              "Nettó rendszerterhelés becslés (dayahead)": "NetSystemLoadDayAheadEstimate",
-                              "Nettó terv rendszertermelés": "NetPlanSystemProduction",
-                              # Gross load and estimates
-                              "Bruttó tény rendszerterhelés": "GrossSystemLoad",
-                              "Bruttó hitelesített rendszerterhelés tény": "GrossCertifiedSystemLoad",
-                              "Bruttó terv rendszerterhelés": "GrossPlanSystemLoad",
-                              "Bruttó rendszerterhelés becslés (dayahead)": "GrossSystemLoadDayAheadEstimate",
-                              }
+        rename_and_unit = [
+            ("Időpont", "Time", "datetime"),  # Time of data
+            # Net load and estimates
+            ("Nettó terhelés", "NetSystemLoad", "MW"),
+            ("Nettó rendszerterhelés tény - üzemirányítási", "NetSystemLoadFactPlantManagment", "MW"),
+            ("Nettó tény rendszerterhelés - net.ker.elsz.meres", "NetSystemLoadNetTradeSettlement", "MW"),
+            ("Nettó terv rendszerterhelés", "NetPlanSystemLoad", "MW"),
+            ("Nettó rendszerterhelés becslés (dayahead)", "NetSystemLoadDayAheadEstimate", "MW"),
+            ("Nettó terv rendszertermelés", "NetPlanSystemProduction", "MW"),
+            # Gross load and estimate,
+            ("Bruttó tény rendszerterhelés", "GrossSystemLoad", "MW"),
+            ("Bruttó hitelesített rendszerterhelés tény", "GrossCertifiedSystemLoad", "MW"),
+            ("Bruttó terv rendszerterhelés", "GrossPlanSystemLoad", "MW"),
+            ("Bruttó rendszerterhelés becslés (dayahead)", "GrossSystemLoadDayAheadEstimate", "MW"),
+        ]
+        self._RENAME: dict = {orig: new for orig, new, _ in rename_and_unit}
+        self._UNITS: dict = {name: unit for _, name, unit in rename_and_unit}
+
+    @property
+    def units(self):
+        """Get the units for column names."""
+        return copy(self._UNITS)
 
     def __del__(self):
         super().__del__()

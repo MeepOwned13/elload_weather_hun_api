@@ -193,9 +193,9 @@ async def get_omsz_status():
 @app.get("/omsz/columns", responses=response_examples["/omsz/columns"])
 async def get_omsz_columns():
     """
-    Get the columns available in weather data
+    Get the columns available in weather data paired with the measurement units
     """
-    result = reader.get_weather_columns()
+    result = {name: omsz_dl.units[name] for name in reader.get_weather_columns()}
     return {"Message": OMSZ_MESSAGE, "data": result}
 
 
@@ -260,7 +260,7 @@ async def get_electricity_columns():
     """
     Retrieve the columns of electricity data
     """
-    result = reader.get_electricity_columns()
+    result = {name: mavir_dl.units[name] for name in reader.get_electricity_columns()}
     return {"Message": MAVIR_MESSAGE, "data": result}
 
 
@@ -288,8 +288,8 @@ async def get_ai_columns():
     """
     Retrieve the columns of ai table(s)
     """
-    result = reader.get_ai_table_columns()
-    return {"data": result}
+    result = {name: ai_int.units[name] for name in reader.get_ai_table_columns()}
+    return {"Message": f"{OMSZ_MESSAGE}, {MAVIR_MESSAGE}", "data": result}
 
 
 @app.get("/ai/table", responses=response_examples["/ai/table"])
@@ -306,7 +306,7 @@ async def get_ai_table(start_date: pd.Timestamp | datetime | None = None,
         result = df.replace({np.nan: None}).to_dict(**DEFAULT_TO_DICT)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
-    return {"data": result}
+    return {"Message": f"{OMSZ_MESSAGE}, {MAVIR_MESSAGE}", "data": result}
 
 
 @app.get("/ai/s2s/status", responses=response_examples["/ai/s2s/status"])
