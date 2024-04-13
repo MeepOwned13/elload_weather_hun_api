@@ -1,42 +1,30 @@
 import logging
-from pathlib import Path
-import sqlite3
 import pandas as pd
-import numpy as np
 from datetime import datetime
+from .utils.db_connect import DatabaseConnect
+# sqlite3 implicitly imported via DatabaseConnect
 
 
-reader_logger = logging.getLogger("omsz")
+reader_logger = logging.getLogger("reader")
 reader_logger.setLevel(logging.DEBUG)
 reader_logger.addHandler(logging.NullHandler())
 
 
-class Reader():
-    def __init__(self, db_path: Path):
-        self._db_path: Path = db_path
-        self._con: sqlite3.Connection = sqlite3.connect(
-            self._db_path, timeout=120, autocommit=False, check_same_thread=False)
-        self._curs: sqlite3.Cursor = None
-        self._SINGLE_TABLE_LIMIT = (3 * 365 + 2 * 366) * 24 * 60  # at least 5 years
-        self._WEATHER_ALL_STATIONS_LIMIT = 7 * 24 * 60  # 1 week
+class Reader(DatabaseConnect):
+    """
+    Facilitates reading of the Database, returning results ready for the API
+    """
+
+    def __init__(self, db_connect_info: dict):
+        """
+        :param db_connect_info: connection info for MySQL connector
+        """
+        super().__init__(db_connect_info, reader_logger)
+        self._SINGLE_TABLE_LIMIT = pd.Timedelta(weeks=52 * 4 + 1)  # 4 years
+        self._WEATHER_ALL_STATIONS_LIMIT = pd.Timedelta(days=7)
 
     def __del__(self):
-        if self._con:
-            self._con.close()
-
-    def _db_transaction(func):
-        """
-        This function opens a cursor at self._curs and makes sure the decorated function is a single transaction.
-        """
-
-        def execute(self, *args, **kwargs):
-            with self._con as self._curs:
-                reader_logger.debug("Database transaction begin")
-                res = func(self, *args, **kwargs)
-                self._curs.commit()
-            reader_logger.debug("Database transaction commit")
-            return res
-        return execute
+        super().__del__()
 
     def _check_int(self, integer, name: str):
         """
@@ -60,7 +48,8 @@ class Reader():
         if type(date) is not pd.Timestamp and type(date) is not datetime:
             raise ValueError(f"Param {name} is not of type pandas.Timestamp or datetime.datetime")
 
-    def _limit_timeframe(self, start_date: pd.Timestamp | datetime, end_date: pd.Timestamp | datetime, minutes: int):
+    def _limit_timeframe(self, start_date: pd.Timestamp | datetime, end_date: pd.Timestamp | datetime,
+                         limit: pd.Timedelta):
         """
         Check if end_date - start_date is over the limit
         :param start_date: Start date in UTC
@@ -68,8 +57,8 @@ class Reader():
         :returns: None
         :raises ValueError: if the timeframe is over the limit
         """
-        if end_date - start_date > pd.Timedelta(minutes=minutes):
-            raise ValueError(f"Given timeframe is over the {minutes} minute limit")
+        if end_date - start_date > limit:
+            raise ValueError(f"Given timeframe is over the limit of {limit}")
 
     def _get_valid_cols(self, table: str, cols: list[str] | None) -> list[str] | None:
         """
@@ -83,7 +72,8 @@ class Reader():
         if not cols:
             return None
 
-        table_cols = self._curs.execute(f"SELECT name FROM PRAGMA_TABLE_INFO(\"{table}\")").fetchall()
+        self._curs.execute(f"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='{table}'")
+        table_cols = self._curs.fetchall()
         table_cols = {tc[0].lower(): tc[0] for tc in table_cols}
         cols = [c.lower() for c in cols]
 
@@ -110,23 +100,24 @@ class Reader():
         else:
             return '*'
 
-    @_db_transaction
-    def get_electricity_meta(self) -> pd.DataFrame:
-        reader_logger.info("Reading MAVIR_meta")
-        df = pd.read_sql("SELECT * FROM MAVIR_meta", con=self._con)
+    @DatabaseConnect._db_transaction
+    def get_electricity_status(self) -> pd.DataFrame:
+        self._logger.info("Reading MAVIR_status")
+        df = pd.read_sql("SELECT * FROM MAVIR_status", con=self._con)
         df.set_index("Column", drop=True, inplace=True)
         return df
 
-    @_db_transaction
+    @DatabaseConnect._db_transaction
     def get_electricity_columns(self) -> list[str]:
         """
-        Retrieves columns for MAVIR_electricity
+        Retrieves columns for MAVIR_data
         :returns: list of columns
         """
-        table_cols = self._curs.execute("SELECT name FROM PRAGMA_TABLE_INFO(\"MAVIR_electricity\")").fetchall()
+        self._curs.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='MAVIR_data'")
+        table_cols = self._curs.fetchall()
         return [tc[0] for tc in table_cols]
 
-    @_db_transaction
+    @DatabaseConnect._db_transaction
     def get_electricity_load(self, start_date: pd.Timestamp | datetime,
                              end_date: pd.Timestamp | datetime, cols: list[str] | None) -> pd.DataFrame:
         """
@@ -143,60 +134,44 @@ class Reader():
 
         self._limit_timeframe(start_date, end_date, self._SINGLE_TABLE_LIMIT)
 
-        columns = self._cols_to_str(self._get_valid_cols("MAVIR_electricity", cols))
+        columns = self._cols_to_str(self._get_valid_cols("MAVIR_data", cols))
 
-        reader_logger.info(f"Reading MAVIR_electricity from {start_date} to {end_date}")
+        self._logger.info(f"Reading MAVIR_data from {start_date} to {end_date}")
 
-        df = pd.read_sql(f"SELECT {columns} FROM MAVIR_electricity "
-                         f"WHERE Time BETWEEN datetime(\"{start_date}\") AND datetime(\"{end_date}\")",
+        df = pd.read_sql(f"SELECT {columns} FROM MAVIR_data "
+                         f"WHERE Time BETWEEN \"{start_date}\" AND \"{end_date}\"",
                          con=self._con)
         df.set_index("Time", drop=True, inplace=True)
 
         return df
 
-    @_db_transaction
+    @DatabaseConnect._db_transaction
     def get_weather_meta(self) -> pd.DataFrame:
-        reader_logger.info("Reading OMSZ_meta")
+        self._logger.info("Reading OMSZ_meta")
         df = pd.read_sql("SELECT * FROM OMSZ_meta", con=self._con)
         df.set_index("StationNumber", drop=True, inplace=True)
         return df
 
-    @_db_transaction
-    def get_weather_station_columns(self, station: int) -> list[str]:
+    @DatabaseConnect._db_transaction
+    def get_weather_status(self) -> pd.DataFrame:
+        self._logger.info("Reading OMSZ_status")
+        df = pd.read_sql("SELECT * FROM OMSZ_status", con=self._con)
+        df.set_index("StationNumber", drop=True, inplace=True)
+        return df
+
+    @DatabaseConnect._db_transaction
+    def get_weather_columns(self) -> list[str]:
         """
         Retrieves columns for given station
-        :param station: Which station to choose
         :returns: list of columns
-        :raises ValueError: if param types
-        :raises LookupError: if station doesn't exist
         """
-        self._check_int(station, "station")
-
-        exists = self._curs.execute(f"SELECT StationNumber FROM OMSZ_meta WHERE StationNumber = {station}").fetchone()
-        if not exists:
-            raise LookupError(f"Can't find station {station}")
-
-        table_cols = self._curs.execute(f"SELECT name FROM PRAGMA_TABLE_INFO(\"OMSZ_{station}\")").fetchall()
+        self._curs.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='OMSZ_data'")
+        table_cols = self._curs.fetchall()
         return [tc[0] for tc in table_cols]
 
-    @_db_transaction
-    def get_weather_all_columns(self) -> dict:
-        """
-        Retrieves columns for all stations
-        :returns: dict{station: [columns]}
-        """
-
-        stations = self._curs.execute("SELECT StationNumber FROM OMSZ_meta").fetchall()
-        result = dict()
-        for station in [s[0] for s in stations]:
-            table_cols = self._curs.execute(f"SELECT name FROM PRAGMA_TABLE_INFO(\"OMSZ_{station}\")").fetchall()
-            result[station] = [tc[0] for tc in table_cols]
-
-        return result
-
-    @_db_transaction
-    def get_weather_station(self, station: int, start_date: pd.Timestamp | datetime,
-                            end_date: pd.Timestamp | datetime, cols: list[str] | None) -> pd.DataFrame:
+    @DatabaseConnect._db_transaction
+    def get_weather_one_station(self, station: int, start_date: pd.Timestamp | datetime,
+                                end_date: pd.Timestamp | datetime, cols: list[str] | None) -> pd.DataFrame:
         """
         Get weather for given station in given timeframe
         :param station: Which station to read from
@@ -213,72 +188,149 @@ class Reader():
 
         self._limit_timeframe(start_date, end_date, self._SINGLE_TABLE_LIMIT)
 
-        exists = self._curs.execute(f"SELECT StationNumber FROM OMSZ_meta WHERE StationNumber = {station}").fetchone()
+        self._curs.execute(f"SELECT StationNumber FROM OMSZ_meta WHERE StationNumber = {station}")
+        exists = self._curs.fetchone()
         if not exists:
             raise LookupError(f"Can't find station {station}")
 
-        columns = self._cols_to_str(self._get_valid_cols(f"OMSZ_{station}", cols))
+        columns = self._cols_to_str(self._get_valid_cols("OMSZ_data", cols))
 
-        print(f"SELECT {columns} FROM OMSZ_{station} "
-              f"WHERE Time BETWEEN datetime(\"{start_date}\") AND datetime(\"{end_date}\")")
+        self._logger.info(f"Reading OMSZ_{station} from {start_date} to {end_date}")
 
-        reader_logger.info(f"Reading OMSZ_{station} from {start_date} to {end_date}")
-
-        df = pd.read_sql(f"SELECT {columns} FROM OMSZ_{station} "
-                         f"WHERE Time BETWEEN datetime(\"{start_date}\") AND datetime(\"{end_date}\")",
+        df = pd.read_sql(f"SELECT {columns} FROM OMSZ_data WHERE StationNumber = {station} AND "
+                         f"Time BETWEEN \"{start_date}\" AND \"{end_date}\"",
                          con=self._con)
         df.set_index("Time", drop=True, inplace=True)
 
-        return df
+        return df.drop(columns="StationNumber", errors='ignore')
 
-    @_db_transaction
-    def get_weather_time(self, start_date: pd.Timestamp | datetime, end_date: pd.Timestamp | datetime,
-                         cols: list[str] | None, df_to_dict: dict | None = None,
-                         stations: list[int] | None = None) -> dict:
+    @DatabaseConnect._db_transaction
+    def get_weather_multi_station(self, start_date: pd.Timestamp | datetime, end_date: pd.Timestamp | datetime,
+                                  cols: list[str] | None, stations: list[int] | None = None) -> dict:
         """
         Get weather for all stations in given timeframe
         :param start_date: Date to start at in UTC
         :param end_date: Date to end on in UTC
         :param cols: Which columns to SELECT, None or [] means all
         :param stations: Which stations to SELECT, None or [] means all
-        :returns: dict{StationNumber: {Time: data}}, skips entries where none of the specified columns exist
-        :raises ValueError: if param types or timeframe length wrong
+        :returns: DataFrame of retrieved data
+        :raises ValueError: if param types, timeframe length wrong or incorrect station is specified
         """
         self._check_date(start_date, "start_date")
         self._check_date(end_date, "end_date")
+
+        self._limit_timeframe(start_date, end_date, self._WEATHER_ALL_STATIONS_LIMIT)
+
+        self._curs.execute("SELECT StationNumber FROM OMSZ_meta")
+        valid_stations = self._curs.fetchall()
+        valid_stations = set([s[0] for s in valid_stations])
 
         if not stations:
             stations = []
         for i, station in enumerate(stations):
             self._check_int(station, f"Station{i}")
+            if station not in valid_stations:
+                raise ValueError(f"Station {station} is invalid")
 
-        self._limit_timeframe(start_date, end_date, self._WEATHER_ALL_STATIONS_LIMIT)
+        columns = self._get_valid_cols("OMSZ_data", cols)
+        if columns:
+            columns = ["StationNumber"] + columns
+        columns = self._cols_to_str(columns)
 
-        df_to_dict = df_to_dict or {"orient": "index"}
+        self._logger.info(f"Reading {'all' if not stations else len(stations)} "
+                          f"stations from {start_date} to {end_date}")
 
-        station_df = pd.read_sql("SELECT StationNumber, StartDate, EndDate FROM OMSZ_meta",
-                                 con=self._con, parse_dates=["StartDate", "EndDate"])
+        if stations:
+            # It'll use PRIMARY index (StationNumber, Time) => Very fast
+            df = pd.read_sql(f"SELECT {columns} FROM OMSZ_data "
+                             f"WHERE StationNumber IN ({str(stations)[1:-1]}) AND "
+                             f"Time BETWEEN \"{start_date}\" AND \"{end_date}\"",
+                             con=self._con)
+        else:
+            # It uses no index by default, need to force (Time) index => 3x faster
+            df = pd.read_sql(f"SELECT {columns} FROM OMSZ_data FORCE INDEX(OMSZ_data_time_index) "
+                             f"WHERE Time BETWEEN \"{start_date}\" AND \"{end_date}\"",
+                             con=self._con)
 
-        reader_logger.info(f"Reading {'all' if not stations else len(stations)}"
-                           f"stations from {start_date} to {end_date}")
+        return df
 
-        result = dict()
-        for _, row in station_df.iterrows():
-            if stations and row["StationNumber"] not in stations:
-                continue
-            if row["StartDate"] is not pd.NaT and row["EndDate"] is not pd.NaT:
-                try:
-                    columns = self._cols_to_str(self._get_valid_cols(f"OMSZ_{row['StationNumber']}", cols))
-                except LookupError:
-                    continue
+    @DatabaseConnect._db_transaction
+    def get_ai_table_columns(self) -> list[str]:
+        """
+        Retrieves columns for AI_10min and AI_1hour
+        :returns: list of columns
+        """
+        self._curs.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='AI_1hour'")
+        table_cols = self._curs.fetchall()
+        return [tc[0] for tc in table_cols]
 
-                df = pd.read_sql(f"SELECT {columns} FROM OMSZ_{row['StationNumber']} "
-                                 f"WHERE Time BETWEEN datetime(\"{start_date}\") AND datetime(\"{end_date}\")",
-                                 con=self._con)
-                df.set_index("Time", drop=True, inplace=True)
-                result[row["StationNumber"]] = df.replace({np.nan: None}).to_dict(**df_to_dict)
+    @DatabaseConnect._db_transaction
+    def get_ai_table(self, start_date: pd.Timestamp | datetime | None,
+                     end_date: pd.Timestamp | datetime | None, which: str = '10min') -> pd.DataFrame:
+        """
+        Get electricity load for given timeframe
+        :param start_date: Date to start at in UTC
+        :param end_date: Date to end on in UTC
+        :param which: 10min or 1hour aggregation?
+        :returns: pandas.DataFrame with the data
+        :raises ValueError: if param types or 'which' is wrong
+        """
+        if start_date:
+            self._check_date(start_date, "start_date")
+        if end_date:
+            self._check_date(end_date, "end_date")
+        if which not in ('10min', '1hour'):
+            raise ValueError("'which' must be 1 of the following: '10min', '1hour'")
 
-        reader_logger.info("DONE")
+        self._logger.info(f"Reading AI_{which} from {start_date or 'start'} to {end_date or 'end'}")
 
-        return result
+        start_sql = f"Time >= \"{start_date}\"" if start_date else "TRUE"
+        end_sql = f"Time <= \"{end_date}\"" if end_date else "TRUE"
+
+        df = pd.read_sql(f"SELECT * FROM AI_{which} WHERE {start_sql} AND {end_sql}",
+                         con=self._con)
+        df.set_index("Time", drop=True, inplace=True)
+
+        return df
+
+    @DatabaseConnect._db_transaction
+    def get_s2s_status(self) -> pd.DataFrame:
+        self._logger.info("Reading S2S_status")
+        df = pd.read_sql("SELECT * FROM S2S_status", con=self._con)
+        df["Type"] = ["S2S"]
+        df.set_index("Type", inplace=True, drop=True)
+        return df
+
+    @DatabaseConnect._db_transaction
+    def get_s2s_preds(self, start_date: pd.Timestamp | datetime | None,
+                      end_date: pd.Timestamp | datetime | None, aligned=False) -> pd.DataFrame:
+        """
+        Get predictions of Seq2Seq model for given timeframe
+        :param start_date: Date to start at in UTC
+        :param end_date: Date to end on in UTC
+        :param aligned: align true-pred or just return predictions at time
+        :returns: pandas.DataFrame with the data
+        :raises ValueError: if param types are wrong
+        """
+        if start_date:
+            self._check_date(start_date, "start_date")
+        if end_date:
+            self._check_date(end_date, "end_date")
+
+        start_sql = f"s2s.Time >= \"{start_date}\"" if start_date else "TRUE"
+        end_sql = f"s2s.Time <= \"{end_date}\"" if end_date else "TRUE"
+
+        if aligned:
+            self._logger.info(f"Reading S2S_aligned_preds and AI_1hour from {start_date or 'start'} "
+                              f"to {end_date or 'end'}")
+            df = pd.read_sql(f"SELECT s2s.Time, tr.NetSystemLoad, s2s.NSLP1ago, s2s.NSLP2ago, s2s.NSLP3ago "
+                             f"FROM (SELECT Time, NetSystemLoad FROM AI_1hour) tr RIGHT JOIN S2S_aligned_preds s2s "
+                             f"ON tr.Time = s2s.Time WHERE {start_sql} AND {end_sql}", con=self._con)
+        else:
+            self._logger.info(f"Reading S2S_raw_preds from {start_date or 'start'} to {end_date or 'end'}")
+            df = pd.read_sql(f"SELECT * FROM S2S_raw_preds s2s WHERE {start_sql} AND {end_sql}", con=self._con)
+
+        df.set_index("Time", drop=True, inplace=True)
+
+        return df
 

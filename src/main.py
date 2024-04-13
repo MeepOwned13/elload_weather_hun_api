@@ -4,24 +4,56 @@ from pathlib import Path
 import library.omsz_downloader as o_dl
 import library.mavir_downloader as m_dl
 import library.reader as rd
+import library.ai_integrator as ai
 import pandas as pd
 import uvicorn
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query
 from fastapi_utils.tasks import repeat_every
+from fastapi.responses import FileResponse
+from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
+from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 import numpy as np
 from typing import Annotated
+from response_examples import response_examples
+from dotenv import dotenv_values
+import mysql.connector as connector
+from warnings import filterwarnings
 
+# Known Warning in Reader and AIIntegrator, all cases that are required tested and working
+filterwarnings("ignore", category=UserWarning, message='.*pandas only supports SQLAlchemy connectable.*')
+
+db_connect_info = dotenv_values(".env")
+db_connect_info = {
+    "host": db_connect_info["HOST"],
+    "user": db_connect_info["USER"],
+    "password": db_connect_info["PASW"],
+    "database": db_connect_info["DBNM"]
+}
+# Setup DB, need to create DB with DBNM if it don't exist yet
+try:
+    conn = connector.connect(**db_connect_info)
+except connector.errors.ProgrammingError:
+    conn = connector.connect(host=db_connect_info["host"], user=db_connect_info["user"],
+                             password=db_connect_info["password"])
+    c = conn.cursor()
+    c.execute(f"CREATE DATABASE {db_connect_info['database']}")
+conn.close()
+
+log_config = Path(f"{__file__}/../../logs/log.ini").resolve().absolute().as_posix()
 logger = logging.getLogger("app")
-db_path = Path(f"{__file__}/../../data/sqlite.db").resolve()
-omsz_dl = o_dl.OMSZ_Downloader(db_path)
-mavir_dl = m_dl.MAVIR_Downloader(db_path)
-reader = rd.Reader(db_path)
+omsz_dl = o_dl.OMSZDownloader(db_connect_info)
+mavir_dl = m_dl.MAVIRDownloader(db_connect_info)
+reader = rd.Reader(db_connect_info)
+ai_int = ai.AIIntegrator(db_connect_info, Path(f"{__file__}/../../models").resolve())
 last_weather_update: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
 last_electricity_update: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
+# S2S needs 10 minutes removed, because omsz is in delay (-> at 14:05:00 the update for 14:00:00 cannot happen)
+last_s2s_update: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None) - pd.DateOffset(minutes=10)
 
-
+TITLE = "HUN EL&W API"
+FAVICON_PATH = Path(f"{__file__}/../favicon.ico").resolve()
 DEV_MODE = False
 OMSZ_MESSAGE = "Weather data is from OMSZ, source: (https://odp.met.hu/)"
 MAVIR_MESSAGE = "Electricity data is from MAVIR, source: (https://mavir.hu/web/mavir/rendszerterheles)"
@@ -38,75 +70,99 @@ async def lifespan(app: FastAPI):
     logger.info("Finished")
 
 app = FastAPI(
-    title="HUN EL&W API",
+    docs_url=None,
+    redoc_url=None,
+    title=TITLE,
     summary="Hungary Electricity Load and Weather API",
     description="Get live updates of Hungary's National Electricity Load and Weather stations",
     version="1.0.0",
     lifespan=lifespan)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_headers=["*"],
+)
 
-@repeat_every(seconds=30)
+
+@repeat_every(seconds=10)
 async def update_check():
     if DEV_MODE:
         return
-    logger.info("Checking for updates to data sources")
+    now = pd.Timestamp.now("UTC").tz_localize(None)
     try:
-        if omsz_dl.choose_curr_update():
-            global last_weather_update
-            last_weather_update = pd.Timestamp.now("UTC").tz_localize(None)
+        global last_weather_update
+        # Check if we have updated in this 10 min time period
+        if now.floor('10min') != last_weather_update.floor('10min'):
+            logger.info("Checking for updates to omsz sources")
+            if omsz_dl.choose_curr_update():
+                last_weather_update = pd.Timestamp.now("UTC").tz_localize(None)
     except Exception as e:
         logger.error(f"Exception/Error {e.__class__.__name__} occured during OMSZ update, "
-                     f"Changes were rolled back, resuming app"
-                     f"message: {str(e)} | "
+                     f"Changes were rolled back, resuming app | message: {str(e)} | "
                      f"Make sure you are connected to the internet and https://odp.met.hu/ is available")
     try:
-        if mavir_dl.choose_update():
-            global last_electricity_update
-            last_electricity_update = pd.Timestamp.now("UTC").tz_localize(None)
+        global last_electricity_update
+        # Check if we have updated in this 10 min time period
+        if now.floor('10min') != last_electricity_update.floor('10min'):
+            logger.info("Checking for updates to mavir sources")
+            if mavir_dl.choose_update():
+                last_electricity_update = pd.Timestamp.now("UTC").tz_localize(None)
     except Exception as e:
         logger.error(f"Exception/Error {e.__class__.__name__} occured during MAVIR update, "
-                     f"Changes were rolled back, resuming app"
-                     f"message: {str(e)} | "
+                     f"Changes were rolled back, resuming app | message: {str(e)} | "
                      f"Make sure you are connected to the internet and https://www.mavir.hu is available")
     # Change rollback is provided by the respective classes
 
+    # Check if we updated in this hour and the data is available (omsz and mavir have already updated)
+    # Looking at -10 minutes for weather since omsz data is delayed by 10 minutes
+    try:
+        global last_s2s_update
+        if now.floor('h') != last_s2s_update.floor('h') and\
+           now.floor('h') == (last_weather_update - pd.DateOffset(minutes=10)).floor('h') and\
+           now.floor('h') == last_electricity_update.floor('h'):
+            logger.info("Updating S2S predictions")
+            if ai_int.choose_update():
+                last_s2s_update = pd.Timestamp.now("UTC").tz_localize(None)
+    except Exception as e:
+        logger.error(f"Exception/Error {e.__class__.__name__} occured during S2S update, "
+                     f"Changes were rolled back, resuming app | message: {str(e)}")
 
-@app.get("/",
-         responses={
-             200: {
-                 "description": "Succesful Response",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "Message": "message",
-                             "last_omsz_update": "2024-02-23T11:29:56.031130",
-                             "last_mavir_update": "2024-02-23T11:29:56.031130"
-                         }
-                     }
-                 }
-             }
-         })
+
+@app.get('/favicon.ico', include_in_schema=False)
+async def favicon():
+    return FileResponse(FAVICON_PATH)
+
+
+@app.get("/docs", include_in_schema=False)
+async def swagger_ui_html():
+    return get_swagger_ui_html(
+        openapi_url="/openapi.json",
+        title=TITLE,
+        swagger_favicon_url="/favicon.ico"
+    )
+
+
+@app.get("/redoc", include_in_schema=False)
+async def overridden_redoc():
+    return get_redoc_html(
+        openapi_url="/openapi.json",
+        title="FastAPI",
+        redoc_favicon_url="/favicon.ico"
+    )
+
+
+@app.get("/", responses=response_examples['/'])
 async def index():
     """
     Get message about usage and sources from OMSZ and MAVIR, and last update times
     """
     return {"Message": f"{OMSZ_MESSAGE}, {MAVIR_MESSAGE}", "last_omsz_update": last_weather_update,
-            "last_mavir_update": last_electricity_update}
+            "last_mavir_update": last_electricity_update, "last_s2s_update": last_s2s_update}
 
 
-@app.get("/omsz/logo",
-         responses={
-             200: {
-                 "description": "Succesful Response",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "https://www.met.hu/images/logo/omsz_logo_1362x492_300dpi.png"
-                         }
-                     }
-                 }
-             }
-         })
+@app.get("/omsz/logo", responses=response_examples['/omsz/logo'])
 async def get_omsz_logo():
     """
     Get url to OMSZ logo required when displaying OMSZ data visually.
@@ -114,179 +170,51 @@ async def get_omsz_logo():
     return "https://www.met.hu/images/logo/omsz_logo_1362x492_300dpi.png"
 
 
-@app.get("/omsz/meta",
-         responses={
-             200: {
-                 "description": "Succesful Response",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "Message": "string",
-                             "data": {
-                                 13704: {
-                                     "StartDate": "2005-07-27 18:10:00",
-                                     "EndDate": "2024-02-21 18:30:00",
-                                     "Latitude": 47.6783,
-                                     "Longitude": 16.6022,
-                                     "Elevation": 232.8,
-                                     "StationName": "Sopron Kuruc-domb",
-                                     "RegioName": "Győr-Moson-Sopron"
-                                 },
-                                 13711: {
-                                     "...": "..."
-                                 }
-                             }
-                         }
-                     }
-                 }
-             }
-         })
+@app.get("/omsz/meta", responses=response_examples["/omsz/meta"])
 async def get_omsz_meta():
     """
     Retrieve the metadata for Weather/OMSZ stations
-    Contains info about stations location, start and end date for available data
+    Contains info about the stations' location
     """
     df: pd.DataFrame = reader.get_weather_meta()
     return {"Message": OMSZ_MESSAGE, "data": df.to_dict(**DEFAULT_TO_DICT)}
 
 
-@app.get("/omsz/columns",
-         responses={
-             200: {
-                 "description": "Succesful Response",
-                 "content": {
-                     "application/json": {
-                         "examples": {
-                             "Specified Station": {
-                                 "value": {
-                                     "Message": "string",
-                                     "data": {
-                                         0: "Time",
-                                         1: "Prec",
-                                         2: "Temp",
-                                         "...": "..."
-                                     }
-                                 }
-                             },
-                             "Unspecified Station": {
-                                 "value": {
-                                     "Message": "string",
-                                     "data": {
-                                         13704: {
-                                             0: "Time",
-                                             1: "Prec",
-                                             2: "Temp",
-                                             "...": "..."
-                                         }
-                                     }
-                                 }
-                             }
-                         }
-                     }
-                 }
-             },
-             400: {
-                 "description": "Bad Request",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "detail": "Error message"
-                         }
-                     }
-                 }
-             }
-         })
-async def get_omsz_columns(station: int | None = None):
+@app.get("/omsz/status", responses=response_examples["/omsz/status"])
+async def get_omsz_status():
     """
-    Get the columns of a given station's or all stations' data
-    - **station**: single number or nothing to get all stations
+    Retrieve the status for Weather/OMSZ stations
+    Contains info about the stations' location, Start and End dates of observations
     """
-    try:
-        if station:
-            result = reader.get_weather_station_columns(station)
-        else:
-            result = reader.get_weather_all_columns()
-    except (LookupError, ValueError) as error:
-        raise HTTPException(status_code=400, detail=str(error))
+    df: pd.DataFrame = reader.get_weather_status()
+    return {"Message": OMSZ_MESSAGE, "data": df.to_dict(**DEFAULT_TO_DICT)}
+
+
+@app.get("/omsz/columns", responses=response_examples["/omsz/columns"])
+async def get_omsz_columns():
+    """
+    Get the columns available in weather data
+    """
+    result = reader.get_weather_columns()
     return {"Message": OMSZ_MESSAGE, "data": result}
 
 
-@app.get("/omsz/weather",
-         responses={
-             200: {
-                 "description": "Succesful Response",
-                 "content": {
-                     "application/json": {
-                         "examples": {
-                             "Specified Station": {
-                                 "value": {
-                                     "Message": "string",
-                                     "data": {
-                                         "2024-02-18 15:00:00": {
-                                             "Prec": 0,
-                                             "Temp": 10.7,
-                                             "...": "..."
-                                         },
-                                         "2024-02-18 15:10:00": {
-                                             "...": "..."
-                                         },
-                                         "...": "..."
-                                     }
-                                 }
-                             },
-                             "Unspecified Station": {
-                                 "value": {
-                                     "Message": "string",
-                                     "data": {
-                                         13704: {
-                                             "2024-02-18 15:00:00": {
-                                                 "Prec": 0,
-                                                 "Temp": 10.7,
-                                                 "...": "..."
-                                             },
-                                             "2024-02-18 15:10:00": {
-                                                 "..."
-                                             }
-                                         },
-                                         13711: {
-                                             "..."
-                                         },
-                                         "...": "..."
-                                     }
-                                 }
-                             }
-                         }
-                     }
-                 }
-             },
-             400: {
-                 "description": "Bad Request",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "detail": "Error message"
-                         }
-                     }
-                 }
-             }
-         })
+@app.get("/omsz/weather", responses=response_examples["/omsz/weather"])
 async def get_weather_station(start_date: datetime, end_date: datetime,
                               station: Annotated[list[int] | None, Query()] = None,
-                              col: Annotated[list[str] | None, Query()] = None):
+                              col: Annotated[list[str] | None, Query()] = None,
+                              date_first: bool = False):
     """
     Retrieve weather data
     - **start_date**: Date to start from
     - **end_date**: Date to end on
     - **station**: List of stations to retrieve or nothing to get all stations
     - **col**: List of columns to retrieve or nothing to get all columns
+    - **date_first**: On multistation query, results are grouped by date instead of station
 
-    When retrieving a single station
-    - limit of timeframe is 5 years
-    - col(s) get checked for existence, error if no columns are valid
+    When retrieving a single station limit of timeframe is 4 years
 
-    When retrieving more than 1 station
-    - limit of timeframe is 1 week
-    - col(s) get checked but return no errors, they are only left out of the result
+    When retrieving more than 1 station the limit of timeframe is 1 week
 
     Time is used as a key and will be returned no matter if it's in the specified columns
     """
@@ -294,66 +222,40 @@ async def get_weather_station(start_date: datetime, end_date: datetime,
         station = []
     try:
         if len(station) == 1:
-            df: pd.DataFrame = reader.get_weather_station(station[0], start_date, end_date, cols=col)
+            df: pd.DataFrame = reader.get_weather_one_station(station[0], start_date, end_date, cols=col)
             result = df.replace({np.nan: None}).to_dict(**DEFAULT_TO_DICT)
         else:
-            result = reader.get_weather_time(start_date, end_date, cols=col,
-                                             stations=station, df_to_dict=DEFAULT_TO_DICT)
+            df: pd.DataFrame = reader.get_weather_multi_station(start_date, end_date, cols=col, stations=station)
+            result = {}
+            group_name = "Time" if date_first else "StationNumber"
+            grouped = df.groupby(group_name)
+            for gr in grouped.groups:
+                group = grouped.get_group(gr).set_index("StationNumber" if date_first else "Time")
+                result[gr] = group.drop(columns=group_name).replace({np.nan: None}).to_dict(**DEFAULT_TO_DICT)
     except (LookupError, ValueError) as error:
         raise HTTPException(status_code=400, detail=str(error))
     return {"Message": OMSZ_MESSAGE, "data": result}
 
 
-@app.get("/mavir/meta",
-         responses={
-             200: {
-                 "description": "Succesful Response",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "Message": "string",
-                             "data": {
-                                 "NetPlanSystemProduction": {
-                                     "StartDate": "2011-11-01 23:10:00",
-                                     "EndDate": "2024-02-22 18:50:00",
-                                 },
-                                 "NetSystemLoad": {
-                                     "...": "..."
-                                 },
-                                 "...": "..."
-                             }
-                         }
-                     }
-                 }
-             }
-         })
-async def get_mavir_meta():
+@app.get("/mavir/logo", responses=response_examples['/mavir/logo'])
+async def get_mavir_logo():
     """
-    Retrieve the metadata for Electricity/MAVIR data
+    Get url to MAVIR logo to use when displaying MAVIR data visually (optional)
+    """
+    return "https://www.mavir.hu/o/mavir-portal-theme/images/mavir_logo_white.png"
+
+
+@app.get("/mavir/status", responses=response_examples["/mavir/status"])
+async def get_mavir_status():
+    """
+    Retrieve the status of Electricity/MAVIR data
     Contains info about each column of the electricity data, specifying the first and last date they are available
     """
-    df: pd.DataFrame = reader.get_electricity_meta()
+    df: pd.DataFrame = reader.get_electricity_status()
     return {"Message": MAVIR_MESSAGE, "data": df.to_dict(**DEFAULT_TO_DICT)}
 
 
-@app.get("/mavir/columns",
-         responses={
-             200: {
-                 "description": "Succesful Response",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "Message": "string",
-                             "data": {
-                                 0: "Time",
-                                 1: "NetSystemLoad",
-                                 "...": "..."
-                             }
-                         }
-                     }
-                 }
-             }
-         })
+@app.get("/mavir/columns", responses=response_examples["/mavir/columns"])
 async def get_electricity_columns():
     """
     Retrieve the columns of electricity data
@@ -362,40 +264,7 @@ async def get_electricity_columns():
     return {"Message": MAVIR_MESSAGE, "data": result}
 
 
-@app.get("/mavir/load",
-         responses={
-             200: {
-                 "description": "Succesful Response",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "Message": "string",
-                             "data": {
-                                 "2024-02-18 15:00:00": {
-                                     "NetSystemLoad": 4717.373,
-                                     "NetSystemLoadFactPlantManagment": 4689.369,
-                                     "...": "..."
-                                 },
-                                 "2024-02-18 15:10:00": {
-                                     "...": "..."
-                                 },
-                                 "...": "..."
-                             }
-                         }
-                     }
-                 }
-             },
-             400: {
-                 "description": "Bad Request",
-                 "content": {
-                     "application/json": {
-                         "example": {
-                             "detail": "Error message"
-                         }
-                     }
-                 }
-             }
-         })
+@app.get("/mavir/load", responses=response_examples["/mavir/load"])
 async def get_electricity_load(start_date: datetime, end_date: datetime,
                                col: Annotated[list[str] | None, Query()] = None):
     """
@@ -414,31 +283,94 @@ async def get_electricity_load(start_date: datetime, end_date: datetime,
     return {"Message": MAVIR_MESSAGE, "data": result}
 
 
-def main(logger: logging.Logger, skip_checks: bool):
+@app.get("/ai/columns", responses=response_examples["/ai/columns"])
+async def get_ai_columns():
+    """
+    Retrieve the columns of ai table(s)
+    """
+    result = reader.get_ai_table_columns()
+    return {"data": result}
+
+
+@app.get("/ai/table", responses=response_examples["/ai/table"])
+async def get_ai_table(start_date: pd.Timestamp | datetime | None = None,
+                       end_date: pd.Timestamp | datetime | None = None, which: str = '10min'):
+    """
+    Retrieve AI time-series ready table
+    - **start_date**: Date to start from, if unspecified starts at earliest
+    - **end_date**: Date to end on, if unspecified starts at latest
+    - **which**: aggregation level, one of '10min', '1hour'
+    """
+    try:
+        df: pd.DataFrame = reader.get_ai_table(start_date, end_date, which)
+        result = df.replace({np.nan: None}).to_dict(**DEFAULT_TO_DICT)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    return {"data": result}
+
+
+@app.get("/ai/s2s/status", responses=response_examples["/ai/s2s/status"])
+async def get_s2s_status():
+    """
+    Retrieve the status for S2S predictions
+    Contains info about the Start and End dates of predictions
+    (relevant to when prediction were made, not for what date)
+    """
+    df: pd.DataFrame = reader.get_s2s_status()
+    return {"data": df.to_dict(**DEFAULT_TO_DICT)}
+
+
+@app.get("/ai/s2s/preds", responses=response_examples["/ai/s2s/preds"])
+async def get_s2s_preds(start_date: pd.Timestamp | datetime | None = None,
+                        end_date: pd.Timestamp | datetime | None = None, aligned: bool = False):
+    """
+    Retrieve predictions of Seq2Seq model
+    - **start_date**: Date to start from, if unspecified starts at earliest
+    - **end_date**: Date to end on, if unspecified starts at latest
+    - **aligned**: align true-pred or just return predictions at time
+    """
+    try:
+        df: pd.DataFrame = reader.get_s2s_preds(start_date, end_date, aligned)
+        result = df.replace({np.nan: None}).to_dict(**DEFAULT_TO_DICT)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    return {"data": result}
+
+
+def main(skip_checks: bool):
     # Setup, define variables, assign classes
     logger.debug("Setting up")
-    (db_path / "..").resolve().mkdir(exist_ok=True)
     # OMSZ init
     if not skip_checks and not DEV_MODE:
         try:
             omsz_dl.startup_sequence()
+            global last_weather_update
+            last_weather_update = pd.Timestamp.now("UTC").tz_localize(None)
         except Exception as e:
             logger.error(f"Exception/Error {e.__class__.__name__} occured during OMSZ startup sequece, "
                          f"message: {str(e)} | "
                          f"Make sure you are connected to the internet and https://odp.met.hu/ is available")
             exit(1)
+
     # MAVIR init
     if not skip_checks and not DEV_MODE:
         try:
-            mavir_dl.update_electricity_data()
+            mavir_dl.startup_sequence()
+            global last_electricity_update
+            last_electricity_update = pd.Timestamp.now("UTC").tz_localize(None)
         except Exception as e:
             logger.error(f"Exception/Error {e.__class__.__name__} occured during MAVIR startup sequece, "
                          f"message: {str(e)} | "
                          f"Make sure you are connected to the internet and https://www.mavir.hu is available")
             exit(1)
 
+    # AI init
+    ai_int.startup_sequence()
+    global last_s2s_update
+    last_s2s_update = pd.Timestamp.now("UTC").tz_localize(None) - pd.DateOffset(minutes=10)
+
     # Start the app
-    uvicorn.run(app, port=8000)
+    uvicorn.run(app, port=8000, log_config=log_config)
 
 
 if __name__ == "__main__":
@@ -451,32 +383,7 @@ if __name__ == "__main__":
     DEV_MODE = args.dev
 
     # Set up logging
-    log_folder = Path(f"{__file__}/../../logs").resolve()
-    log_folder.mkdir(exist_ok=True)
+    logging.config.fileConfig(log_config, disable_existing_loggers=False)
 
-    logger.setLevel(logging.DEBUG)
-
-    log_fh = logging.FileHandler(log_folder / "app.log")
-    log_fh.setLevel(logging.DEBUG)
-
-    log_ch = logging.StreamHandler()
-    log_ch.setLevel(logging.INFO)
-
-    log_format = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-
-    log_fh.setFormatter(log_format)
-    log_ch.setFormatter(log_format)
-
-    # Start loggers
-    logger.addHandler(log_fh)
-    o_dl.omsz_downloader_logger.addHandler(log_fh)
-    m_dl.mavir_downloader_logger.addHandler(log_fh)
-    rd.reader_logger.addHandler(log_fh)
-
-    logger.addHandler(log_ch)
-    o_dl.omsz_downloader_logger.addHandler(log_ch)
-    m_dl.mavir_downloader_logger.addHandler(log_ch)
-    rd.reader_logger.addHandler(log_ch)
-
-    main(logger, args.skip_checks)
+    main(args.skip_checks)
 

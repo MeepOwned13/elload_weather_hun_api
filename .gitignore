@@ -172,7 +172,8 @@ cython_debug/
 
 ### Project specific settings
 *.bat
-logs/
+logs/*
+!logs/log.ini
 data/
 *.pdf
 NOTES.md
