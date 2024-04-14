@@ -8,7 +8,7 @@ import library.ai_integrator as ai
 import pandas as pd
 import uvicorn
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi import FastAPI, HTTPException, Query, Response, Request
 from fastapi_utils.tasks import repeat_every
 from fastapi.responses import FileResponse
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
@@ -20,6 +20,9 @@ from response_examples import response_examples
 from dotenv import dotenv_values
 import mysql.connector as connector
 from warnings import filterwarnings
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 # Known Warning in Reader and AIIntegrator, all cases that are required tested and working
 filterwarnings("ignore", category=UserWarning, message='.*pandas only supports SQLAlchemy connectable.*')
@@ -83,6 +86,9 @@ async def lifespan(app: FastAPI):
     yield
     logger.info("Finished")
 
+limiter = Limiter(key_func=get_remote_address)
+# Rate limited functions require the request: Request argument as their first
+
 app = FastAPI(
     docs_url=None,
     redoc_url=None,
@@ -98,6 +104,9 @@ app.add_middleware(
     allow_credentials=True,
     allow_headers=["*"],
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 @repeat_every(seconds=10)
@@ -148,12 +157,12 @@ async def update_check():
 
 
 @app.get('/favicon.ico', include_in_schema=False)
-async def favicon():
+async def favicon(request: Request):
     return FileResponse(FAVICON_PATH)
 
 
 @app.get("/docs", include_in_schema=False)
-async def swagger_ui_html():
+async def swagger_ui_html(request: Request):
     return get_swagger_ui_html(
         openapi_url="/openapi.json",
         title=TITLE,
@@ -162,7 +171,7 @@ async def swagger_ui_html():
 
 
 @app.get("/redoc", include_in_schema=False)
-async def overridden_redoc():
+async def overridden_redoc(request: Request):
     return get_redoc_html(
         openapi_url="/openapi.json",
         title="FastAPI",
@@ -171,7 +180,8 @@ async def overridden_redoc():
 
 
 @app.get("/", responses=response_examples['/'])
-async def index():
+@limiter.limit("2/second")
+async def index(request: Request):
     """
     Get message about usage and sources from OMSZ and MAVIR, and last update times
     """
@@ -180,7 +190,8 @@ async def index():
 
 
 @app.get("/omsz/logo", responses=response_examples['/omsz/logo'])
-async def get_omsz_logo():
+@limiter.limit("2/second")
+async def get_omsz_logo(request: Request):
     """
     Get url to OMSZ logo required when displaying OMSZ data visually.
     """
@@ -188,7 +199,8 @@ async def get_omsz_logo():
 
 
 @app.get("/omsz/meta", responses=response_examples["/omsz/meta"])
-async def get_omsz_meta():
+@limiter.limit("1/second")
+async def get_omsz_meta(request: Request):
     """
     Retrieve the metadata for Weather/OMSZ stations
     Contains info about the stations' location
@@ -198,7 +210,8 @@ async def get_omsz_meta():
 
 
 @app.get("/omsz/status", responses=response_examples["/omsz/status"])
-async def get_omsz_status():
+@limiter.limit("1/second")
+async def get_omsz_status(request: Request):
     """
     Retrieve the status for Weather/OMSZ stations
     Contains info about the stations' location, Start and End dates of observations
@@ -208,7 +221,8 @@ async def get_omsz_status():
 
 
 @app.get("/omsz/columns", responses=response_examples["/omsz/columns"])
-async def get_omsz_columns():
+@limiter.limit("1/second")
+async def get_omsz_columns(request: Request):
     """
     Get the columns available in weather data paired with the measurement units
     """
@@ -217,7 +231,8 @@ async def get_omsz_columns():
 
 
 @app.get("/omsz/weather", responses=response_examples["/omsz/weather"])
-async def get_weather_station(start_date: datetime, end_date: datetime,
+@limiter.limit("1/2second")
+async def get_weather_station(request: Request, start_date: datetime, end_date: datetime,
                               station: Annotated[list[int] | None, Query()] = None,
                               col: Annotated[list[str] | None, Query()] = None,
                               date_first: bool = False):
@@ -261,7 +276,8 @@ async def get_weather_station(start_date: datetime, end_date: datetime,
 
 
 @app.get("/mavir/logo", responses=response_examples['/mavir/logo'])
-async def get_mavir_logo():
+@limiter.limit("1/second")
+async def get_mavir_logo(request: Request):
     """
     Get url to MAVIR logo to use when displaying MAVIR data visually (optional)
     """
@@ -269,7 +285,8 @@ async def get_mavir_logo():
 
 
 @app.get("/mavir/status", responses=response_examples["/mavir/status"])
-async def get_mavir_status():
+@limiter.limit("1/second")
+async def get_mavir_status(request: Request):
     """
     Retrieve the status of Electricity/MAVIR data
     Contains info about each column of the electricity data, specifying the first and last date they are available
@@ -279,7 +296,8 @@ async def get_mavir_status():
 
 
 @app.get("/mavir/columns", responses=response_examples["/mavir/columns"])
-async def get_electricity_columns():
+@limiter.limit("1/second")
+async def get_electricity_columns(request: Request):
     """
     Retrieve the columns of electricity data
     """
@@ -288,7 +306,8 @@ async def get_electricity_columns():
 
 
 @app.get("/mavir/load", responses=response_examples["/mavir/load"])
-async def get_electricity_load(start_date: datetime, end_date: datetime,
+@limiter.limit("1/2second")
+async def get_electricity_load(request: Request, start_date: datetime, end_date: datetime,
                                col: Annotated[list[str] | None, Query()] = None):
     """
     Retrieve electricity data
@@ -306,7 +325,8 @@ async def get_electricity_load(start_date: datetime, end_date: datetime,
 
 
 @app.get("/ai/columns", responses=response_examples["/ai/columns"])
-async def get_ai_columns():
+@limiter.limit("1/second")
+async def get_ai_columns(request: Request):
     """
     Retrieve the columns of ai table(s)
     """
@@ -315,7 +335,8 @@ async def get_ai_columns():
 
 
 @app.get("/ai/table", responses=response_examples["/ai/table"])
-async def get_ai_table(start_date: pd.Timestamp | datetime | None = None,
+@limiter.limit("1/2second")
+async def get_ai_table(request: Request, start_date: pd.Timestamp | datetime | None = None,
                        end_date: pd.Timestamp | datetime | None = None, which: str = '10min'):
     """
     Retrieve AI time-series ready table
@@ -331,7 +352,8 @@ async def get_ai_table(start_date: pd.Timestamp | datetime | None = None,
 
 
 @app.get("/ai/s2s/status", responses=response_examples["/ai/s2s/status"])
-async def get_s2s_status():
+@limiter.limit("1/second")
+async def get_s2s_status(request: Request):
     """
     Retrieve the status for S2S predictions
     Contains info about the Start and End dates of predictions
@@ -342,7 +364,8 @@ async def get_s2s_status():
 
 
 @app.get("/ai/s2s/preds", responses=response_examples["/ai/s2s/preds"])
-async def get_s2s_preds(start_date: pd.Timestamp | datetime | None = None,
+@limiter.limit("1/2second")
+async def get_s2s_preds(request: Request, start_date: pd.Timestamp | datetime | None = None,
                         end_date: pd.Timestamp | datetime | None = None, aligned: bool = False):
     """
     Retrieve predictions of Seq2Seq model
