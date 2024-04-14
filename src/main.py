@@ -8,7 +8,7 @@ import library.ai_integrator as ai
 import pandas as pd
 import uvicorn
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Response, Request
 from fastapi_utils.tasks import repeat_every
 from fastapi.responses import FileResponse
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
@@ -20,6 +20,9 @@ from response_examples import response_examples
 from dotenv import dotenv_values
 import mysql.connector as connector
 from warnings import filterwarnings
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 # Known Warning in Reader and AIIntegrator, all cases that are required tested and working
 filterwarnings("ignore", category=UserWarning, message='.*pandas only supports SQLAlchemy connectable.*')
@@ -57,9 +60,23 @@ FAVICON_PATH = Path(f"{__file__}/../favicon.ico").resolve()
 DEV_MODE = False
 OMSZ_MESSAGE = "Weather data is from OMSZ, source: (https://odp.met.hu/)"
 MAVIR_MESSAGE = "Electricity data is from MAVIR, source: (https://mavir.hu/web/mavir/rendszerterheles)"
-DEFAULT_TO_DICT = {
+DEFAULT_TO_JSON = {
     "orient": "index",
+    "date_format": "iso",
+    "date_unit": "s"
 }
+
+
+def df_json_resp(message: str, df: pd.DataFrame):
+    """
+    Allowing FastAPI to convert to JSON results in slow conversions with large data
+    :param message: Message field in response
+    :param df: pandas DataFrame to convert to json
+    :returns: Response where output JSON is {"Message": message, "data": json_df}
+    """
+    data = df.replace({np.nan: None}).to_json(**DEFAULT_TO_JSON)
+    return Response(content=f'{{"Message": "{message}", "data": {data}}}',
+                    media_type="application/json")
 
 
 @asynccontextmanager
@@ -68,6 +85,9 @@ async def lifespan(app: FastAPI):
     await update_check()
     yield
     logger.info("Finished")
+
+limiter = Limiter(key_func=get_remote_address)
+# Rate limited functions require the request: Request argument as their first
 
 app = FastAPI(
     docs_url=None,
@@ -85,6 +105,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 
 @repeat_every(seconds=10)
 async def update_check():
@@ -98,6 +121,7 @@ async def update_check():
             logger.info("Checking for updates to omsz sources")
             if omsz_dl.choose_curr_update():
                 last_weather_update = pd.Timestamp.now("UTC").tz_localize(None)
+                reader.refresh_caches(["omsz", "ai"])
     except Exception as e:
         logger.error(f"Exception/Error {e.__class__.__name__} occured during OMSZ update, "
                      f"Changes were rolled back, resuming app | message: {str(e)} | "
@@ -109,6 +133,7 @@ async def update_check():
             logger.info("Checking for updates to mavir sources")
             if mavir_dl.choose_update():
                 last_electricity_update = pd.Timestamp.now("UTC").tz_localize(None)
+                reader.refresh_caches(["mavir", "ai"])
     except Exception as e:
         logger.error(f"Exception/Error {e.__class__.__name__} occured during MAVIR update, "
                      f"Changes were rolled back, resuming app | message: {str(e)} | "
@@ -125,18 +150,19 @@ async def update_check():
             logger.info("Updating S2S predictions")
             if ai_int.choose_update():
                 last_s2s_update = pd.Timestamp.now("UTC").tz_localize(None)
+                reader.refresh_caches("s2s")
     except Exception as e:
         logger.error(f"Exception/Error {e.__class__.__name__} occured during S2S update, "
                      f"Changes were rolled back, resuming app | message: {str(e)}")
 
 
 @app.get('/favicon.ico', include_in_schema=False)
-async def favicon():
+async def favicon(request: Request):
     return FileResponse(FAVICON_PATH)
 
 
 @app.get("/docs", include_in_schema=False)
-async def swagger_ui_html():
+async def swagger_ui_html(request: Request):
     return get_swagger_ui_html(
         openapi_url="/openapi.json",
         title=TITLE,
@@ -145,7 +171,7 @@ async def swagger_ui_html():
 
 
 @app.get("/redoc", include_in_schema=False)
-async def overridden_redoc():
+async def overridden_redoc(request: Request):
     return get_redoc_html(
         openapi_url="/openapi.json",
         title="FastAPI",
@@ -154,7 +180,8 @@ async def overridden_redoc():
 
 
 @app.get("/", responses=response_examples['/'])
-async def index():
+@limiter.limit("2/second")
+async def index(request: Request):
     """
     Get message about usage and sources from OMSZ and MAVIR, and last update times
     """
@@ -163,7 +190,8 @@ async def index():
 
 
 @app.get("/omsz/logo", responses=response_examples['/omsz/logo'])
-async def get_omsz_logo():
+@limiter.limit("2/second")
+async def get_omsz_logo(request: Request):
     """
     Get url to OMSZ logo required when displaying OMSZ data visually.
     """
@@ -171,36 +199,40 @@ async def get_omsz_logo():
 
 
 @app.get("/omsz/meta", responses=response_examples["/omsz/meta"])
-async def get_omsz_meta():
+@limiter.limit("1/second")
+async def get_omsz_meta(request: Request):
     """
     Retrieve the metadata for Weather/OMSZ stations
     Contains info about the stations' location
     """
-    df: pd.DataFrame = reader.get_weather_meta()
-    return {"Message": OMSZ_MESSAGE, "data": df.to_dict(**DEFAULT_TO_DICT)}
+    result: pd.DataFrame = reader.get_weather_meta()
+    return df_json_resp(OMSZ_MESSAGE, result)
 
 
 @app.get("/omsz/status", responses=response_examples["/omsz/status"])
-async def get_omsz_status():
+@limiter.limit("1/second")
+async def get_omsz_status(request: Request):
     """
     Retrieve the status for Weather/OMSZ stations
     Contains info about the stations' location, Start and End dates of observations
     """
-    df: pd.DataFrame = reader.get_weather_status()
-    return {"Message": OMSZ_MESSAGE, "data": df.to_dict(**DEFAULT_TO_DICT)}
+    result: pd.DataFrame = reader.get_weather_status()
+    return df_json_resp(OMSZ_MESSAGE, result)
 
 
 @app.get("/omsz/columns", responses=response_examples["/omsz/columns"])
-async def get_omsz_columns():
+@limiter.limit("1/second")
+async def get_omsz_columns(request: Request):
     """
-    Get the columns available in weather data
+    Get the columns available in weather data paired with the measurement units
     """
-    result = reader.get_weather_columns()
+    result = {name: omsz_dl.units[name] for name in reader.get_weather_columns()}
     return {"Message": OMSZ_MESSAGE, "data": result}
 
 
 @app.get("/omsz/weather", responses=response_examples["/omsz/weather"])
-async def get_weather_station(start_date: datetime, end_date: datetime,
+@limiter.limit("1/2second")
+async def get_weather_station(request: Request, start_date: datetime, end_date: datetime,
                               station: Annotated[list[int] | None, Query()] = None,
                               col: Annotated[list[str] | None, Query()] = None,
                               date_first: bool = False):
@@ -218,27 +250,34 @@ async def get_weather_station(start_date: datetime, end_date: datetime,
 
     Time is used as a key and will be returned no matter if it's in the specified columns
     """
-    if not station:
-        station = []
     try:
+        if not station:
+            station = []
         if len(station) == 1:
-            df: pd.DataFrame = reader.get_weather_one_station(station[0], start_date, end_date, cols=col)
-            result = df.replace({np.nan: None}).to_dict(**DEFAULT_TO_DICT)
-        else:
-            df: pd.DataFrame = reader.get_weather_multi_station(start_date, end_date, cols=col, stations=station)
-            result = {}
-            group_name = "Time" if date_first else "StationNumber"
-            grouped = df.groupby(group_name)
-            for gr in grouped.groups:
-                group = grouped.get_group(gr).set_index("StationNumber" if date_first else "Time")
-                result[gr] = group.drop(columns=group_name).replace({np.nan: None}).to_dict(**DEFAULT_TO_DICT)
+            result: pd.DataFrame = reader.get_weather_stations(start_date, end_date, cols=col, stations=station)
+            result.drop(columns="StationNumber", inplace=True, errors="ignore")
+            result.set_index("Time", inplace=True, drop=True)
+            return df_json_resp(OMSZ_MESSAGE, result)
+
+        # multi-station, also returning a response directly, showed to be faster
+        df: pd.DataFrame = reader.get_weather_stations(start_date, end_date, cols=col, stations=station)
+        result = []
+        group_name = "Time" if date_first else "StationNumber"
+        grouped = df.groupby(group_name)
+        for gr in grouped.groups:
+            group = grouped.get_group(gr).set_index("StationNumber" if date_first else "Time")
+            data = group.drop(columns=group_name).replace({np.nan: None}).to_json(**DEFAULT_TO_JSON)
+            # str() and replace is for when Time group happens, only thing needed for ISO format at this point
+            result.append(f'"{str(gr).replace(" ", "T")}": {data}')
+        return Response(content=f'{{"Message": "{OMSZ_MESSAGE}", "data": {{ {", ".join(result)} }} }}',
+                        media_type="application/json")
     except (LookupError, ValueError) as error:
         raise HTTPException(status_code=400, detail=str(error))
-    return {"Message": OMSZ_MESSAGE, "data": result}
 
 
 @app.get("/mavir/logo", responses=response_examples['/mavir/logo'])
-async def get_mavir_logo():
+@limiter.limit("1/second")
+async def get_mavir_logo(request: Request):
     """
     Get url to MAVIR logo to use when displaying MAVIR data visually (optional)
     """
@@ -246,26 +285,29 @@ async def get_mavir_logo():
 
 
 @app.get("/mavir/status", responses=response_examples["/mavir/status"])
-async def get_mavir_status():
+@limiter.limit("1/second")
+async def get_mavir_status(request: Request):
     """
     Retrieve the status of Electricity/MAVIR data
     Contains info about each column of the electricity data, specifying the first and last date they are available
     """
-    df: pd.DataFrame = reader.get_electricity_status()
-    return {"Message": MAVIR_MESSAGE, "data": df.to_dict(**DEFAULT_TO_DICT)}
+    result: pd.DataFrame = reader.get_electricity_status()
+    return df_json_resp(MAVIR_MESSAGE, result)
 
 
 @app.get("/mavir/columns", responses=response_examples["/mavir/columns"])
-async def get_electricity_columns():
+@limiter.limit("1/second")
+async def get_electricity_columns(request: Request):
     """
     Retrieve the columns of electricity data
     """
-    result = reader.get_electricity_columns()
+    result = {name: mavir_dl.units[name] for name in reader.get_electricity_columns()}
     return {"Message": MAVIR_MESSAGE, "data": result}
 
 
 @app.get("/mavir/load", responses=response_examples["/mavir/load"])
-async def get_electricity_load(start_date: datetime, end_date: datetime,
+@limiter.limit("1/2second")
+async def get_electricity_load(request: Request, start_date: datetime, end_date: datetime,
                                col: Annotated[list[str] | None, Query()] = None):
     """
     Retrieve electricity data
@@ -276,24 +318,25 @@ async def get_electricity_load(start_date: datetime, end_date: datetime,
     Time is used as a key and will be returned no matter if it's in the specified columns
     """
     try:
-        df: pd.DataFrame = reader.get_electricity_load(start_date, end_date, cols=col)
-        result = df.replace({np.nan: None}).to_dict(**DEFAULT_TO_DICT)
+        result: pd.DataFrame = reader.get_electricity_load(start_date, end_date, cols=col)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
-    return {"Message": MAVIR_MESSAGE, "data": result}
+    return df_json_resp(MAVIR_MESSAGE, result)
 
 
 @app.get("/ai/columns", responses=response_examples["/ai/columns"])
-async def get_ai_columns():
+@limiter.limit("1/second")
+async def get_ai_columns(request: Request):
     """
     Retrieve the columns of ai table(s)
     """
-    result = reader.get_ai_table_columns()
-    return {"data": result}
+    result = {name: ai_int.units[name] for name in reader.get_ai_table_columns()}
+    return {"Message": f"{OMSZ_MESSAGE}, {MAVIR_MESSAGE}", "data": result}
 
 
 @app.get("/ai/table", responses=response_examples["/ai/table"])
-async def get_ai_table(start_date: pd.Timestamp | datetime | None = None,
+@limiter.limit("1/2second")
+async def get_ai_table(request: Request, start_date: pd.Timestamp | datetime | None = None,
                        end_date: pd.Timestamp | datetime | None = None, which: str = '10min'):
     """
     Retrieve AI time-series ready table
@@ -302,26 +345,27 @@ async def get_ai_table(start_date: pd.Timestamp | datetime | None = None,
     - **which**: aggregation level, one of '10min', '1hour'
     """
     try:
-        df: pd.DataFrame = reader.get_ai_table(start_date, end_date, which)
-        result = df.replace({np.nan: None}).to_dict(**DEFAULT_TO_DICT)
+        result: pd.DataFrame = reader.get_ai_table(start_date, end_date, which)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
-    return {"data": result}
+    return df_json_resp(f"{OMSZ_MESSAGE}, {MAVIR_MESSAGE}", result)
 
 
 @app.get("/ai/s2s/status", responses=response_examples["/ai/s2s/status"])
-async def get_s2s_status():
+@limiter.limit("1/second")
+async def get_s2s_status(request: Request):
     """
     Retrieve the status for S2S predictions
     Contains info about the Start and End dates of predictions
     (relevant to when prediction were made, not for what date)
     """
-    df: pd.DataFrame = reader.get_s2s_status()
-    return {"data": df.to_dict(**DEFAULT_TO_DICT)}
+    result: pd.DataFrame = reader.get_s2s_status()
+    return df_json_resp(f"{OMSZ_MESSAGE}, {MAVIR_MESSAGE}", result)
 
 
 @app.get("/ai/s2s/preds", responses=response_examples["/ai/s2s/preds"])
-async def get_s2s_preds(start_date: pd.Timestamp | datetime | None = None,
+@limiter.limit("1/2second")
+async def get_s2s_preds(request: Request, start_date: pd.Timestamp | datetime | None = None,
                         end_date: pd.Timestamp | datetime | None = None, aligned: bool = False):
     """
     Retrieve predictions of Seq2Seq model
@@ -330,11 +374,10 @@ async def get_s2s_preds(start_date: pd.Timestamp | datetime | None = None,
     - **aligned**: align true-pred or just return predictions at time
     """
     try:
-        df: pd.DataFrame = reader.get_s2s_preds(start_date, end_date, aligned)
-        result = df.replace({np.nan: None}).to_dict(**DEFAULT_TO_DICT)
+        result: pd.DataFrame = reader.get_s2s_preds(start_date, end_date, aligned)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))
-    return {"data": result}
+    return df_json_resp(f"About the data used for prediction: {OMSZ_MESSAGE}, {MAVIR_MESSAGE}", result)
 
 
 def main(skip_checks: bool):
@@ -368,6 +411,9 @@ def main(skip_checks: bool):
     ai_int.startup_sequence()
     global last_s2s_update
     last_s2s_update = pd.Timestamp.now("UTC").tz_localize(None) - pd.DateOffset(minutes=10)
+
+    # Cache init
+    reader.refresh_caches(["mavir", "omsz", "ai", "s2s"])
 
     # Start the app
     uvicorn.run(app, port=8000, log_config=log_config)

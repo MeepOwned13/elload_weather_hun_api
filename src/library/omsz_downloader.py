@@ -7,6 +7,7 @@ import bs4
 import re
 from datetime import datetime
 from .utils.db_connect import DatabaseConnect
+from copy import copy
 
 omsz_downloader_logger = logging.getLogger("omsz")
 omsz_downloader_logger.setLevel(logging.DEBUG)
@@ -26,34 +27,43 @@ class OMSZDownloader(DatabaseConnect):
         """
         super().__init__(db_connect_info, omsz_downloader_logger)
         self._sess: Session = Session()
-        self._RENAME: dict = {"Station Number": "StationNumber",  # Station Number
-                              "StationNumber": "StationNumber",  # Station Number
-                              "Time": "Time",  # Time of data
-                              "r": "Prec",  # Precipitation sum
-                              "t": "Temp",  # Momentary temperature
-                              "ta": "AvgTemp",  # Average temperature
-                              "tn": "MinTemp",  # Minimum temperature
-                              "tx": "MaxTemp",  # Maximum temperature
-                              "v": "View",  # Horizontal sight distance
-                              "p": "Pres",  # Instrument level pressure
-                              "u": "RHum",  # Relative Humidity
-                              "sg": "AvgGamma",  # Average Gamma dose
-                              "sr": "GRad",  # Global Radiation
-                              "suv": "AvgUV",  # Average UV radiation
-                              "fs": "AvgWS",  # Average Wind Speed
-                              "fsd": "AvgWD",  # Average Wind Direction
-                              "fx": "MaxWS",  # Maximum Wind gust Speed
-                              "fxd": "MaxWD",  # Maximum Wind gust Direction
-                              "fxm": "MaxWMin",  # Maximum Wind gust Minute
-                              "fxs": "MaxWSec",  # Maximum Wind gust Second
-                              "et5": "STemp5",  # Soil Temperature at 5cm
-                              "et10": "STemp10",  # Soil Temperature at 10cm
-                              "et20": "STemp20",  # Soil Temperature at 20cm
-                              "et50": "STemp50",  # Soil Temperature at 50cm
-                              "et100": "STemp100",  # Soil Temperature at 100cm
-                              "tsn": "MinNSTemp",  # Minimum Near-Surface Temperature
-                              "tviz": "WTemp",  # Water Temperature
-                              }
+        rename_and_unit = [
+            ("Station Number", "StationNumber", "id"),  # Station Number
+            ("StationNumber", "StationNumber", "id"),  # Station Number
+            ("Time", "Time", "datetime"),  # Time of data
+            ("r", "Prec", "mm"),  # Precipitation sum
+            ("t", "Temp", "°C"),  # Momentary temperature
+            ("ta", "AvgTemp", "°C"),  # Average temperature
+            ("tn", "MinTemp", "°C"),  # Minimum temperature
+            ("tx", "MaxTemp", "°C"),  # Maximum temperature
+            ("v", "View", "m"),  # Horizontal sight distance
+            ("p", "Pres", "hPa"),  # Instrument level pressure
+            ("u", "RHum", "%"),  # Relative Humidity
+            ("sg", "AvgGamma", "nSv/h"),  # Average Gamma dose
+            ("sr", "GRad", "W/m²"),  # Global Radiation
+            ("suv", "AvgUV", "MED/h"),  # Average UV radiation
+            ("fs", "AvgWS", "m/s"),  # Average Wind Speed
+            ("fsd", "AvgWD", "°"),  # Average Wind Direction
+            ("fx", "MaxWS", "m/s"),  # Maximum Wind gust Speed
+            ("fxd", "MaxWD", "°"),  # Maximum Wind gust Direction
+            ("fxm", "MaxWMin", "'"),  # Maximum Wind gust Angle Minute
+            ("fxs", "MaxWSec", "''"),  # Maximum Wind gust Angle Second
+            ("et5", "STemp5", "°C"),  # Soil Temperature at 5cm
+            ("et10", "STemp10", "°C"),  # Soil Temperature at 10cm
+            ("et20", "STemp20", "°C"),  # Soil Temperature at 20cm
+            ("et50", "STemp50", "°C"),  # Soil Temperature at 50cm
+            ("et100", "STemp100", "°C"),  # Soil Temperature at 100cm
+            ("tsn", "MinNSTemp", "°C"),  # Minimum Near-Surface Temperature
+            ("tviz", "WTemp", "°C"),  # Water Temperature
+
+        ]
+        self._RENAME: dict = {orig: new for orig, new, _ in rename_and_unit}
+        self._UNITS: dict = {name: unit for _, name, unit in rename_and_unit}
+
+    @property
+    def units(self):
+        """Get the units for column names."""
+        return copy(self._UNITS)
 
     def __del__(self):
         super().__del__()

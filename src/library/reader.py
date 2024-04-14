@@ -2,12 +2,65 @@ import logging
 import pandas as pd
 from datetime import datetime
 from .utils.db_connect import DatabaseConnect
-# sqlite3 implicitly imported via DatabaseConnect
+from copy import copy
 
 
 reader_logger = logging.getLogger("reader")
 reader_logger.setLevel(logging.DEBUG)
 reader_logger.addHandler(logging.NullHandler())
+
+
+class CacheEntry:
+    def __init__(self, df: pd.DataFrame, min_date: datetime | pd.Timestamp | None):
+        """
+        Init cache entry, empty min_date means the entire underlying table is cached
+        :param df: pandas DataFrame to cache, gets copied
+        :param min_date: start date for cache, if None then it's a full cache of the underlying table
+        """
+        self._df: pd.DataFrame = df.copy(deep=True)
+        self._min_date = copy(min_date)
+
+    @property
+    def df(self):
+        return self._df.copy()
+
+    @property
+    def min_date(self):
+        return copy(self._min_date)
+
+
+class Cache:
+    def __init__(self):
+        self._entries = {}
+
+    def set_entry(self, name: str, df: pd.DataFrame, min_date: datetime | pd.Timestamp | None = None):
+        """
+        Add or replace entry in cache
+        :param name: name of entry
+        :param df: pandas DataFrame to cache, will be copied
+        :param min_date: start date for cache entry, if None then it's a full cache of the underlying table
+        """
+        self._entries[name] = CacheEntry(df, min_date)
+
+    def get_entry(self, name: str) -> CacheEntry:
+        """
+        Returns none if entry is not found
+        :param name: name of entry to get
+        """
+        return self._entries.get(name, None)
+
+    def __getitem__(self, key) -> CacheEntry:
+        return self.get_entry(key)
+
+    def invalidate_entry(self, name: str):
+        """
+        Remove entry because data might have changed, no operation if entry is already removed
+        :param name: entry to remove
+        """
+        try:
+            del self._entries[name]
+        except KeyError:
+            pass  # it's removed already
 
 
 class Reader(DatabaseConnect):
@@ -22,6 +75,8 @@ class Reader(DatabaseConnect):
         super().__init__(db_connect_info, reader_logger)
         self._SINGLE_TABLE_LIMIT = pd.Timedelta(weeks=52 * 4 + 1)  # 4 years
         self._WEATHER_ALL_STATIONS_LIMIT = pd.Timedelta(days=7)
+        self._cache = Cache()
+        self._TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
     def __del__(self):
         super().__del__()
@@ -75,7 +130,7 @@ class Reader(DatabaseConnect):
         self._curs.execute(f"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='{table}'")
         table_cols = self._curs.fetchall()
         table_cols = {tc[0].lower(): tc[0] for tc in table_cols}
-        cols = [c.lower() for c in cols]
+        cols = list(set([c.lower() for c in cols]))
 
         valid = []
         for col in cols:
@@ -101,18 +156,91 @@ class Reader(DatabaseConnect):
             return '*'
 
     @DatabaseConnect._db_transaction
+    def refresh_caches(self, sections: list[str] | str):
+        """
+        Refresh cache for given sections, partial cache gets refilled, others just removed
+        :param sections: single str or list of sections to refresh cache for ("mavir", "omsz", "ai", "s2s")
+        """
+        # Allow a single str
+        if type(sections) is str:
+            sections = [sections]
+
+        now = pd.Timestamp.now("UTC").tz_localize(None)
+
+        # The idea for caching
+        # - pre-cache important views and larger tables <- high likelihood of them being requested
+        # - on-demand-cache views and tables which are already fast to request and are always requested in full
+
+        # MAVIR cache
+        if "mavir" in sections:
+            self._logger.info("Refreshing MAVIR cache")
+            self._cache.invalidate_entry("MAVIR_status")  # on-demand, done inside get_electricity_status
+
+            from_date = now - pd.DateOffset(days=30)
+            df = pd.read_sql(
+                f"SELECT * FROM MAVIR_data WHERE Time > \"{from_date.strftime(self._TIME_FORMAT)}\"", con=self._con)
+            df.set_index("Time", inplace=True, drop=True)
+            self._cache.set_entry("MAVIR_data", df, from_date)  # pre-cache
+
+        # OMSZ cache
+        if "omsz" in sections:
+            self._logger.info("Refreshing OMSZ cache")
+            self._cache.invalidate_entry("OMSZ_meta")  # on-demand, done inside get_weather_meta
+            self._cache.invalidate_entry("OMSZ_status")  # on-demand, done inside get_weather_status
+
+            from_date = now - pd.DateOffset(days=14)
+            df = pd.read_sql(
+                f"""SELECT * FROM OMSZ_data FORCE INDEX(OMSZ_data_time_index)
+                    WHERE Time > \"{from_date.strftime(self._TIME_FORMAT)}\"""",
+                self._con)
+            df.set_index("Time", inplace=True, drop=True)
+            self._cache.set_entry("OMSZ_data", df, from_date)  # pre-cache
+
+        # AI table cache
+        if "ai" in sections:
+            self._logger.info("Refreshing AI cache")
+
+            df = pd.read_sql("SELECT * FROM AI_10min", con=self._con)
+            df.set_index("Time", drop=True, inplace=True)
+            self._cache.set_entry("AI_10min", df)  # pre-cache, full because requests allow to request table in full
+
+            df = pd.read_sql("SELECT * FROM AI_1hour", con=self._con)
+            df.set_index("Time", drop=True, inplace=True)
+            self._cache.set_entry("AI_1hour", df)  # pre-cache, because harder to calculate view
+
+        # S2S preds cache
+        if "s2s" in sections:
+            self._logger.info("Refreshing S2S cache")
+            df = pd.read_sql("SELECT * FROM S2S_raw_preds s2s", con=self._con)
+            df.set_index("Time", drop=True, inplace=True)
+            self._cache.set_entry("S2S_raw_preds", df)  # pre-cache, full because requests allow to request view in full
+
+            df = pd.read_sql(
+                """SELECT s2s.Time, tr.NetSystemLoad, s2s.NSLP1ago, s2s.NSLP2ago, s2s.NSLP3ago
+                   FROM (SELECT Time, NetSystemLoad FROM AI_1hour) tr RIGHT JOIN S2S_aligned_preds s2s
+                   ON tr.Time = s2s.Time""",
+                con=self._con)
+            df.set_index("Time", drop=True, inplace=True)
+            self._cache.set_entry("S2S_aligned_preds", df)  # pre-cache, because harder to calculate view
+
+    @DatabaseConnect._db_transaction
     def get_electricity_status(self) -> pd.DataFrame:
-        self._logger.info("Reading MAVIR_status")
-        df = pd.read_sql("SELECT * FROM MAVIR_status", con=self._con)
-        df.set_index("Column", drop=True, inplace=True)
+        cached = self._cache["MAVIR_status"]
+        if cached:
+            self._logger.info("CACHED Reading MAVIR_status")
+            df = cached.df
+        else:
+            self._logger.info("Reading MAVIR_status")
+            df = pd.read_sql("SELECT * FROM MAVIR_status", con=self._con)
+            df.set_index("Column", drop=True, inplace=True)
+            self._cache.set_entry("MAVIR_status", df)
         return df
 
     @DatabaseConnect._db_transaction
     def get_electricity_columns(self) -> list[str]:
         """
-        Retrieves columns for MAVIR_data
-        :returns: list of columns
-        """
+                Retrieves columns for MAVIR_data: returns: list of columns
+                """
         self._curs.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='MAVIR_data'")
         table_cols = self._curs.fetchall()
         return [tc[0] for tc in table_cols]
@@ -134,29 +262,48 @@ class Reader(DatabaseConnect):
 
         self._limit_timeframe(start_date, end_date, self._SINGLE_TABLE_LIMIT)
 
-        columns = self._cols_to_str(self._get_valid_cols("MAVIR_data", cols))
+        columns = self._get_valid_cols("MAVIR_data", cols)
 
-        self._logger.info(f"Reading MAVIR_data from {start_date} to {end_date}")
+        cached = self._cache["MAVIR_data"]
 
-        df = pd.read_sql(f"SELECT {columns} FROM MAVIR_data "
-                         f"WHERE Time BETWEEN \"{start_date}\" AND \"{end_date}\"",
-                         con=self._con)
-        df.set_index("Time", drop=True, inplace=True)
+        if cached and cached.min_date < start_date:
+            self._logger.info(f"CACHED Reading MAVIR_data from {start_date} to {end_date}")
+            df = cached.df[start_date:end_date]
+        else:
+            self._logger.info(f"Reading MAVIR_data from {start_date} to {end_date}")
+            df = pd.read_sql(
+                f"""SELECT {self._cols_to_str(columns)} FROM MAVIR_data
+                WHERE Time BETWEEN \"{start_date.strftime(self._TIME_FORMAT)}\"
+                AND \"{end_date.strftime(self._TIME_FORMAT)}\"""",
+                con=self._con)
+            df.set_index("Time", drop=True, inplace=True)
 
         return df
 
     @DatabaseConnect._db_transaction
     def get_weather_meta(self) -> pd.DataFrame:
-        self._logger.info("Reading OMSZ_meta")
-        df = pd.read_sql("SELECT * FROM OMSZ_meta", con=self._con)
-        df.set_index("StationNumber", drop=True, inplace=True)
+        cached = self._cache["OMSZ_meta"]
+        if cached:
+            self._logger.info("CACHED Reading OMSZ_meta")
+            df = cached.df
+        else:
+            self._logger.info("Reading OMSZ_meta")
+            df = pd.read_sql("SELECT * FROM OMSZ_meta", con=self._con)
+            df.set_index("StationNumber", drop=True, inplace=True)
+            self._cache.set_entry("OMSZ_meta", df)
         return df
 
     @DatabaseConnect._db_transaction
     def get_weather_status(self) -> pd.DataFrame:
-        self._logger.info("Reading OMSZ_status")
-        df = pd.read_sql("SELECT * FROM OMSZ_status", con=self._con)
-        df.set_index("StationNumber", drop=True, inplace=True)
+        cached = self._cache["OMSZ_status"]
+        if cached:
+            self._logger.info("CACHED Reading OMSZ_status")
+            df = cached.df
+        else:
+            self._logger.info("Reading OMSZ_status")
+            df = pd.read_sql("SELECT * FROM OMSZ_status", con=self._con)
+            df.set_index("StationNumber", drop=True, inplace=True)
+            self._cache.set_entry("OMSZ_status", df)
         return df
 
     @DatabaseConnect._db_transaction
@@ -170,43 +317,8 @@ class Reader(DatabaseConnect):
         return [tc[0] for tc in table_cols]
 
     @DatabaseConnect._db_transaction
-    def get_weather_one_station(self, station: int, start_date: pd.Timestamp | datetime,
-                                end_date: pd.Timestamp | datetime, cols: list[str] | None) -> pd.DataFrame:
-        """
-        Get weather for given station in given timeframe
-        :param station: Which station to read from
-        :param start_date: Date to start at in UTC
-        :param end_date: Date to end on in UTC
-        :param cols: Which columns to SELECT
-        :returns: pandas.DataFrame with the data or None
-        :raises ValueError: if param types or timeframe length wrong
-        :raises LookupError: if station doesn't exist, or cols don't include any valid columns
-        """
-        self._check_int(station, "station")
-        self._check_date(start_date, "start_date")
-        self._check_date(end_date, "end_date")
-
-        self._limit_timeframe(start_date, end_date, self._SINGLE_TABLE_LIMIT)
-
-        self._curs.execute(f"SELECT StationNumber FROM OMSZ_meta WHERE StationNumber = {station}")
-        exists = self._curs.fetchone()
-        if not exists:
-            raise LookupError(f"Can't find station {station}")
-
-        columns = self._cols_to_str(self._get_valid_cols("OMSZ_data", cols))
-
-        self._logger.info(f"Reading OMSZ_{station} from {start_date} to {end_date}")
-
-        df = pd.read_sql(f"SELECT {columns} FROM OMSZ_data WHERE StationNumber = {station} AND "
-                         f"Time BETWEEN \"{start_date}\" AND \"{end_date}\"",
-                         con=self._con)
-        df.set_index("Time", drop=True, inplace=True)
-
-        return df.drop(columns="StationNumber", errors='ignore')
-
-    @DatabaseConnect._db_transaction
-    def get_weather_multi_station(self, start_date: pd.Timestamp | datetime, end_date: pd.Timestamp | datetime,
-                                  cols: list[str] | None, stations: list[int] | None = None) -> dict:
+    def get_weather_stations(self, start_date: pd.Timestamp | datetime, end_date: pd.Timestamp | datetime,
+                             cols: list[str] | None, stations: list[int] | None = None) -> dict:
         """
         Get weather for all stations in given timeframe
         :param start_date: Date to start at in UTC
@@ -222,8 +334,7 @@ class Reader(DatabaseConnect):
         self._limit_timeframe(start_date, end_date, self._WEATHER_ALL_STATIONS_LIMIT)
 
         self._curs.execute("SELECT StationNumber FROM OMSZ_meta")
-        valid_stations = self._curs.fetchall()
-        valid_stations = set([s[0] for s in valid_stations])
+        valid_stations = set([s[0] for s in self._curs.fetchall()])
 
         if not stations:
             stations = []
@@ -235,32 +346,43 @@ class Reader(DatabaseConnect):
         columns = self._get_valid_cols("OMSZ_data", cols)
         if columns:
             columns = ["StationNumber"] + columns
-        columns = self._cols_to_str(columns)
 
-        self._logger.info(f"Reading {'all' if not stations else len(stations)} "
-                          f"stations from {start_date} to {end_date}")
+        cached = self._cache["OMSZ_data"]
 
-        if stations:
-            # It'll use PRIMARY index (StationNumber, Time) => Very fast
-            df = pd.read_sql(f"SELECT {columns} FROM OMSZ_data "
-                             f"WHERE StationNumber IN ({str(stations)[1:-1]}) AND "
-                             f"Time BETWEEN \"{start_date}\" AND \"{end_date}\"",
-                             con=self._con)
+        if cached and cached.min_date < start_date:
+            self._logger.info(f"Reading CACHED {'all' if not stations else len(stations)} "
+                              f"stations from {start_date} to {end_date}")
+            df = cached.df[start_date:end_date]
+            df.reset_index(inplace=True, drop=False)
+            if stations:
+                df = df[df["StationNumber"].isin(stations)]
         else:
-            # It uses no index by default, need to force (Time) index => 3x faster
-            df = pd.read_sql(f"SELECT {columns} FROM OMSZ_data FORCE INDEX(OMSZ_data_time_index) "
-                             f"WHERE Time BETWEEN \"{start_date}\" AND \"{end_date}\"",
-                             con=self._con)
+            self._logger.info(f"Reading {'all' if not stations else len(stations)} "
+                              f"stations from {start_date} to {end_date}")
+            if stations:
+                # It'll use PRIMARY index (StationNumber, Time) => Very fast
+                df = pd.read_sql(
+                    f"""SELECT {self._cols_to_str(columns)} FROM OMSZ_data
+                        WHERE StationNumber IN ({str(stations)[1:-1]}) AND
+                        Time BETWEEN \"{start_date.strftime(self._TIME_FORMAT)}\" AND
+                        \"{end_date.strftime(self._TIME_FORMAT)}\"""",
+                    con=self._con)
+            else:
+                # It uses no index by default in most cases, need to force (Time) index => 3x faster
+                df = pd.read_sql(
+                    f"""SELECT {self._cols_to_str(columns)} FROM OMSZ_data FORCE INDEX(OMSZ_data_time_index)
+                        WHERE Time BETWEEN \"{start_date.strftime(self._TIME_FORMAT)}\" AND
+                        \"{end_date.strftime(self._TIME_FORMAT)}\"""",
+                    con=self._con)
 
         return df
 
     @DatabaseConnect._db_transaction
     def get_ai_table_columns(self) -> list[str]:
         """
-        Retrieves columns for AI_10min and AI_1hour
-        :returns: list of columns
+        Retrieves columns for AI_10min and AI_1hour: returns: list of columns
         """
-        self._curs.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='AI_1hour'")
+        self._curs.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='AI_10min'")
         table_cols = self._curs.fetchall()
         return [tc[0] for tc in table_cols]
 
@@ -282,23 +404,34 @@ class Reader(DatabaseConnect):
         if which not in ('10min', '1hour'):
             raise ValueError("'which' must be 1 of the following: '10min', '1hour'")
 
-        self._logger.info(f"Reading AI_{which} from {start_date or 'start'} to {end_date or 'end'}")
+        cached = self._cache[f"AI_{which}"]
+        if cached:
+            self._logger.info(f"CACHED Reading AI_{which} from {start_date or 'start'} to {end_date or 'end'}")
+            df = cached.df[start_date:end_date]
+        else:
+            # Theoretically, this branch doesn't see action if the cache is initialized
+            self._logger.info(f"Reading AI_{which} from {start_date or 'start'} to {end_date or 'end'}")
 
-        start_sql = f"Time >= \"{start_date}\"" if start_date else "TRUE"
-        end_sql = f"Time <= \"{end_date}\"" if end_date else "TRUE"
+            start_sql = f"Time >= \"{start_date.strftime(self._TIME_FORMAT)}\"" if start_date else "TRUE"
+            end_sql = f"Time <= \"{end_date.strftime(self._TIME_FORMAT)}\"" if end_date else "TRUE"
 
-        df = pd.read_sql(f"SELECT * FROM AI_{which} WHERE {start_sql} AND {end_sql}",
-                         con=self._con)
-        df.set_index("Time", drop=True, inplace=True)
+            df = pd.read_sql(f"SELECT * FROM AI_{which} WHERE {start_sql} AND {end_sql}", con=self._con)
+            df.set_index("Time", drop=True, inplace=True)
 
         return df
 
     @DatabaseConnect._db_transaction
     def get_s2s_status(self) -> pd.DataFrame:
-        self._logger.info("Reading S2S_status")
-        df = pd.read_sql("SELECT * FROM S2S_status", con=self._con)
-        df["Type"] = ["S2S"]
-        df.set_index("Type", inplace=True, drop=True)
+        cached = self._cache["S2S_status"]
+        if cached:
+            self._logger.info("CACHED Reading S2S_status")
+            df = cached.df
+        else:
+            self._logger.info("Reading S2S_status")
+            df = pd.read_sql("SELECT * FROM S2S_status", con=self._con)
+            df["Type"] = ["S2S"]
+            df.set_index("Type", inplace=True, drop=True)
+            self._cache.set_entry("S2S_status", df)
         return df
 
     @DatabaseConnect._db_transaction
@@ -308,7 +441,7 @@ class Reader(DatabaseConnect):
         Get predictions of Seq2Seq model for given timeframe
         :param start_date: Date to start at in UTC
         :param end_date: Date to end on in UTC
-        :param aligned: align true-pred or just return predictions at time
+        :param aligned: align true - pred or just return predictions at time
         :returns: pandas.DataFrame with the data
         :raises ValueError: if param types are wrong
         """
@@ -317,20 +450,28 @@ class Reader(DatabaseConnect):
         if end_date:
             self._check_date(end_date, "end_date")
 
-        start_sql = f"s2s.Time >= \"{start_date}\"" if start_date else "TRUE"
-        end_sql = f"s2s.Time <= \"{end_date}\"" if end_date else "TRUE"
+        start_sql = f"s2s.Time >= \"{start_date.strftime(self._TIME_FORMAT)}\"" if start_date else "TRUE"
+        end_sql = f"s2s.Time <= \"{end_date.strftime(self._TIME_FORMAT)}\"" if end_date else "TRUE"
 
-        if aligned:
-            self._logger.info(f"Reading S2S_aligned_preds and AI_1hour from {start_date or 'start'} "
+        aligned_str = "aligned" if aligned else "raw"
+        cached = self._cache[f"S2S_{aligned_str}_preds"]
+        if cached:
+            self._logger.info(f"CACHED Reading S2S_{aligned_str}_preds and AI_1hour from {start_date or 'start'} "
                               f"to {end_date or 'end'}")
-            df = pd.read_sql(f"SELECT s2s.Time, tr.NetSystemLoad, s2s.NSLP1ago, s2s.NSLP2ago, s2s.NSLP3ago "
-                             f"FROM (SELECT Time, NetSystemLoad FROM AI_1hour) tr RIGHT JOIN S2S_aligned_preds s2s "
-                             f"ON tr.Time = s2s.Time WHERE {start_sql} AND {end_sql}", con=self._con)
+            df = cached.df[start_date:end_date]
         else:
-            self._logger.info(f"Reading S2S_raw_preds from {start_date or 'start'} to {end_date or 'end'}")
-            df = pd.read_sql(f"SELECT * FROM S2S_raw_preds s2s WHERE {start_sql} AND {end_sql}", con=self._con)
+            self._logger.info(f"Reading S2S_{aligned_str}_preds and AI_1hour from {start_date or 'start'} "
+                              f"to {end_date or 'end'}")
+            if aligned:
+                df = pd.read_sql(
+                    f"""SELECT s2s.Time, tr.NetSystemLoad, s2s.NSLP1ago, s2s.NSLP2ago, s2s.NSLP3ago
+                        FROM (SELECT Time, NetSystemLoad FROM AI_1hour) tr RIGHT JOIN S2S_aligned_preds s2s
+                        ON tr.Time = s2s.Time WHERE {start_sql} AND {end_sql}""",
+                    con=self._con)
+            else:
+                df = pd.read_sql(f"SELECT * FROM S2S_raw_preds s2s WHERE {start_sql} AND {end_sql}", con=self._con)
 
-        df.set_index("Time", drop=True, inplace=True)
+            df.set_index("Time", drop=True, inplace=True)
 
         return df
 
