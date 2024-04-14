@@ -136,7 +136,14 @@ function lerp(pointA, pointB, normalValue) {
 async function fetchData(url) {
     // async fetch data from given url and handle errors
     // May throw errors while fetching!
-    const response = await fetch(url)
+    let response = await fetch(url)
+
+    if (response.status == 429) {
+        // Largest rate limit in API is 2 seconds as of writing
+        console.log("Status code 429 Too Many Requests, retrying in 3 seconds")
+        await new Promise(r => setTimeout(r, 3000)) // "sleep"
+        response = await fetch(url)
+    }
 
     if (!response.ok) {
         throw new Error("Couldn't fetch " + url)
