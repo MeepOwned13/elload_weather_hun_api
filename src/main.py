@@ -112,6 +112,7 @@ async def update_check():
             logger.info("Checking for updates to omsz sources")
             if omsz_dl.choose_curr_update():
                 last_weather_update = pd.Timestamp.now("UTC").tz_localize(None)
+                reader.refresh_caches(["omsz", "ai"])
     except Exception as e:
         logger.error(f"Exception/Error {e.__class__.__name__} occured during OMSZ update, "
                      f"Changes were rolled back, resuming app | message: {str(e)} | "
@@ -123,6 +124,7 @@ async def update_check():
             logger.info("Checking for updates to mavir sources")
             if mavir_dl.choose_update():
                 last_electricity_update = pd.Timestamp.now("UTC").tz_localize(None)
+                reader.refresh_caches(["mavir", "ai"])
     except Exception as e:
         logger.error(f"Exception/Error {e.__class__.__name__} occured during MAVIR update, "
                      f"Changes were rolled back, resuming app | message: {str(e)} | "
@@ -139,6 +141,7 @@ async def update_check():
             logger.info("Updating S2S predictions")
             if ai_int.choose_update():
                 last_s2s_update = pd.Timestamp.now("UTC").tz_localize(None)
+                reader.refresh_caches("s2s")
     except Exception as e:
         logger.error(f"Exception/Error {e.__class__.__name__} occured during S2S update, "
                      f"Changes were rolled back, resuming app | message: {str(e)}")
@@ -236,10 +239,13 @@ async def get_weather_station(start_date: datetime, end_date: datetime,
         if not station:
             station = []
         if len(station) == 1:
-            result: pd.DataFrame = reader.get_weather_one_station(station[0], start_date, end_date, cols=col)
+            result: pd.DataFrame = reader.get_weather_stations(start_date, end_date, cols=col, stations=station)
+            result.drop(columns="StationNumber", inplace=True, errors="ignore")
+            result.set_index("Time", inplace=True, drop=True)
             return df_json_resp(OMSZ_MESSAGE, result)
+
         # multi-station, also returning a response directly, showed to be faster
-        df: pd.DataFrame = reader.get_weather_multi_station(start_date, end_date, cols=col, stations=station)
+        df: pd.DataFrame = reader.get_weather_stations(start_date, end_date, cols=col, stations=station)
         result = []
         group_name = "Time" if date_first else "StationNumber"
         grouped = df.groupby(group_name)
@@ -382,6 +388,9 @@ def main(skip_checks: bool):
     ai_int.startup_sequence()
     global last_s2s_update
     last_s2s_update = pd.Timestamp.now("UTC").tz_localize(None) - pd.DateOffset(minutes=10)
+
+    # Cache init
+    reader.refresh_caches(["mavir", "omsz", "ai", "s2s"])
 
     # Start the app
     uvicorn.run(app, port=8000, log_config=log_config)
