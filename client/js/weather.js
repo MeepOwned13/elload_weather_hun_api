@@ -1,8 +1,8 @@
 class OmszController extends PlotController {
     // constants
-    #urlA = document.getElementById("omszUrlA")
-    #logoImg = document.getElementById("omszLogo")
-    #dropdown = document.getElementById("omszDropdown")
+    #urlA
+    #logoImg
+    #dropdown
     #mapBaseLonAxis = {
         "min": 15.7,
         "max": 23.3
@@ -17,10 +17,25 @@ class OmszController extends PlotController {
     #mapLonAxis = [this.#mapBaseLonAxis.min, this.#mapBaseLonAxis.max]
     #resizeTimeout = null
 
-    constructor(apiUrl, lastUpdateKey, plotDivId, dateInputId, forwardButtonId, backwardButtonId,
-        loadingOverlayId, mapFormat, stepSize = 10, maxWidth = 1080) {
-        super(apiUrl, lastUpdateKey, plotDivId, dateInputId, forwardButtonId, backwardButtonId,
-            loadingOverlayId, stepSize, maxWidth)
+    constructor(apiUrl, containerId, lastUpdateKey, urlAId, mapFormat, stepSize = 10, maxWidth = 1080) {
+        super(apiUrl, containerId, lastUpdateKey, stepSize, maxWidth)
+
+        this.#logoImg = document.createElement("img")
+        this.#logoImg.classList.add("omszLogo")
+        this.#logoImg.src = ""
+        this.#logoImg.alt = "Logo of OMSZ"
+        this._containerDiv.insertBefore(this.#logoImg, this._containerDiv.firstChild)
+
+        this._plotDiv.classList.add("omszStationMapDiv")
+        let hider = document.createElement("div")
+        hider.classList.add("hider")
+        this._plotDiv.appendChild(hider)
+
+        this.#dropdown = document.createElement("select")
+        this._inputDiv.appendChild(this.#dropdown)
+
+        this.#urlA = document.getElementById(urlAId)
+
         this.#mapFormat = structuredClone(mapFormat)
     }
 

@@ -1,13 +1,31 @@
 class MavirController extends LinePlotController {
     // constants
     #urlA = document.getElementById("mavirUrlA")
-    #logoImg = document.getElementById("mavirLogo")
-    #legendCheckbox = document.getElementById("mavirShowLegend")
+    #logoImg
+    #legendCheckbox
 
-    constructor(apiUrl, lastUpdateKey, plotDivId, dateInputId, forwardButtonId, backwardButtonId, loadingOverlayId,
-        dataReqName, maxViewRange, minViewRange, plotFormat, stepSize = 10, maxWidth = 1080) {
-        super(apiUrl, lastUpdateKey, plotDivId, dateInputId, forwardButtonId, backwardButtonId,
-            loadingOverlayId, dataReqName, maxViewRange, minViewRange, plotFormat, stepSize, maxWidth)
+    constructor(apiUrl, containerId, lastUpdateKey, urlAId, dataReqName, maxViewRange, minViewRange, plotFormat, stepSize = 10, maxWidth = 1080) {
+        super(apiUrl, containerId, lastUpdateKey, dataReqName, maxViewRange, minViewRange, plotFormat, stepSize, maxWidth)
+
+        this.#logoImg = document.createElement("img")
+        this.#logoImg.classList.add("mavirLogo")
+        this.#logoImg.src = ""
+        this.#logoImg.alt = "Logo of MAVIR"
+        this._containerDiv.insertBefore(this.#logoImg, this._containerDiv.firstChild)
+
+        let legendID = "showLegend" + toString(UniqueID.next())
+        this.#legendCheckbox = document.createElement("input")
+        this.#legendCheckbox.type = "checkbox"
+        this.#legendCheckbox.checked = true
+        this.#legendCheckbox.id = legendID
+        this._inputDiv.appendChild(this.#legendCheckbox)
+
+        let legendLabel = document.createElement("label")
+        legendLabel.htmlFor = legendID
+        legendLabel.innerText = langStringText("showLegend")
+        this._inputDiv.appendChild(legendLabel)
+
+        this.#urlA = document.getElementById(urlAId)
     }
 
     _makeLines(from, to) {

@@ -8,22 +8,47 @@ class PlotController {
     _lastUpdateKey
     _maxWidth
     _stepSize
+    _containerDiv
+    _inputDiv
 
     _minDate = null
     _maxDate = null
     _status = null
     _lastUpdate = null
 
-    constructor(apiUrl, lastUpdateKey, plotDivId, dateInputId, forwardButtonId, backwardButtonId, loadingOverlayId, stepSize = 10, maxWidth = 1080) {
+    constructor(apiUrl, containerId, lastUpdateKey, stepSize = 10, maxWidth = 1080) {
         this._apiUrl = apiUrl
         this._lastUpdateKey = lastUpdateKey
-        this._plotDiv = document.getElementById(plotDivId)
-        this._dateInput = document.getElementById(dateInputId)
-        this._forwardButton = document.getElementById(forwardButtonId)
-        this._backwardButton = document.getElementById(backwardButtonId)
-        this._loadingOverlay = document.getElementById(loadingOverlayId)
         this._stepSize = stepSize
         this._maxWidth = maxWidth
+
+        this._containerDiv = document.getElementById(containerId)
+
+        this._plotDiv = document.createElement("div")
+        this._containerDiv.appendChild(this._plotDiv)
+
+        this._inputDiv = document.createElement("div")
+        this._inputDiv.classList.add("inputs")
+        this._containerDiv.appendChild(this._inputDiv)
+
+        this._dateInput = document.createElement("input")
+        this._dateInput.type = "datetime-local"
+        this._dateInput.step = toString(this._stepSize * 60)
+        this._inputDiv.appendChild(this._dateInput)
+
+        this._backwardButton = document.createElement("button")
+        this._backwardButton.innerHTML = "<i class=\"fa-solid fa-backward\"></i>"
+        this._inputDiv.appendChild(this._backwardButton)
+
+        this._forwardButton = document.createElement("button")
+        this._forwardButton.innerHTML = "<i class=\"fa-solid fa-forward\"></i>"
+        this._inputDiv.appendChild(this._forwardButton)
+
+        this._loadingOverlay = document.createElement("div")
+        this._loadingOverlay.classList.add("loading")
+        this._loadingOverlay.innerHTML = "<div class=\"spinner\"></div>"
+        this._containerDiv.appendChild(this._loadingOverlay)
+
 
         // simulating abstract class/method
         if (this.display === undefined) {
@@ -74,7 +99,7 @@ class PlotController {
     }
 }
 
-class LinePlotController extends PlotController{
+class LinePlotController extends PlotController {
     _dataReqName
     _maxViewRange
     _minViewRange
@@ -87,13 +112,11 @@ class LinePlotController extends PlotController{
     _resizeTimeout = null
     _showLegend = true
 
-    constructor(apiUrl, lastUpdateKey, plotDivId, dateInputId, forwardButtonId, backwardButtonId, loadingOverlayId,
-                dataReqName, maxViewRange, minViewRange, plotFormat, stepSize = 10, maxWidth = 1080) {
-        super(apiUrl, lastUpdateKey, plotDivId, dateInputId, forwardButtonId, backwardButtonId,
-              loadingOverlayId, stepSize, maxWidth)
+    constructor(apiUrl, containerId, lastUpdateKey, dataReqName, maxViewRange, minViewRange, plotFormat, stepSize = 10, maxWidth = 1080) {
+        super(apiUrl, containerId, lastUpdateKey, stepSize, maxWidth)
         this._dataReqName = dataReqName
         this._maxViewRange = maxViewRange
-        this._viewRange = maxViewRange
+        this._viewRange = this._maxViewRange
         this._minViewRange = minViewRange
         this._plotFormat = structuredClone(plotFormat)
     }

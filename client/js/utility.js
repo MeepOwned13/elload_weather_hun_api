@@ -1,5 +1,15 @@
 const apiUrl = 'https://8000-01hq0fcfq8q8tabmwrb7nb3x24.cloudspaces.litng.ai/'
 
+class UniqueID {
+    static next() {
+        if (UniqueID._id) {
+            return ++UniqueID._id
+        }
+        UniqueID._id = 1
+        return UniqueID._id
+    }
+}
+
 let _intervals = {}
 /**
 * Make a button "holdable", uses setInterval() with mouseup and mousedown events

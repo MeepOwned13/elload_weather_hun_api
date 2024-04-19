@@ -45,22 +45,7 @@
                     <script>langHTMLText("omszDesc")</script>
                 </p>
             </div>
-            <div class="block container">
-                <img id="omszLogo" src="" alt="Logo of OMSZ" />
-                <div id="omszStationMapDiv">
-                    <div class="hider"></div>
-                </div>
-                <div class="inputs">
-                    <input id="omszDateInput" type="datetime-local" min="2018-01-01T00:00:00" max="2024-03-02T15:00:00"
-                        step="600" />
-                    <button id="omszBackwardButton"><i class="fa-solid fa-backward"></i></button>
-                    <button id="omszForwardButton"><i class="fa-solid fa-forward"></i></button>
-                    <select id="omszDropdown"></select>
-                </div>
-                <div id="omszLoadingOverlay" class="loading">
-                    <div class="spinner"></div>
-                </div>
-            </div>
+            <div id="omszContainer" class="block container"> </div>
             <div class="block text">
                 <p>
                     <script>langHTMLText("omszMessage")</script>
@@ -79,24 +64,7 @@
                     <script>langHTMLText("mavirDesc")</script>
                 </p>
             </div>
-            <div class="block container">
-                <img id="mavirLogo" src="" alt="Logo of MAVIR">
-                <div id="mavirPlotDiv">
-                </div>
-                <div class="inputs">
-                    <input id="mavirDateInput" type="datetime-local" name="observedate" min="2018-01-01T00:00:00"
-                        max="2024-03-02T15:00:00" step="600" />
-                    <button id="mavirBackwardButton"><i class="fa-solid fa-backward"></i></button>
-                    <button id="mavirForwardButton"><i class="fa-solid fa-forward"></i></button>
-                    <input type="checkbox" id="mavirShowLegend" checked />
-                    <label for="mavirShowLegend">
-                        <script>langHTMLText("showLegend")</script>
-                    </label>
-                </div>
-                <div id="mavirLoadingOverlay" class="loading">
-                    <div class="spinner"></div>
-                </div>
-            </div>
+            <div id="mavirContainer" class="block container"> </div>
             <div id="mavirMsgDiv" class="block text">
                 <p>
                     <script>langHTMLText("mavirMessage")</script>
@@ -108,19 +76,7 @@
                     <script>langHTMLText("aiDesc")</script>
                 </p>
             </div>
-            <div class="block container">
-                <div id="aiPlotDiv">
-                </div>
-                <div class="inputs">
-                    <input id="aiDateInput" type="datetime-local" name="observedate" min="2017-01-01T00:00:00"
-                        max="2024-03-02T15:00:00" step="3600" />
-                    <button id="aiBackwardButton"><i class="fa-solid fa-backward"></i></button>
-                    <button id="aiForwardButton"><i class="fa-solid fa-forward"></i></button>
-                </div>
-                <div id="aiLoadingOverlay" class="loading">
-                    <div class="spinner"></div>
-                </div>
-            </div>
+            <div id="aiContainer" class="block container"> </div>
         </div>
     </main>
 </body>

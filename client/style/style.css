@@ -141,14 +141,14 @@ div.container {
     border-radius: 25px;
 }
 
-#omszStationMapDiv {
+.omszStationMapDiv {
     position: relative;
     min-height: 672px;
     /* KEEP CONSISTENT WITH omszMapHeight!!! */
 }
 
-#mavirPlotDiv,
-#aiPlotDiv {
+.mavirPlotDiv,
+.aiPlotDiv {
     min-height: 600px;
 }
 
@@ -202,7 +202,7 @@ div.loading>div.spinner {
 
 /* to accomodate modebar with border-radius set in .main-svg */
 
-img#omszLogo {
+img.omszLogo {
     position: absolute;
     left: 10px;
     top: 10px;
@@ -213,7 +213,7 @@ img#omszLogo {
     pointer-events: none;
 }
 
-img#mavirLogo {
+img.mavirLogo {
     position: absolute;
     right: 10px;
     top: 10px;
