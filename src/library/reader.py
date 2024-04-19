@@ -168,7 +168,7 @@ class Reader(DatabaseConnect):
         now = pd.Timestamp.now("UTC").tz_localize(None)
 
         # The idea for caching
-        # - pre-cache important views and larger tables <- high likelihood of them being requested
+        # - pre-cache important views and larger tables <- high likelihood of them being requested, and not in full
         # - on-demand-cache views and tables which are already fast to request and are always requested in full
 
         # MAVIR cache

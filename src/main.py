@@ -276,7 +276,7 @@ async def get_weather_station(request: Request, start_date: datetime, end_date: 
 
 
 @app.get("/mavir/logo", responses=response_examples['/mavir/logo'])
-@limiter.limit("1/second")
+@limiter.limit("2/second")
 async def get_mavir_logo(request: Request):
     """
     Get url to MAVIR logo to use when displaying MAVIR data visually (optional)
