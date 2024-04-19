@@ -268,7 +268,7 @@ class Reader(DatabaseConnect):
 
         if cached and cached.min_date < start_date:
             self._logger.info(f"CACHED Reading MAVIR_data from {start_date} to {end_date}")
-            df = cached.df[start_date:end_date][columns]
+            df = cached.df[start_date:end_date][columns] if columns else cached.df[start_date:end_date]
         else:
             self._logger.info(f"Reading MAVIR_data from {start_date} to {end_date}")
             df = pd.read_sql(
@@ -352,7 +352,7 @@ class Reader(DatabaseConnect):
         if cached and cached.min_date < start_date:
             self._logger.info(f"Reading CACHED {'all' if not stations else len(stations)} "
                               f"stations from {start_date} to {end_date}")
-            df = cached.df[start_date:end_date][columns]
+            df = cached.df[start_date:end_date][columns] if columns else cached.df[start_date:end_date]
             df.reset_index(inplace=True, drop=False)
             if stations:
                 df = df[df["StationNumber"].isin(stations)]
