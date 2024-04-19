@@ -1,6 +1,6 @@
 const apiUrl = 'https://8000-01hq0fcfq8q8tabmwrb7nb3x24.cloudspaces.litng.ai/'
-let intervals = {}
 
+let _intervals = {}
 /**
 * Make a button "holdable", uses setInterval() with mouseup and mousedown events
 * @param {HTMLElement} button - button to add interval execution to
@@ -9,22 +9,22 @@ let intervals = {}
 * @param {string} intervalName - a name for Your interval, should be unique if You don't want collisions
 */
 function addIntervalToButton(button, func, ms, intervalName) {
-    intervals[intervalName] = null
+    _intervals[intervalName] = null
 
     button.addEventListener("mousedown", () => {
         // just in case it gets stuck, another press will remove the interval
-        if (intervals[intervalName] !== null) {
-            clearInterval(intervals[intervalName])
+        if (_intervals[intervalName] !== null) {
+            clearInterval(_intervals[intervalName])
         }
 
         func()
-        intervals[intervalName] = setInterval(() => {
+        _intervals[intervalName] = setInterval(() => {
             if (button.disabled) return
             func()
         }, ms)
     })
-    button.addEventListener("mouseup", () => clearInterval(intervals[intervalName]))
-    button.addEventListener("mouseleave", () => clearInterval(intervals[intervalName]))
+    button.addEventListener("mouseup", () => clearInterval(_intervals[intervalName]))
+    button.addEventListener("mouseleave", () => clearInterval(_intervals[intervalName]))
 }
 
 /**
