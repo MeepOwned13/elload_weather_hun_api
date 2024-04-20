@@ -1,6 +1,6 @@
 class MavirController extends LinePlotController {
     // constants
-    #urlA = document.getElementById("mavirUrlA")
+    #urlA
     #logoImg
     #legendCheckbox
 
@@ -39,7 +39,7 @@ class MavirController extends LinePlotController {
         this._dateInput.value = this._dateInput.max
         addMinutesToInputFloored(this._dateInput, this._stepSize, -60 * 24)
 
-        fetchData(this._apiUrl + 'logo').then((resp) => {
+        fetchData(this._apiUrl + "logo").then((resp) => {
             this.#logoImg.src = resp
         })
 
@@ -65,7 +65,7 @@ class MavirController extends LinePlotController {
             this.updatePlot()
         })
 
-        window.addEventListener('resize', () => {
+        window.addEventListener("resize", () => {
             clearTimeout(this._resizeTimeout)
             this._resizeTimeout = setTimeout(() => {
                 this.updatePlotAndDimensions()

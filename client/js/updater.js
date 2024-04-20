@@ -1,6 +1,6 @@
 const omszMapFormat = {
     Temp: {
-        name: langStringText('temp'),
+        name: langStringText("temp"),
         min: -10,
         max: 35,
         gradient: [
@@ -9,10 +9,10 @@ const omszMapFormat = {
             [255, 128, 0, 1],
             [255, 0, 0, 1],
         ],
-        measurement: '°C',
+        measurement: "°C",
     },
     AvgTemp: {
-        name: langStringText('avgTemp'),
+        name: langStringText("avgTemp"),
         min: -10,
         max: 35,
         gradient: [
@@ -21,10 +21,10 @@ const omszMapFormat = {
             [255, 128, 0, 1],
             [255, 0, 0, 1],
         ],
-        measurement: '°C',
+        measurement: "°C",
     },
     Prec: {
-        name: langStringText('prec'),
+        name: langStringText("prec"),
         min: 0,
         max: 1.2,
         gradient: [
@@ -33,10 +33,10 @@ const omszMapFormat = {
             [61, 97, 255, 1],
             [18, 0, 187, 1]
         ],
-        measurement: 'mm'
+        measurement: "mm"
     },
     RHum: {
-        name: langStringText('rHum'),
+        name: langStringText("rHum"),
         min: 0,
         max: 100,
         gradient: [
@@ -45,10 +45,10 @@ const omszMapFormat = {
             [28, 189, 227, 1],
             [12, 0, 255, 1]
         ],
-        measurement: '%'
+        measurement: "%"
     },
     GRad: {
-        name: langStringText('gRad'),
+        name: langStringText("gRad"),
         min: 0,
         max: 650,
         gradient: [
@@ -58,10 +58,10 @@ const omszMapFormat = {
             [255, 179, 0, 1],
             [255, 51, 0, 1]
         ],
-        measurement: 'W/m²'
+        measurement: "W/m²"
     },
     AvgWS: {
-        name: langStringText('avgWS'),
+        name: langStringText("avgWS"),
         min: 0,
         max: 25,
         gradient: [
@@ -71,7 +71,7 @@ const omszMapFormat = {
             [255, 203, 0, 1],
             [255, 0, 0, 1]
         ],
-        measurement: 'm/s',
+        measurement: "m/s",
         directionFeature: "AvgWD"
     }
 }
@@ -79,79 +79,79 @@ const omszMapFormat = {
 const mavirPlotFormat = {
     // net load
     NetSystemLoad: {
-        name: langStringText('NetSystemLoad'),
-        color: 'rgb(102, 68, 196)',
-        dash: 'solid'
+        name: langStringText("NetSystemLoad"),
+        color: "rgb(102, 68, 196)",
+        dash: "solid"
     },
     NetSystemLoadFactPlantManagment: {
-        name: langStringText('NetSystemLoadFactPlantManagment'),
-        color: 'rgb(136, 204, 238)',
-        dash: 'solid'
+        name: langStringText("NetSystemLoadFactPlantManagment"),
+        color: "rgb(136, 204, 238)",
+        dash: "solid"
     },
     NetSystemLoadNetTradeSettlement: {
-        name: langStringText('NetSystemLoadNetTradeSettlement'),
-        color: 'rgb(68, 170, 153)',
-        dash: 'solid'
+        name: langStringText("NetSystemLoadNetTradeSettlement"),
+        color: "rgb(68, 170, 153)",
+        dash: "solid"
     },
     NetPlanSystemLoad: {
-        name: langStringText('NetPlanSystemLoad'),
-        color: 'rgb(17, 119, 51)',
-        dash: 'solid'
+        name: langStringText("NetPlanSystemLoad"),
+        color: "rgb(17, 119, 51)",
+        dash: "solid"
     },
     NetSystemLoadDayAheadEstimate: {
-        name: langStringText('NetSystemLoadDayAheadEstimate'),
-        color: 'rgb(153, 153, 51)',
-        dash: 'solid'
+        name: langStringText("NetSystemLoadDayAheadEstimate"),
+        color: "rgb(153, 153, 51)",
+        dash: "solid"
     },
     // production
     NetPlanSystemProduction: {
-        name: langStringText('NetPlanSystemProduction'),
-        color: 'rgb(255, 255, 255)',
-        dash: 'dashdot'
+        name: langStringText("NetPlanSystemProduction"),
+        color: "rgb(255, 255, 255)",
+        dash: "dashdot"
     },
     // gross load
     GrossSystemLoad: {
-        name: langStringText('GrossSystemLoad'),
-        color: 'rgb(204, 102, 119)',
-        dash: 'dash'
+        name: langStringText("GrossSystemLoad"),
+        color: "rgb(204, 102, 119)",
+        dash: "dash"
     },
     GrossCertifiedSystemLoad: {
-        name: langStringText('GrossCertifiedSystemLoad'),
-        color: 'rgb(136, 34, 85)',
-        dash: 'dash'
+        name: langStringText("GrossCertifiedSystemLoad"),
+        color: "rgb(136, 34, 85)",
+        dash: "dash"
     },
     GrossPlanSystemLoad: {
-        name: langStringText('GrossPlanSystemLoad'),
-        color: 'rgb(170, 68, 153)',
-        dash: 'dash'
+        name: langStringText("GrossPlanSystemLoad"),
+        color: "rgb(170, 68, 153)",
+        dash: "dash"
     },
     GrossSystemLoadDayAheadEstimate: {
-        name: langStringText('GrossSystemLoadDayAheadEstimate'),
-        color: 'rgb(221, 204, 119)',
-        dash: 'dash'
+        name: langStringText("GrossSystemLoadDayAheadEstimate"),
+        color: "rgb(221, 204, 119)",
+        dash: "dash"
     },
 }
 
 const aiPlotFormat = {
     NetSystemLoad: {
-        name: langStringText('NetSystemLoad'),
-        color: 'rgb(102, 68, 196)',
-        dash: 'solid'
+        name: langStringText("NetSystemLoad"),
+        color: "rgb(102, 68, 196)",
+        dash: "solid"
     },
     NSLP1ago: {
-        name: langStringText('NSLP1ago'),
-        color: 'rgb(204, 102, 119)',
-        dash: 'solid'
+        name: langStringText("NSLP1ago"),
+        color: "rgb(204, 102, 119)",
+        dash: "solid"
     },
     NSLP2ago: {
-        name: langStringText('NSLP2ago'),
-        color: 'rgb(17, 119, 51)',
-        dash: 'solid'
+        name: langStringText("NSLP2ago"),
+        color: "rgb(17, 119, 51)",
+        dash: "solid"
     },
     NSLP3ago: {
-        name: langStringText('NSLP3ago'),
-        color: 'rgb(136, 204, 238)',
-        dash: 'solid'
+        name: langStringText("NSLP3ago"),
+        color: "rgb(136, 204, 238)",
+        dash: "solid"
     },
 }
 
@@ -174,8 +174,8 @@ if (localStorage.getItem("page") === null) {
 let currentPage = pages[localStorage.getItem("page")]
 
 async function setup() {
-    document.getElementById("pageLogo").src = apiUrl + 'favicon.ico'
-    document.getElementById("siteLogoLink").href = apiUrl + 'favicon.ico'
+    document.getElementById("pageLogo").src = apiUrl + "favicon.ico"
+    document.getElementById("siteLogoLink").href = apiUrl + "favicon.ico"
 
     for (let key in pages) {
         pages[key].switchAway()

@@ -23,7 +23,7 @@ class AIController extends LinePlotController {
             this.updatePlot()
         }, 150, "aiBackward")
 
-        window.addEventListener('resize', () => {
+        window.addEventListener("resize", () => {
             clearTimeout(this._resizeTimeout)
             this._resizeTimeout = setTimeout(() => {
                 this.updatePlotAndDimensions()

@@ -164,7 +164,7 @@ class LinePlotController extends PlotController {
             // display date in local time
             let date = new Date(i)
             date.setHours(date.getHours() - 2 * date.getTimezoneOffset() / 60)
-            x.push(localToUtcString(date).replace('T', ' '))
+            x.push(localToUtcString(date).replace("T", " "))
             for (let fet in this._plotFormat) {
                 ys[fet].push(item[fet])
             }
@@ -177,10 +177,10 @@ class LinePlotController extends PlotController {
         for (let fet in this._plotFormat) {
             let format = this._plotFormat[fet]
             plotData.push({
-                type: 'scatter',
+                type: "scatter",
                 x: x,
                 y: ys[fet],
-                mode: 'lines',
+                mode: "lines",
                 name: format.name,
                 line: {
                     dash: format.dash,
@@ -194,7 +194,7 @@ class LinePlotController extends PlotController {
         let plotLayout = {
             font: {
                 size: 16,
-                color: 'rgb(200, 200, 200)'
+                color: "rgb(200, 200, 200)"
             },
             autosize: true,
             margin: {
@@ -203,22 +203,22 @@ class LinePlotController extends PlotController {
                 t: 20,
             },
             xaxis: {
-                gridcolor: 'rgb(200, 200, 200)',
+                gridcolor: "rgb(200, 200, 200)",
             },
             yaxis: {
-                gridcolor: 'rgb(200, 200, 200)',
-                ticksuffix: ' MW',
-                hoverformat: '.1f'
+                gridcolor: "rgb(200, 200, 200)",
+                ticksuffix: " MW",
+                hoverformat: ".1f"
             },
             showlegend: this._showLegend,
             legend: {
-                orientation: 'h',
-                xanchor: 'center',
+                orientation: "h",
+                xanchor: "center",
                 x: 0.5
             },
             height: 700,
-            paper_bgcolor: 'rgba(0, 0, 0, 0)',
-            plot_bgcolor: 'rgba(0, 0, 0, 0)',
+            paper_bgcolor: "rgba(0, 0, 0, 0)",
+            plot_bgcolor: "rgba(0, 0, 0, 0)",
             hoverlabel: {
                 font: {
                     size: 18,
@@ -230,11 +230,11 @@ class LinePlotController extends PlotController {
         let plotConfig = {
             responsive: true,
             modeBarButtonsToRemove: [
-                'pan2d',
-                'zoom2d',
-                'zoomIn2d',
-                'zoomOut2d',
-                'autoScale2d'
+                "pan2d",
+                "zoom2d",
+                "zoomIn2d",
+                "zoomOut2d",
+                "autoScale2d"
             ]
         }
 
@@ -266,7 +266,7 @@ class LinePlotController extends PlotController {
         if (reRequest) {
             this._setNavDisabled(true)
 
-            let paramStartChar = this._dataReqName.includes('?') ? '&' : '?'
+            let paramStartChar = this._dataReqName.includes("?") ? "&" : "?"
             this._data = await fetchData(
                 this._apiUrl + this._dataReqName + paramStartChar +
                 "start_date=" + this._requestedMinDate + "&end_date=" + this._requestedMaxDate

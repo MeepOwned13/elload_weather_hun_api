@@ -72,7 +72,7 @@ class OmszController extends PlotController {
             let interpol = linearGradient(format.gradient, getPercentageInRange(format.min, format.max, value))
             color = arrToRGBA(interpol)
 
-            let text = value.toString() + format.measurement + ' ' + item.StationName.trim()
+            let text = value.toString() + format.measurement + " " + item.StationName.trim()
             let lon = item.Longitude
             let lat = item.Latitude
 
@@ -90,8 +90,8 @@ class OmszController extends PlotController {
             }
 
             plotData.push({
-                type: 'scattergeo',
-                mode: 'markers',
+                type: "scattergeo",
+                mode: "markers",
                 text: [text],
                 lon: [lon],
                 lat: [lat],
@@ -104,7 +104,7 @@ class OmszController extends PlotController {
                     color: color,
                 },
                 textposition: [
-                    'top right', 'top left'
+                    "top right", "top left"
                 ],
                 hoverlabel: {
                     font: {
@@ -120,29 +120,29 @@ class OmszController extends PlotController {
                 size: 20
             },
             geo: {
-                scope: 'europe',
+                scope: "europe",
                 resolution: 50,
                 projection: {
-                    type: 'mercator'
+                    type: "mercator"
                 },
                 lonaxis: {
-                    'range': this.#mapLonAxis
+                    "range": this.#mapLonAxis
                 },
                 lataxis: {
-                    'range': [45.6, 48.8]
+                    "range": [45.6, 48.8]
                 },
                 showrivers: true,
-                rivercolor: '#0c1ba3',
+                rivercolor: "#0c1ba3",
                 riverwidth: 4,
                 showlakes: true,
-                lakecolor: '#0c1ba3',
+                lakecolor: "#0c1ba3",
                 showland: true,
                 showcountries: true,
-                landcolor: '#0e010d00',
-                countrycolor: '#e8e4c9',
+                landcolor: "#0e010d00",
+                countrycolor: "#e8e4c9",
                 countrywidth: 3,
-                subunitcolor: '#a1a1a1',
-                bgcolor: '#e8e4c900',
+                subunitcolor: "#a1a1a1",
+                bgcolor: "#e8e4c900",
             },
             autosize: true,
             margin: {
@@ -153,15 +153,15 @@ class OmszController extends PlotController {
             },
             height: this.#mapHeight,
             showlegend: false,
-            paper_bgcolor: 'rgba(0,0,0,0)',
-            plot_bgcolor: 'rgba(0,0,0,0)',
+            paper_bgcolor: "rgba(0,0,0,0)",
+            plot_bgcolor: "rgba(0,0,0,0)",
         }
 
         let plotConfig = {
             responsive: true,
             modeBarButtonsToRemove: [
-                'select2d',
-                'lasso2d'
+                "select2d",
+                "lasso2d"
             ]
         }
 
@@ -199,8 +199,8 @@ class OmszController extends PlotController {
             }
 
             this.#data = await fetchData(
-                this._apiUrl + 'weather?start_date=' + this.#requestedMinDate + '&end_date=' + this.#requestedMaxDate +
-                '&date_first=True&col=' + cols.join('&col=')
+                this._apiUrl + "weather?start_date=" + this.#requestedMinDate + "&end_date=" + this.#requestedMaxDate +
+                "&date_first=True&col=" + cols.join("&col=")
             )
 
             this._setNavDisabled(false)
@@ -246,12 +246,12 @@ class OmszController extends PlotController {
         let dropdownOptions = []
         for (let key in this.#mapFormat) {
             dropdownOptions.push(
-                '<option value="' + key + '">' + this.#mapFormat[key].name + '</option>'
+                "<option value=\"" + key + "\">" + this.#mapFormat[key].name + "</option>"
             )
         }
-        this.#dropdown.innerHTML = dropdownOptions.join('\n')
+        this.#dropdown.innerHTML = dropdownOptions.join("\n")
 
-        fetchData(this._apiUrl + 'logo').then((resp) => {
+        fetchData(this._apiUrl + "logo").then((resp) => {
             this.#logoImg.src = resp
         })
 
@@ -275,7 +275,7 @@ class OmszController extends PlotController {
             this.updatePlot()
         }, 200, "omszBackward")
 
-        window.addEventListener('resize', () => {
+        window.addEventListener("resize", () => {
             clearTimeout(this.#resizeTimeout)
             this.#resizeTimeout = setTimeout(() => {
                 this.updateMapDimensions()

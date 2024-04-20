@@ -1,4 +1,4 @@
-const apiUrl = 'https://8000-01hq0fcfq8q8tabmwrb7nb3x24.cloudspaces.litng.ai/'
+const apiUrl = "https://8000-01hq0fcfq8q8tabmwrb7nb3x24.cloudspaces.litng.ai/"
 
 class UniqueID {
     static next() {
@@ -45,22 +45,22 @@ function addIntervalToButton(button, func, ms, intervalName) {
 function calcMinMaxDate(status) {
     data = status.data
 
-    let minDate = '9999999999999999999999999999' // placeholder for string comparison
-    let maxDate = '0000000000000000000000000000' // placeholder for string comparison
+    let minDate = "9999999999999999999999999999" // placeholder for string comparison
+    let maxDate = "0000000000000000000000000000" // placeholder for string comparison
 
     for (let key in data) {
         let item = data[key]
-        if (item.StartDate === 'NaT' || item.EndDate === 'NaT') continue
+        if (item.StartDate === "NaT" || item.EndDate === "NaT") continue
         minDate = minDate > item.StartDate ? item.StartDate : minDate
         maxDate = maxDate < item.EndDate ? item.EndDate : maxDate
     }
 
-    minDate = minDate.replace(' ', 'T')
-    maxDate = maxDate.replace(' ', 'T')
+    minDate = minDate.replace(" ", "T")
+    maxDate = maxDate.replace(" ", "T")
 
     return {
-        'minDate': minDate,
-        'maxDate': maxDate
+        "minDate": minDate,
+        "maxDate": maxDate
     }
 }
 
@@ -200,7 +200,7 @@ function floorToMinutes(timeString, minutes) {
 */
 function localToUtcString(localDate) {
     // convert given Date to utcstring HTML elements understand
-    return localDate.toISOString().replace(/.\d{3}Z$/, '') // Remove milliseconds and append 'Z'
+    return localDate.toISOString().replace(/.\d{3}Z$/, "") // Remove milliseconds and append 'Z'
 }
 
 /**
