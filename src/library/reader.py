@@ -211,6 +211,8 @@ class Reader(DatabaseConnect):
         # S2S preds cache
         if "s2s" in sections:
             self._logger.info("Refreshing S2S cache")
+            self._cache.invalidate_entry("S2S_status")  # on-demand, done inside get_s2s_status
+
             df = pd.read_sql("SELECT * FROM S2S_raw_preds s2s", con=self._con)
             df.set_index("Time", drop=True, inplace=True)
             self._cache.set_entry("S2S_raw_preds", df)  # pre-cache, full because requests allow to request view in full
