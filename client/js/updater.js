@@ -192,7 +192,7 @@ async function setup() {
 
 async function update() {
     let index = await fetchData(apiUrl)
-    await pages.mavir.updateControllers(index)
+    await pages.omsz.updateControllers(index)
 
     let updated = await pages.mavir.updateControllers(index)
 
