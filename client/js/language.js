@@ -116,8 +116,12 @@ const langTexts = {
         hun: "Bruttó rendszerterhelés becslés (dayahead)",
         eng: "Gross system load estimate (dayahead)",
     },
+    aiTitle: {
+        hun: "AI rendszerterhelési előrejelzések",
+        eng: "AI electricity load predictions",
+    },
     aiDesc: {
-        hun: "Az alábbi grafikonok láthatók egy Sequence-to-Sequence Mesterséges intelligencia modell előrejelzései a nettó fogyasztásra. Az előrejelzés 3 órára (óránként) történik, az egyes vonalak az egyes távok előrejelzéseit mutatják. A grafikon alatti gombokkal megtekinthetők az előrejelzések bármely korábbi időpontra.",
+        hun: "Az alábbi grafikonon láthatók egy Sequence-to-Sequence Mesterséges intelligencia modell előrejelzései a nettó fogyasztásra. Az előrejelzés 3 órára (óránként) történik, az egyes vonalak az egyes távok előrejelzéseit mutatják. A grafikon alatti gombokkal megtekinthetők az előrejelzések bármely korábbi időpontra.",
         eng: "The graph below displays the predictions of a Sequence-to-Sequence Artifical intelligence model for net system load. Predictions are made for the next 3 hours (by-hour), each line displays different horizons. The buttons below the graph allow You to view the predictions at any historical time.",
     },
     NSLP1ago: {
