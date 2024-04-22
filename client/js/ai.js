@@ -1,6 +1,10 @@
 class AIController extends LinePlotController {
 
-    // construct elements
+    /**
+    * Sets up all elements of the controller, adds event listeners and display plot with max available dates visible
+    * @async
+    * @param {Object} index - JSON return of index page containing last update time under lastUpdateKey
+    */
     async setup(index) {
         // index should contain lastUpdate times from API
         await this.updateStatus(index)
