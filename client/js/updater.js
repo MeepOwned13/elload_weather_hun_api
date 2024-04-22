@@ -156,8 +156,8 @@ const aiPlotFormat = {
 }
 
 const pages = {
-    omsz: new PageController("omszPageButton", "omszPage"),
-    mavir: new PageController("mavirPageButton", "mavirPage")
+    omsz: new PageController("omszPage"),
+    mavir: new PageController("mavirPage")
 }
 pages.omsz.addController("omsz", new OmszController(apiUrl + "omsz/", "omszContainer", "last_omsz_update",
     "omszUrlA", omszMapFormat, 10))
@@ -173,6 +173,10 @@ if (localStorage.getItem("page") === null) {
 }
 let currentPage = pages[localStorage.getItem("page")]
 
+/**
+* Sets up website, displaying page read from localStorage
+* @async
+*/
 async function setup() {
     document.getElementById("pageLogo").src = apiUrl + "favicon.ico"
     document.getElementById("siteLogoLink").href = apiUrl + "favicon.ico"
@@ -193,6 +197,10 @@ async function setup() {
     }
 }
 
+/**
+* Updates PageControllers and PlotControllers
+* @async
+*/
 async function update() {
     let index = await fetchData(apiUrl)
     await pages.omsz.updateControllers(index)
@@ -208,6 +216,10 @@ async function update() {
     }
 }
 
+/**
+* Event added to each page switch button to facilitate page switching
+* Hides current page and displays new one, calling necessary functions
+*/
 function switchPage(event) {
     if (event.target === currentPage.button) return;
     currentPage.button.classList.remove("onpage")
