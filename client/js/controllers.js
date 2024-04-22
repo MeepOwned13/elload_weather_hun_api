@@ -373,14 +373,17 @@ class LinePlotController extends PlotController {
 * Any given controller can be freely retrieved from "controllers" via their name
 */
 class PageController {
+    button
     #div
     controllers = {}
 
     /**
     * Sets div of page containing the PlotController divs
+    * @param {String} buttonId - id of button to store (generally the switch button)
     * @param {String} divId - id of div to consider a page
     */
-    constructor(divId) {
+    constructor(buttonId, divId) {
+        this.button = document.getElementById(buttonId)
         this.#div = document.getElementById(divId)
     }
 

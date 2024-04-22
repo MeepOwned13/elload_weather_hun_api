@@ -156,8 +156,8 @@ const aiPlotFormat = {
 }
 
 const pages = {
-    omsz: new PageController("omszPage"),
-    mavir: new PageController("mavirPage")
+    omsz: new PageController("omszPageButton", "omszPage"),
+    mavir: new PageController("mavirPageButton", "mavirPage")
 }
 pages.omsz.addController("omsz", new OmszController(apiUrl + "omsz/", "omszContainer", "last_omsz_update",
     "omszUrlA", omszMapFormat, 10))
