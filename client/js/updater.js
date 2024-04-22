@@ -184,7 +184,10 @@ async function setup() {
     let index = await fetchData(apiUrl)
     for (let key in pages) {
         pages[key].setupControllers(index).then(() => {
-            if (pages[key] === currentPage) currentPage.switchTo()
+            if (pages[key] === currentPage) {
+                currentPage.switchTo()
+                currentPage.button.classList.add("onpage")
+            }
             pages[key].button.addEventListener("click", switchPage)
         })
     }
@@ -207,9 +210,11 @@ async function update() {
 
 function switchPage(event) {
     if (event.target === currentPage.button) return;
+    currentPage.button.classList.remove("onpage")
     currentPage.switchAway()
 
     currentPage = pages[event.target.value]
+    currentPage.button.classList.add("onpage")
     localStorage.setItem("page", currentPage.button.value)
     currentPage.switchTo()
 }

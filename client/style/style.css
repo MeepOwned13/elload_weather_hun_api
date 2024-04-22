@@ -1,10 +1,10 @@
 :root {
     --background: #0e010d;
     --onbackground: #feeeff;
-    --primary: #050e61;
     --onprimary: #feeeff;
     --secondary: #5cb603;
     --onsecondary: #0e010d;
+    --disabled: #6f676f;
 }
 
 * {
@@ -102,13 +102,37 @@ h2 {
 nav button {
     font-weight: 500;
     font-size: 20px;
-    margin-left: 10px;
+    margin-top: -6px;
+    margin-left: 5px;
+    position: relative;
+}
+
+nav button {
+    background: none;
+    color: var(--onprimary);
+}
+
+nav button.onpage {
+    color: var(--secondary);
+}
+
+nav button.onpage::before {
+    transform: translateX(-50%);
+    border-radius: 100%;
+    position: absolute;
+    background: var(--secondary);
+    bottom: -5px;
+    height: 8px;
+    width: 8px;
+    content: '';
+    left: 50%;
 }
 
 button#language {
     background: none;
     border: none;
-    padding: 6px 0;
+    padding: 0;
+    margin-top: 6px;
     height: 40px;
 }
 
@@ -237,16 +261,30 @@ input,
 button,
 select,
 label {
-    font-size: 20px;
+    font-size: 24px;
     font-weight: 400;
     margin-right: 10px;
     padding: 5px;
     border: none;
-    border-radius: 15px;
+    border-radius: 16px;
     background-color: var(--secondary);
     outline: none;
     color: var(--onsecondary);
     cursor: pointer;
+    transition: 0.2s;
+}
+
+input:hover,
+button:hover,
+select:hover,
+label:hover,
+input:hover+label {
+    filter: hue-rotate(90deg);
+    transition: 0.2s;
+}
+
+button#language:hover {
+    filter: none;
 }
 
 option {
@@ -262,8 +300,8 @@ input:disabled,
 button:disabled,
 select:disabled {
     border: none;
-    border-radius: 15px;
-    background-color: var(--background);
+    border-radius: 16px;
+    background-color: var(--disabled);
     color: #696169;
 }
 
@@ -280,8 +318,8 @@ input[type="checkbox"] {
     -webkit-appearance: none;
     appearance: none;
     padding: 10px;
-    background: var(--background) !important;
-    border: 1px solid var(--background);
+    background: var(--disabled) !important;
+    border: 1px solid var(--disabled);
     display: inline-block;
     margin-right: 0;
 }
@@ -294,7 +332,7 @@ input[type="checkbox"]:checked {
 input[type="checkbox"]+label {
     background: none;
     border: none;
-    color: var(--background);
+    color: var(--disabled);
     transition: 0.2ms;
 }
 
@@ -304,8 +342,30 @@ input[type="checkbox"]:checked+label {
     font-weight: 700;
 }
 
-@media screen and (max-width: 500px) {
+@media screen and (max-width: 650px) {
+    main {
+        padding: 0;
+    }
+
+    div.block,
+    div.loading {
+        border-radius: 0;
+    }
+}
+
+@media screen and (max-width: 530px) {
     header div h1 {
         display: none;
+    }
+
+    nav button {
+        margin-left: 0;
+        font-size: 100%;
+    }
+
+    button#language {
+        padding: 6px 0;
+        height: 30px;
+        margin-top: -6px;
     }
 }

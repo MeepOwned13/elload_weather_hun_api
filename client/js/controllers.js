@@ -125,7 +125,7 @@ class LinePlotController extends PlotController {
         let width = window.getComputedStyle(this._plotDiv).getPropertyValue("width").slice(0, -2)
         if (width === "au") return; // means width was auto, it isn't displayed
         width = parseInt(width)
-        const part = (width - 400) / (this._maxWidth - 400)
+        const part = (width - 300) / (this._maxWidth - 300)
         this._viewRange = this._minViewRange + Math.round((this._maxViewRange - this._minViewRange) * part)
         this.updatePlot()
 
@@ -192,6 +192,8 @@ class LinePlotController extends PlotController {
             })
         }
 
+        const narrow = this._viewRange < this._minViewRange + Math.ceil((this._maxViewRange - this._minViewRange) * 0.3)
+
         let plotLayout = {
             font: {
                 size: 16,
@@ -199,25 +201,33 @@ class LinePlotController extends PlotController {
             },
             autosize: true,
             margin: {
-                l: 72,
-                r: 20,
-                t: 20,
+                l: narrow ? 20 : 72,
+                r: narrow ? 5 : 20,
+                t: narrow ? 10 : 20,
             },
             xaxis: {
                 gridcolor: "rgb(200, 200, 200)",
+                nticks: narrow ? 3 : 6,
+                fixedrange: true,
             },
             yaxis: {
                 gridcolor: "rgb(200, 200, 200)",
                 ticksuffix: " MW",
-                hoverformat: ".1f"
+                tickangle: narrow ? -90 : 0,
+                hoverformat: ".1f",
+                nticks: narrow ? 4 : 6,
+                fixedrange: true,
             },
             showlegend: this._showLegend,
             legend: {
                 orientation: "h",
                 xanchor: "center",
-                x: 0.5
+                x: 0.5,
+                font: {
+                    size: narrow ? 14 : 16,
+                },
             },
-            height: 700,
+            height: 672,
             paper_bgcolor: "rgba(0, 0, 0, 0)",
             plot_bgcolor: "rgba(0, 0, 0, 0)",
             hoverinfo: "text+x",
