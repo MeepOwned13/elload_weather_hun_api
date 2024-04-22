@@ -1,3 +1,8 @@
+// This file should be imported at the top of the HTML
+// Sets language items, allows for language choosing via button#language
+// Specifies functions to allow HTML and String displays of language managed text
+
+// currently only English and Hungarian are implemented, choosing English as baseif Hungarian is not specified in browser
 let lang = localStorage.getItem("lang")
 if (lang === null || lang === undefined) {
     lang = navigator.language === "hu" ? "hun" : "eng"
@@ -138,11 +143,20 @@ const langTexts = {
     },
 }
 
+/**
+* Displays language managed text on HTML page
+* @param {String} textOf - key for text in langTexts
+*/
 function langHTMLText(textOf) {
     // Used in HTML tags
     document.write(langTexts[textOf][lang])
 }
 
+/**
+* Returns language managed text as String
+* @param {String} textOf - key for text in langTexts
+* @returns {String} language managed String
+*/
 function langStringText(textOf) {
     // Used in code
     if (langTexts[textOf] === undefined) return "UNDEFINED"
