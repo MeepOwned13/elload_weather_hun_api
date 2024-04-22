@@ -1,3 +1,10 @@
+/**
+* Abstract base class for classes making, updating plots while downloading data.
+* The following methods should be implemented by child classes:
+* display(), should be called when plot appears or reappears on screen
+* async setup(index), should be called on pageload, takes an index that has a member on lastUpdateKey with last update time
+* updatePlot(), should update the plot by taking the date from the _dateInput
+*/
 class PlotController {
     _dateInput
     _forwardButton
@@ -16,7 +23,29 @@ class PlotController {
     _status = null
     _lastUpdate = null
 
+    /**
+    * Initialize the controller, adds plotDiv, date input, forward and back buttons, loading overlay to container (containerId)
+    * @param {String} apiUrl - url to api, should specify sub-path e.g. "{apiUrl}/omsz/"
+    * @param {String} containerId - id of container to add elements to
+    * @param {String} lastUpdateKey - key of update time in index given to setup(index)
+    * @param {number} stepSize - stepSize for navigational buttons in minutes
+    * @param {number} maxWidth - CSS dependant maximal size of containers inside (excludes padding)
+    */
     constructor(apiUrl, containerId, lastUpdateKey, stepSize = 10, maxWidth = 1080) {
+        // simulating abstract class/method
+        if (this.display === undefined) {
+            throw new TypeError("Must implement display method")
+        }
+
+        if (this.setup === undefined) {
+            throw new TypeError("Must implement setup method")
+        }
+
+        if (this.updatePlot === undefined) {
+            throw new TypeError("Must implement updatePlot method")
+        }
+
+        // rest of the constructor
         this._apiUrl = apiUrl
         this._lastUpdateKey = lastUpdateKey
         this._stepSize = stepSize
@@ -54,21 +83,13 @@ class PlotController {
         this._containerDiv.appendChild(this._loadingOverlay)
 
 
-        // simulating abstract class/method
-        if (this.display === undefined) {
-            throw new TypeError("Must implement display method")
-        }
-
-        if (this.setup === undefined) {
-            throw new TypeError("Must implement setup method")
-        }
-
-        if (this.updatePlot === undefined) {
-            throw new TypeError("Must implement updatePlot method")
-        }
     }
 
-    // functions
+    /**
+    * Sets navigational elements' disabled property, should be overloaded if new ones are added in sublcass 
+    * If disabled=True then sets loading overlay, if disabled=False disabled loading overlay
+    * @param {boolean} disabled - what disabled state to set
+    */
     _setNavDisabled(disabled) {
         this._forwardButton.disabled = disabled
         this._backwardButton.disabled = disabled
@@ -76,8 +97,13 @@ class PlotController {
         this._loadingOverlay.className = disabled ? "loading" : ""
     }
 
+    /**
+    * Updates status if necessary, decides based on given index (with lastUpdateKey) and internal state
+    * @async
+    * @param {Object} index - JSON return of index page containing last update time under lastUpdateKey
+    * @returns {Promise<Boolean>} did an update happen?
+    */
     async updateStatus(index) {
-        // updates status if necessary, decided from index that contains lastUpdateKey and lastUpdate associated with it
         if (this._lastUpdate === index[this._lastUpdateKey]) {
             return false
         }
@@ -87,8 +113,10 @@ class PlotController {
         return true
     }
 
+    /**
+    * Update min and max date of datetime-local input based on saved status
+    */
     updateDateInput() {
-        // update the allowed dates in the datetime-local input
         let result = calcMinMaxDate(this._status)
         this._minDate = result.minDate
         this._maxDate = result.maxDate
@@ -103,6 +131,11 @@ class PlotController {
     }
 }
 
+/**
+* Abstract base class for classes making, updating lineplots plots while downloading data.
+* The following methods should be implemented by child classes:
+* setup(index), should be called on pageload, takes an index that has a member on lastUpdateKey with last update time
+*/
 class LinePlotController extends PlotController {
     _dataReqName
     _maxViewRange
@@ -116,6 +149,19 @@ class LinePlotController extends PlotController {
     _resizeTimeout = null
     _showLegend = true
 
+    /**
+    * Supreclass constructor: Initialize the controller, adds plotDiv, date input, forward and back buttons, loading overlay to container (containerId)
+    * Constructor: superclass + sets formatting and responsive view range
+    * @param {String} apiUrl - url to api, should specify sub-path e.g. "{api}/omsz/"
+    * @param {String} containerId - id of container to add elements to
+    * @param {String} lastUpdateKey - key of update time in index given to setup(index)
+    * @param {String} dataReqName - data request name added after apiUrl, data comes from "{apiUrl}/{dataReqName}", allows base parameter definitions via ?name=val&...
+    * @param {number} maxViewRange - int specifing max range to display, goes negative and positive (=> double is displayed)
+    * @param {number} minViewRange - int specifing the min range the responsive layout should display
+    * @param {Object} plotFormat - object specifying col names from api as keys and objects as values that set => name, color, dash
+    * @param {number} stepSize - stepSize for navigational buttons in minutes
+    * @param {number} maxWidth - CSS dependant maximal size of containers inside (excludes padding)
+    */
     constructor(apiUrl, containerId, lastUpdateKey, dataReqName, maxViewRange, minViewRange, plotFormat, stepSize = 10, maxWidth = 1080) {
         super(apiUrl, containerId, lastUpdateKey, stepSize, maxWidth)
         this._dataReqName = dataReqName
@@ -125,6 +171,9 @@ class LinePlotController extends PlotController {
         this._plotFormat = structuredClone(plotFormat)
     }
 
+    /**
+    * Updates plot dimensions to display responsively, also updates plot
+    */
     updatePlotAndDimensions() {
         let width = window.getComputedStyle(this._plotDiv).getPropertyValue("width").slice(0, -2)
         if (width === "au") return; // means width was auto, it isn't displayed
@@ -137,6 +186,10 @@ class LinePlotController extends PlotController {
         if (this._plotDiv.layout !== undefined) Plotly.relayout(this._plotDiv, this._plotDiv.layout)
     }
 
+    /**
+    * Starts plot update taking the middle from datetime-local input, limits range given by input to the viewRange
+    * @param {boolean} force - download data no matter if we have it cached
+    */
     updatePlot(force = false) {
         // update all plots with data from datetime-local input
         let rounded = floorToMinutes(this._dateInput.value + ":00", this._stepSize)
@@ -153,6 +206,11 @@ class LinePlotController extends PlotController {
         this._updateLines(rounded, force).then()
     }
 
+    /**
+    * Update/create line plot with given start and end
+    * @param {String} from - ISO date to start at, must be less than "to" to work properly
+    * @param {String} to - ISO date to end on, must be higher than "from" to work properly
+    */
     _makeLines(from, to) {
         let data = this._data.data
         let x = []
@@ -257,6 +315,13 @@ class LinePlotController extends PlotController {
         Plotly.react(this._plotDiv, plotData, plotLayout, plotConfig)
     }
 
+    /**
+    * Updates linePlot while downloading necessary data if required
+    * Downloads more than needed to improve UI responsiveness
+    * @async
+    * @param {boolean} force - force download even if we have the data cached
+    * @param {String} datetime - ISO string specifying the middle of viewed dates
+    */
     async _updateLines(datetime, force = false) {
         let from = addMinutesToISODate(datetime, -this._viewRange * 60)
         let to = addMinutesToISODate(datetime, this._viewRange * 60)
@@ -294,31 +359,57 @@ class LinePlotController extends PlotController {
         this._makeLines(from, to)
     }
 
+    /**
+    * Updates plot with responsive layout, should be called on the appearing or reappearing of plot
+    */
     display() {
         this.updatePlotAndDimensions()
     }
 }
 
+/**
+* Class wrapping multiple PlotControllers to call common functions together 
+* Should be used for PlotControllers on the same page in a multi page application
+* Any given controller can be freely retrieved from "controllers" via their name
+*/
 class PageController {
-    button
     #div
     controllers = {}
 
-    constructor(buttonId, divId) {
-        this.button = document.getElementById(buttonId)
+    /**
+    * Sets div of page containing the PlotController divs
+    * @param {String} divId - id of div to consider a page
+    */
+    constructor(divId) {
         this.#div = document.getElementById(divId)
     }
 
+    /**
+    * Add a new controller to the page, doesn't initialize it!
+    * @param {String} name - name to store PlotController under, useful for accessing later
+    * @param {PlotController} ctl - PlotController to manage
+    */
     addController(name, ctl) {
         this.controllers[name] = ctl
     }
 
+    /**
+    * Call setup for all controllers with given index
+    * @async
+    * @param {Object} index - index to use for setup
+    */
     async setupControllers(index) {
         for (let key in this.controllers) {
             await this.controllers[key].setup(index)
         }
     }
 
+    /**
+    * Call status update for all controllers with given index
+    * @async
+    * @param {Object} index - index to use for update
+    * @returns {Promise<Array>} names of updated controllers
+    */
     async updateControllers(index) {
         // update Controllers with given index that contains lastUpdateKeys and lastUpdates
         // returns the names of updated controllers
@@ -331,10 +422,16 @@ class PageController {
         return updated
     }
 
+    /**
+    * Sets page divs display to "none"
+    */
     switchAway() {
         this.#div.style.display = "none"
     }
 
+    /**
+    * Runs display for all controllers and sets divs display to "block"
+    */
     switchTo() {
         this.#div.style.display = "block"
         for (let key in this.controllers) {
