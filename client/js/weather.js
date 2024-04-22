@@ -17,6 +17,17 @@ class OmszController extends PlotController {
     #mapLonAxis = [this.#mapBaseLonAxis.min, this.#mapBaseLonAxis.max]
     #resizeTimeout = null
 
+    /**
+    * Supreclass constructor: Initialize the controller, adds plotDiv, date input, forward and back buttons, loading overlay to container (containerId)
+    * Constructor: superclass + sets formatting, creates dropdown for column select and selects url element
+    * @param {String} apiUrl - url to api, should specify sub-path e.g. "{api}/omsz/"
+    * @param {String} containerId - id of container to add elements to
+    * @param {String} lastUpdateKey - key of update time in index given to setup(index)
+    * @param {String} urlAId - id of <a> element to put data source url into
+    * @param {Object} mapFormat - object specifying col names from api as keys and objects as values that set => name, min, max and gradient for colors, measurement and directionFeature if needed
+    * @param {number} stepSize - stepSize for navigational buttons in minutes
+    * @param {number} maxWidth - CSS dependant maximal size of containers inside (excludes padding)
+    */
     constructor(apiUrl, containerId, lastUpdateKey, urlAId, mapFormat, stepSize = 10, maxWidth = 1080) {
         super(apiUrl, containerId, lastUpdateKey, stepSize, maxWidth)
 
@@ -39,12 +50,16 @@ class OmszController extends PlotController {
         this.#mapFormat = structuredClone(mapFormat)
     }
 
-    // functions
     _setNavDisabled(disabled) {
         super._setNavDisabled(disabled)
         this.#dropdown.disabled = disabled
     }
 
+    /**
+    * Update/create map scatter plot at given time and display given feature/columns
+    * @param {String} datetime - ISO date to display info on
+    * @param {String} column - name of columns to display, specifies data and formatting given in mapFormat
+    */
     #makeMap(datetime, column) {
         // Construct the stationMap
         this.#urlA.href = this.#data.Message.match(/\(([^)]+)\)/)[1]
@@ -168,6 +183,13 @@ class OmszController extends PlotController {
         Plotly.react(this._plotDiv, plotData, plotLayout, plotConfig);
     }
 
+    /**
+    * Updates map while downloading necessary data if required
+    * Downloads more than needed to improve UI responsiveness
+    * @async
+    * @param {String} datetime - ISO string specifying the viewed date
+    * @param {String} column - name of columns to display, specifies data and formatting given in mapFormat
+    */
     async #updateMap(datetime, column) {
         // update of map on given datetime, requests data on its own
         let reRequest = false
@@ -209,6 +231,9 @@ class OmszController extends PlotController {
         this.#makeMap(datetime, column)
     }
 
+    /**
+    * Starts plot update taking the middle from datetime-local input, limits range given by input to ones available based on status
+    */
     updatePlot() {
         // update all plots with data from datetime-local input
         let rounded = floorToMinutes(this._dateInput.value + ":00", this._stepSize)
@@ -226,18 +251,27 @@ class OmszController extends PlotController {
         this.#updateMap(rounded, column).then()
     }
 
+
+    /**
+    * Updates viewed longitude to display responsively
+    */
     updateMapDimensions() {
         let width = window.getComputedStyle(this._plotDiv).getPropertyValue("width").slice(0, -2)
         if (width === "au") return; // means width was auto, it isn't displayed
         width = parseInt(width)
         const part = width / this._maxWidth
-        const newLotRange = (this.#mapBaseLonAxis.max - this.#mapBaseLonAxis.min) * part
+        const newLonRange = (this.#mapBaseLonAxis.max - this.#mapBaseLonAxis.min) * part
         const centerLot = (this.#mapBaseLonAxis.max + this.#mapBaseLonAxis.min) / 2
-        this.#mapLonAxis[0] = centerLot - newLotRange / 2
-        this.#mapLonAxis[1] = centerLot + newLotRange / 2
+        this.#mapLonAxis[0] = centerLot - newLonRange / 2
+        this.#mapLonAxis[1] = centerLot + newLonRange / 2
     }
 
-    // construct elements
+    /**
+    * Sets up all elements of the controller, adds event listeners and display plot with max available dates visible
+    * + sets up dropdown to choose displayed feature/column
+    * @async
+    * @param {Object} index - JSON return of index page containing last update time under lastUpdateKey
+    */
     async setup(index) {
         // index should contain lastUpdate times from API
         await this.updateStatus(index)
@@ -283,6 +317,9 @@ class OmszController extends PlotController {
         })
     }
 
+    /**
+    * Updates plot with responsive layout, should be called on the appearing or reappearing of plot
+    */
     display() {
         this.updateMapDimensions()
         // redraw, screenwidth might have changed while on other page
