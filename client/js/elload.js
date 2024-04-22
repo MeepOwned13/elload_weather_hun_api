@@ -13,17 +13,21 @@ class MavirController extends LinePlotController {
         this.#logoImg.alt = "Logo of MAVIR"
         this._containerDiv.insertBefore(this.#logoImg, this._containerDiv.firstChild)
 
-        let legendID = "showLegend" + toString(UniqueID.next())
+        let legendDiv = document.createElement("div")
+
+        let legendID = "showLegend" + UniqueID.next()
         this.#legendCheckbox = document.createElement("input")
         this.#legendCheckbox.type = "checkbox"
         this.#legendCheckbox.checked = true
         this.#legendCheckbox.id = legendID
-        this._inputDiv.appendChild(this.#legendCheckbox)
+        legendDiv.appendChild(this.#legendCheckbox)
 
         let legendLabel = document.createElement("label")
         legendLabel.htmlFor = legendID
         legendLabel.innerText = langStringText("showLegend")
-        this._inputDiv.appendChild(legendLabel)
+        legendDiv.appendChild(legendLabel)
+
+        this._inputDiv.appendChild(legendDiv)
 
         this.#urlA = document.getElementById(urlAId)
     }

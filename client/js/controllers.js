@@ -36,13 +36,17 @@ class PlotController {
         this._dateInput.step = toString(this._stepSize * 60)
         this._inputDiv.appendChild(this._dateInput)
 
+        let buttonDiv = document.createElement("div")
+
         this._backwardButton = document.createElement("button")
         this._backwardButton.innerHTML = "<i class=\"fa-solid fa-backward\"></i>"
-        this._inputDiv.appendChild(this._backwardButton)
+        buttonDiv.appendChild(this._backwardButton)
 
         this._forwardButton = document.createElement("button")
         this._forwardButton.innerHTML = "<i class=\"fa-solid fa-forward\"></i>"
-        this._inputDiv.appendChild(this._forwardButton)
+        buttonDiv.appendChild(this._forwardButton)
+
+        this._inputDiv.appendChild(buttonDiv)
 
         this._loadingOverlay = document.createElement("div")
         this._loadingOverlay.classList.add("loading")
