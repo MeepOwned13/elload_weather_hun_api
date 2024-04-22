@@ -141,7 +141,8 @@ function lerp(pointA, pointB, normalValue) {
 /**
 * Async fetch of a URL from an API responding with a JSON
 * @param {string} url - url to fetch
-* @returns {Object} - response JSON
+* @async
+* @returns {Promise<Object>} response JSON
 */
 async function fetchData(url) {
     // async fetch data from given url and handle errors
