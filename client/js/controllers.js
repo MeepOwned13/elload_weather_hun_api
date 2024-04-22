@@ -182,6 +182,7 @@ class LinePlotController extends PlotController {
                 y: ys[fet],
                 mode: "lines",
                 name: format.name,
+                text: format.name,
                 line: {
                     dash: format.dash,
                     color: format.color,
@@ -219,11 +220,12 @@ class LinePlotController extends PlotController {
             height: 700,
             paper_bgcolor: "rgba(0, 0, 0, 0)",
             plot_bgcolor: "rgba(0, 0, 0, 0)",
+            hoverinfo: "text+x",
             hoverlabel: {
                 font: {
                     size: 18,
                 },
-                namelength: -1,
+                namelength: 0,
             }
         }
 
