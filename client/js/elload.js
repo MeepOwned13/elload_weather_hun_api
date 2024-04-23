@@ -67,26 +67,26 @@ class MavirController extends LinePlotController {
             this.#logoImg.src = resp
         })
 
-        this.updatePlotAndDimensions() // this also calls updatePlot
+        await this.updatePlotAndDimensions() // this also calls updatePlot
 
-        this._dateInput.addEventListener("change", () => {
-            this.updatePlot()
+        this._dateInput.addEventListener("change", async () => {
+            await this.updatePlot()
         })
 
-        addIntervalToButton(this._forwardButton, () => {
+        addIntervalToButton(this._forwardButton, async () => {
             addMinutesToInputFloored(this._dateInput, this._stepSize, this._stepSize)
-            this.updatePlot()
+            await this.updatePlot()
         }, 100, "mavirForward")
 
-        addIntervalToButton(this._backwardButton, () => {
+        addIntervalToButton(this._backwardButton, async () => {
             addMinutesToInputFloored(this._dateInput, this._stepSize, -this._stepSize)
-            this.updatePlot()
+            await this.updatePlot()
         }, 100, "mavirBackward")
 
         this.#legendCheckbox.checked = true
-        this.#legendCheckbox.addEventListener("change", () => {
+        this.#legendCheckbox.addEventListener("change", async () => {
             this._showLegend = this.#legendCheckbox.checked
-            this.updatePlot()
+            await this.updatePlot()
         })
 
         window.addEventListener("resize", () => {

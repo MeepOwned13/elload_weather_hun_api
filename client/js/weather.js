@@ -169,11 +169,12 @@ class OmszController extends PlotController {
                     len: 0.4,
                     outlinecolor: "#0e010d",
                     nticks: 5,
-                    ticksuffix: format.measurement + "        ",
-                    ticklabeloverflow: "allow",
+                    ticksuffix: format.measurement + "        ", // there is no left alignment so this is the way
+                    ticklabeloverflow: "allow", // to allow spaces for positioning above
                     ticklabelposition: "inside",
                     ticks: "inside",
                     tickwidth: 2,
+                    ticklen: 8,
                     tickcolor: "#0e010d",
                     tickfont: {
                         color: "#e8e4c9",
@@ -255,8 +256,9 @@ class OmszController extends PlotController {
 
     /**
     * Starts plot update taking the middle from datetime-local input, limits range given by input to ones available based on status
+    * @async
     */
-    updatePlot() {
+    async updatePlot() {
         // update all plots with data from datetime-local input
         let rounded = floorToMinutes(this._dateInput.value + ":00", this._stepSize)
         if (rounded < this._minDate || rounded > this._maxDate) {
@@ -270,7 +272,7 @@ class OmszController extends PlotController {
             throw new Error("Selected option (" + column + ") unavailable")
         }
 
-        this.#updateMap(rounded, column).then()
+        await this.#updateMap(rounded, column)
     }
 
 
@@ -312,23 +314,23 @@ class OmszController extends PlotController {
         })
 
         this.updateMapDimensions()
-        this.updatePlot()
+        await this.updatePlot()
 
-        this._dateInput.addEventListener("change", () => {
-            this.updatePlot()
+        this._dateInput.addEventListener("change", async () => {
+            await this.updatePlot()
         })
-        this.#dropdown.addEventListener("change", () => {
-            this.updatePlot()
+        this.#dropdown.addEventListener("change", async () => {
+            await this.updatePlot()
         })
 
-        addIntervalToButton(this._forwardButton, () => {
+        addIntervalToButton(this._forwardButton, async () => {
             addMinutesToInputFloored(this._dateInput, this._stepSize, this._stepSize)
-            this.updatePlot()
+            await this.updatePlot()
         }, 200, "omszForward")
 
-        addIntervalToButton(this._backwardButton, () => {
+        addIntervalToButton(this._backwardButton, async () => {
             addMinutesToInputFloored(this._dateInput, this._stepSize, -this._stepSize)
-            this.updatePlot()
+            await this.updatePlot()
         }, 200, "omszBackward")
 
         window.addEventListener("resize", () => {
@@ -345,6 +347,6 @@ class OmszController extends PlotController {
     display() {
         this.updateMapDimensions()
         // redraw, screenwidth might have changed while on other page
-        if (this._plotDiv.layout !== undefined) this.updatePlot()
+        if (this._plotDiv.layout !== undefined) this.updatePlot().then()
     }
 }

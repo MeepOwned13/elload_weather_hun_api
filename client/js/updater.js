@@ -208,11 +208,11 @@ async function update() {
     let updated = await pages.mavir.updateControllers(index)
 
     if (("mavir" in updated) && (currentPage === pages.mavir)) {
-        pages.mavir.controllers["mavir"].updatePlot(true)
+        await pages.mavir.controllers["mavir"].updatePlot(true)
     }
 
-    if (("ai" in updated) && (currentPage === pages.mavir)) {
-        pages.mavir.controllers["ai"].updatePlot(true)
+    if (("s2s" in updated) && (currentPage === pages.mavir)) {
+        await pages.mavir.controllers["s2s"].updatePlot(true)
     }
 }
 

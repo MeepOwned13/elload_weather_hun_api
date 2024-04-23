@@ -173,14 +173,15 @@ class LinePlotController extends PlotController {
 
     /**
     * Updates plot dimensions to display responsively, also updates plot
+    * @async
     */
-    updatePlotAndDimensions() {
+    async updatePlotAndDimensions() {
         let width = window.getComputedStyle(this._plotDiv).getPropertyValue("width").slice(0, -2)
         if (width === "au") return; // means width was auto, it isn't displayed
         width = parseInt(width)
         const part = (width - 300) / (this._maxWidth - 300)
         this._viewRange = this._minViewRange + Math.round((this._maxViewRange - this._minViewRange) * part)
-        this.updatePlot()
+        await this.updatePlot()
 
         // legend slides into plot even after updatePlot, seems like an oversight in Plotly.react, this solves it
         if (this._plotDiv.layout !== undefined) Plotly.relayout(this._plotDiv, this._plotDiv.layout)
@@ -188,9 +189,10 @@ class LinePlotController extends PlotController {
 
     /**
     * Starts plot update taking the middle from datetime-local input, limits range given by input to the viewRange
+    * @async
     * @param {boolean} force - download data no matter if we have it cached
     */
-    updatePlot(force = false) {
+    async updatePlot(force = false) {
         // update all plots with data from datetime-local input
         let rounded = floorToMinutes(this._dateInput.value + ":00", this._stepSize)
 
@@ -203,7 +205,7 @@ class LinePlotController extends PlotController {
 
         this._dateInput.value = addMinutesToISODate(rounded, -getTZOffset(rounded))
 
-        this._updateLines(rounded, force).then()
+        await this._updateLines(rounded, force)
     }
 
     /**
@@ -363,7 +365,7 @@ class LinePlotController extends PlotController {
     * Updates plot with responsive layout, should be called on the appearing or reappearing of plot
     */
     display() {
-        this.updatePlotAndDimensions()
+        this.updatePlotAndDimensions().then()
     }
 }
 

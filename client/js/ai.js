@@ -11,20 +11,20 @@ class AIController extends LinePlotController {
         this._dateInput.value = this._dateInput.max
         addMinutesToInputFloored(this._dateInput, this._stepSize, -this._stepSize * this._maxViewRange)
 
-        this.updatePlotAndDimensions() // this also calls updatePlot
+        await this.updatePlotAndDimensions() // this also calls updatePlot
 
         this._dateInput.addEventListener("change", () => {
             this.updatePlot()
         })
 
-        addIntervalToButton(this._forwardButton, () => {
+        addIntervalToButton(this._forwardButton, async () => {
             addMinutesToInputFloored(this._dateInput, this._stepSize, this._stepSize)
-            this.updatePlot()
+            await this.updatePlot()
         }, 150, "aiForward")
 
-        addIntervalToButton(this._backwardButton, () => {
+        addIntervalToButton(this._backwardButton, async () => {
             addMinutesToInputFloored(this._dateInput, this._stepSize, -this._stepSize)
-            this.updatePlot()
+            await this.updatePlot()
         }, 150, "aiBackward")
 
         window.addEventListener("resize", () => {
