@@ -77,68 +77,6 @@ function validDate(date, minDate, maxDate) {
 }
 
 /**
-* Get a values percentage position in a range specified by its minimum and maximum
-* @param {number} min - start of interval
-* @param {number} max - end of interval
-* @param {number} value - number to get percentage position of
-* @returns {number} percentage as float (e.g. 0.5 -> 50%)
-*/
-function getPercentageInRange(min, max, value) {
-    // get percentage position of value in range specified by min and max
-    let length = max - min
-    let position = value - min
-    return position / length
-}
-
-/**
-* Turn array into rgba string format
-* @param {Array} arr - 3 or 4 element array with RGB or RGBA elements
-* @returns {string} rgba color in string, alpha = 1 if array had 3 elements
-*/
-function arrToRGBA(arr) {
-    if (arr.length === 3) {
-        arr[3] = 1
-    }
-    return "rgba(" + arr[0] + "," + arr[1] + "," + arr[2] + "," + arr[3] + ")"
-}
-
-/**
-* Get linear gradient at specified percentage, stops split evenly
-* @param {Array} stops - nested array, where each element is an array of 4 specifying RGBA
-* @param {number} value - float to get color at, between 0-1
-* @returns {Array} 4 element array specifying RGBA color
-*/
-function linearGradient(stops, value) {
-    // calculate linearGradient with value in [0,1] and given colorstops (even gradient)
-    const stopLength = 1 / (stops.length - 1)
-    const valueRatio = value / stopLength
-    const stopIndex = Math.floor(valueRatio)
-    if (stopIndex >= (stops.length - 1)) {
-        return stops[stops.length - 1]
-    } else if (stopIndex < 0) {
-        return stops[0]
-    }
-    const stopFraction = valueRatio % 1
-    return lerp(stops[stopIndex], stops[stopIndex + 1], stopFraction)
-}
-
-/**
-* Interpolates between 2 arrays of 4 elements
-* @param {Array} pointA - first point, 4 element array
-* @param {Array} pointB - second point, 4 element array
-* @param {number} normalValue - float between 0-1, interpolate A->B amount
-* @returns {Array} interpolated 4 element array
-*/
-function lerp(pointA, pointB, normalValue) {
-    return [
-        pointA[0] + (pointB[0] - pointA[0]) * normalValue,
-        pointA[1] + (pointB[1] - pointA[1]) * normalValue,
-        pointA[2] + (pointB[2] - pointA[2]) * normalValue,
-        pointA[3] + (pointB[3] - pointA[3]) * normalValue,
-    ]
-}
-
-/**
 * Async fetch of a URL from an API responding with a JSON
 * @param {string} url - url to fetch
 * @async
