@@ -3,11 +3,11 @@ const omszMapFormat = {
         name: langStringText("temp"),
         min: -10,
         max: 35,
-        gradient: [
-            [0, 212, 255, 1],
-            [254, 255, 0, 1],
-            [255, 128, 0, 1],
-            [255, 0, 0, 1],
+        colorscale: [
+            [0.0, 'rgb(0, 212, 255)'],
+            [0.33, 'rgb(254, 255, 0)'],
+            [0.67, 'rgb(255, 128, 0)'],
+            [1.0, 'rgb(255, 0, 0)'],
         ],
         measurement: "°C",
     },
@@ -15,11 +15,11 @@ const omszMapFormat = {
         name: langStringText("avgTemp"),
         min: -10,
         max: 35,
-        gradient: [
-            [0, 212, 255, 1],
-            [254, 255, 0, 1],
-            [255, 128, 0, 1],
-            [255, 0, 0, 1],
+        colorscale: [
+            [0.0, 'rgb(0, 212, 255)'],
+            [0.33, 'rgb(254, 255, 0)'],
+            [0.67, 'rgb(255, 128, 0)'],
+            [1.0, 'rgb(255, 0, 0)'],
         ],
         measurement: "°C",
     },
@@ -27,11 +27,11 @@ const omszMapFormat = {
         name: langStringText("prec"),
         min: 0,
         max: 1.2,
-        gradient: [
-            [28, 189, 227, 0.05],
-            [28, 189, 227, 1],
-            [61, 97, 255, 1],
-            [18, 0, 187, 1]
+        colorscale: [
+            [0.0, 'rgba(28, 189, 227, 0.05)'],
+            [0.33, 'rgba(28, 189, 227, 1)'],
+            [0.67, 'rgba(61, 97, 255, 1)'],
+            [1.0, 'rgba(18, 0, 187, 1)']
         ],
         measurement: "mm"
     },
@@ -39,11 +39,11 @@ const omszMapFormat = {
         name: langStringText("rHum"),
         min: 0,
         max: 100,
-        gradient: [
-            [255, 51, 0, 1],
-            [0, 255, 115, 1],
-            [28, 189, 227, 1],
-            [12, 0, 255, 1]
+        colorscale: [
+            [0.0, 'rgb(255, 51, 0)'],
+            [0.33, 'rgb(0, 255, 115)'],
+            [0.67, 'rgb(28, 189, 227)'],
+            [1.0, 'rgb(12, 0, 255)']
         ],
         measurement: "%"
     },
@@ -51,12 +51,12 @@ const omszMapFormat = {
         name: langStringText("gRad"),
         min: 0,
         max: 650,
-        gradient: [
-            [28, 189, 227, 0.5],
-            [181, 208, 43, 1],
-            [232, 255, 0, 1],
-            [255, 179, 0, 1],
-            [255, 51, 0, 1]
+        colorscale: [
+            [0.0, 'rgba(28, 189, 227, 0.5)'],
+            [0.25, 'rgba(181, 208, 43, 1)'],
+            [0.5, 'rgba(232, 255, 0, 1)'],
+            [0.75, 'rgba(255, 179, 0, 1)'],
+            [1.0, 'rgba(255, 51, 0, 1)']
         ],
         measurement: "W/m²"
     },
@@ -64,12 +64,12 @@ const omszMapFormat = {
         name: langStringText("avgWS"),
         min: 0,
         max: 25,
-        gradient: [
-            [28, 189, 227, 1],
-            [0, 255, 68, 1],
-            [253, 255, 0, 1],
-            [255, 203, 0, 1],
-            [255, 0, 0, 1]
+        colorscale: [
+            [0.0, 'rgb(28, 189, 227)'],
+            [0.25, 'rgb(0, 255, 68)'],
+            [0.5, 'rgb(253, 255, 0)'],
+            [0.75, 'rgb(255, 203, 0)'],
+            [1.0, 'rgb(255, 0, 0)']
         ],
         measurement: "m/s",
         directionFeature: "AvgWD"

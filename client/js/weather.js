@@ -77,16 +77,12 @@ class OmszController extends PlotController {
             let item = status[key]
             let station = data[key]
 
-            let color = null
             let value = null
             // station may be not retrieved, not have respective column or not have data for given time
             // since I'm assigning a value inside the if statement, I'll need a solution with && (cause: lazy execution)
             if (((value = station[column]) === null) || (value === undefined)) {
                 continue
             }
-            let interpol = linearGradient(format.gradient, getPercentageInRange(format.min, format.max, value))
-            color = arrToRGBA(interpol)
-
             let text = value.toString() + format.measurement + " " + item.StationName.trim()
             let lon = item.Longitude
             let lat = item.Latitude
@@ -116,7 +112,8 @@ class OmszController extends PlotController {
                     angleref: "up",
                     symbol: symbol,
                     size: size,
-                    color: color,
+                    color: [value], // needs to be in Array for coloraxis
+                    coloraxis: 'coloraxis'
                 },
                 textposition: [
                     "top right", "top left"
@@ -151,13 +148,38 @@ class OmszController extends PlotController {
                 riverwidth: 4,
                 showlakes: true,
                 lakecolor: "#0c1ba3",
-                showland: true,
                 showcountries: true,
-                landcolor: "#0e010d00",
                 countrycolor: "#e8e4c9",
                 countrywidth: 3,
                 subunitcolor: "#a1a1a1",
                 bgcolor: "#e8e4c900",
+            },
+            coloraxis: {
+                cmin: format.min,
+                cmax: format.max,
+                colorscale: format.colorscale,
+                showscale: true,
+                colorbar: {
+                    yref: 'paper',
+                    yanchor: 'top',
+                    y: 0.42,
+                    xref: 'paper',
+                    xanchor: 'right',
+                    x: 1.0,
+                    len: 0.4,
+                    outlinecolor: "#0e010d",
+                    nticks: 5,
+                    ticksuffix: format.measurement + "        ",
+                    ticklabeloverflow: "allow",
+                    ticklabelposition: "inside",
+                    ticks: "inside",
+                    tickwidth: 2,
+                    tickcolor: "#0e010d",
+                    tickfont: {
+                        color: "#e8e4c9",
+                        size: 18,
+                    },
+                }
             },
             autosize: true,
             margin: {
