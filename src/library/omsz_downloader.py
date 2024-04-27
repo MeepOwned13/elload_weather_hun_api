@@ -167,7 +167,7 @@ class OMSZDownloader(DatabaseConnect):
 
     def update_meta(self) -> None:
         """
-        Downloads metadata and writes it to sqlite Database
+        Downloads metadata and writes it to Database
         """
         # Request metadata
         url = "https://odp.met.hu/climate/observations_hungary/hourly/station_meta_auto.csv"
@@ -463,6 +463,7 @@ class OMSZDownloader(DatabaseConnect):
         end: pd.Timestamp = self._get_max_end_date()
         # adding 10 seconds, because there is a little delay in updates on omsz
         if now > (end + pd.DateOffset(minutes=20, seconds=10)):
+            self.update_meta()
             if now < (end + pd.DateOffset(minutes=30)):
                 self.update_curr_weather_data()
             else:
