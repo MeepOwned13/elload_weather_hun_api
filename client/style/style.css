@@ -1,0 +1,399 @@
+:root {
+    --background: #0e010d;
+    --onbackground: #feeeff;
+    --onprimary: #feeeff;
+    --secondary: #2ecb39;
+    --onsecondary: #0e010d;
+    --disabled: #6f676f;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    color: var(--onbackground);
+    font-family: "Ubuntu", sans-serif;
+}
+
+.plot-container * {
+    font-family: "Ubuntu", sans-serif !important;
+}
+
+body {
+    background-image:
+        radial-gradient(farthest-corner at 20% 70%, #3a1616 0%, transparent 50%),
+        radial-gradient(farthest-corner at 80% 50%, #143101 0%, transparent 40%);
+    background-color: var(--background);
+    background-repeat: no-repeat, no-repeat;
+    background-attachment: fixed, fixed;
+    font-size: medium;
+}
+
+html {
+    overflow: overlay;
+    scrollbar-gutter: auto;
+    overflow-y: scroll;
+    scrollbar-width: thin;
+    scrollbar-color: var(--onprimary) transparent;
+}
+
+main {
+    max-width: 1100px;
+    margin: auto;
+    margin-top: 50px;
+    padding: 0 20px;
+}
+
+p {
+    text-align: justify;
+    margin-bottom: 5px;
+    font-size: 20px;
+    font-weight: 500;
+}
+
+header {
+    position: fixed;
+    z-index: 4000;
+    height: 40px;
+    padding: 5px 1% 0;
+    top: 0;
+    width: 98%;
+    background-color: var(--background);
+}
+
+header img {
+    height: 40px;
+    margin-right: 5px;
+}
+
+header div {
+    float: left;
+    display: flex;
+    align-items: center;
+}
+
+header nav {
+    float: right;
+    display: flex;
+    align-items: center;
+    height: 40px;
+}
+
+h1 {
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-align: center;
+}
+
+abbr[title] {
+    border-bottom: none !important;
+    cursor: inherit !important;
+    text-decoration: none !important;
+}
+
+h2 {
+    font-size: 35px;
+    font-weight: 800px;
+    letter-spacing: 3px;
+    text-align: center;
+}
+
+nav button {
+    font-weight: 500;
+    font-size: 20px;
+    margin-top: -6px;
+    margin-left: 5px;
+    position: relative;
+}
+
+nav button {
+    background: none;
+    color: var(--onprimary);
+    box-shadow: none;
+}
+
+nav button.onpage {
+    color: var(--secondary);
+}
+
+nav button.onpage::before {
+    transform: translateX(-50%);
+    border-radius: 100%;
+    position: absolute;
+    background: var(--secondary);
+    bottom: -5px;
+    height: 8px;
+    width: 8px;
+    content: '';
+    left: 50%;
+}
+
+button#language {
+    background: none;
+    border: none;
+    padding: 0;
+    margin-top: 6px;
+    margin-right: 0;
+    height: 40px;
+}
+
+button#language img {
+    height: 28px;
+    border-radius: 6px;
+}
+
+div.block {
+    position: relative;
+    margin: auto;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    padding: 10px;
+}
+
+div.text {
+    max-width: 900px;
+    width: fit-content;
+}
+
+div.container {
+    background-color: rgba(150, 150, 150, 0.15);
+    color: var(--onprimary);
+    border-radius: 20px;
+    backdrop-filter: hue-rotate(120deg);
+}
+
+.main-svg {
+    border-radius: 25px;
+}
+
+.omszStationMapDiv {
+    position: relative;
+    min-height: 672px;
+    /* KEEP CONSISTENT WITH omszMapHeight!!! */
+}
+
+.mavirPlotDiv,
+.aiPlotDiv {
+    min-height: 600px;
+}
+
+div.loading {
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    background: rgba(100, 100, 100, 0.4);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    transition: 0.5s;
+}
+
+div.loading>div.spinner {
+    width: 75px;
+    height: 75px;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-43.5px, -43.5px);
+    /* half width + border */
+    border: rgba(50, 50, 50, 0.8) solid 6px;
+    border-top: rgba(255, 255, 255, 1) solid 6px;
+    border-radius: 75px;
+    animation: spin 1s infinite linear;
+}
+
+@keyframes spin {
+    100% {
+        transform: translate(-43.5px, -43.5px) rotate(360deg);
+    }
+}
+
+.hider {
+    position: absolute;
+    width: 100%;
+    left: 0;
+    top: 0;
+    height: 100%;
+    border: 3px solid #e8e4c9;
+    border-radius: 20px;
+    box-sizing: border-box;
+    pointer-events: none;
+}
+
+.js-plotly-plot .plotly .modebar {
+    transform: translateX(-10px)
+}
+
+/* to accomodate modebar with border-radius set in .main-svg */
+
+img.omszLogo {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    z-index: 2000;
+    width: 20%;
+    max-width: 150px;
+    min-width: 80px;
+    pointer-events: none;
+}
+
+img.mavirLogo {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    z-index: 2000;
+    width: 10%;
+    max-width: 72px;
+    min-width: 36px;
+    pointer-events: none;
+}
+
+div.inputs {
+    margin: auto;
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    row-gap: 10px;
+}
+
+input,
+button,
+select,
+label {
+    font-size: 24px;
+    font-weight: 400;
+    padding: 5px;
+    margin-right: 10px;
+    border: none;
+    border-radius: 16px;
+    background-color: var(--secondary);
+    outline: none;
+    color: var(--onsecondary);
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+input,
+button,
+select {
+    box-shadow: 2px 2px rgba(255, 255, 255, 0.2) inset, 0 0 2px 2px rgba(0, 0, 0, 0.6) inset;
+}
+
+input:hover,
+button:hover,
+select:hover,
+label:hover,
+input:hover+label {
+    filter: hue-rotate(90deg);
+    transition: 0.2s;
+}
+
+button#language:hover {
+    filter: none;
+}
+
+option {
+    color: var(--onsecondary);
+}
+
+i {
+    margin: 2px;
+    color: var(--onsecondary);
+}
+
+input:disabled,
+button:disabled,
+select:disabled {
+    border: none;
+    border-radius: 16px;
+    background-color: var(--disabled);
+    color: #696169;
+}
+
+button:disabled>i {
+    color: #696169;
+}
+
+input[type="datetime-local"]:focus {
+    border: none;
+    outline: none;
+}
+
+input[type="checkbox"] {
+    -webkit-appearance: none;
+    appearance: none;
+    padding: 12px;
+    background: var(--disabled) !important;
+    outline: none;
+    border: none;
+    display: inline-block;
+    margin-bottom: -3px;
+    margin-right: 0;
+}
+
+input[type="checkbox"]:checked {
+    background-color: var(--secondary) !important;
+}
+
+input[type="checkbox"]+label {
+    background: none;
+    border: none;
+    color: var(--disabled);
+    transition: 0.2ms;
+}
+
+input[type="checkbox"]:checked+label {
+    color: var(--secondary);
+    transition: 0.2ms;
+    font-weight: 700;
+}
+
+@media screen and (max-width: 650px) {
+    main {
+        padding: 0;
+    }
+
+    div.block,
+    div.loading {
+        border-radius: 0;
+    }
+}
+
+@media screen and (max-width: 530px) {
+    h2 {
+        font-size: 30px;
+    }
+
+    p {
+        font-size: 18px;
+    }
+
+    header div h1 {
+        display: none;
+    }
+
+    nav button {
+        margin-left: 0;
+        font-size: 16px;
+    }
+
+    button#language {
+        padding: 6px 0;
+        height: 30px;
+        margin-top: -6px;
+    }
+
+    input,
+    button,
+    select,
+    label {
+        font-size: 26px;
+        font-weight: 400;
+        padding: 6px;
+        margin-right: 15px;
+        border-radius: 18px;
+    }
+}
