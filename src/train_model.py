@@ -38,7 +38,7 @@ if __name__ == '__main__':
         if con:
             con.close()
 
-    min_year = df.index.min().year + 1
+    min_year = df.index.min().year + 2
     max_year = df.index.max().year +\
         (1 if df.index.max().month > 11 else 0)  # if next year is close enough we can train
     if args.year < min_year or args.year > max_year:
