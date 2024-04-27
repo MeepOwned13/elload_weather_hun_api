@@ -324,7 +324,8 @@ class AIIntegrator(DatabaseConnect):
         # At least 1 year always remains, the current year
 
         # This check should be enough, checking 10min since it is stored on disk -> faster
-        self._curs.execute("SELECT MAX(Time) FROM AI_10min WHERE NetSystemLoad IS NOT NULL AND Temp IS NOT NULL")
+        self._curs.execute("SELECT MAX(Time) FROM AI_10min WHERE NetSystemLoad IS NOT NULL AND GRad IS NOT NULL AND "
+                           "Prec IS NOT NULL")
         available = pd.Timestamp(self._curs.fetchone()[0])
         if end.floor(freq='h') != available.floor(freq='h'):
             self._update_curr_year(end + pd.DateOffset(hours=1))
