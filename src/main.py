@@ -1,10 +1,10 @@
 import logging
 import argparse
 from pathlib import Path
-import library.omsz_downloader as o_dl
-import library.mavir_downloader as m_dl
-import library.reader as rd
-import library.ai_integrator as ai
+from library.omsz_downloader import OMSZDownloader
+from library.mavir_downloader import MAVIRDownloader
+from library.reader import Reader
+from library.ai_integrator import AIIntegrator
 import pandas as pd
 import uvicorn
 from contextlib import asynccontextmanager
@@ -46,10 +46,10 @@ conn.close()
 
 log_config = Path(f"{__file__}/../../logs/log.ini").resolve().absolute().as_posix()
 logger = logging.getLogger("app")
-omsz_dl = o_dl.OMSZDownloader(db_connect_info)
-mavir_dl = m_dl.MAVIRDownloader(db_connect_info)
-reader = rd.Reader(db_connect_info)
-ai_int = ai.AIIntegrator(db_connect_info, Path(f"{__file__}/../../models").resolve())
+omsz_dl = OMSZDownloader(db_connect_info)
+mavir_dl = MAVIRDownloader(db_connect_info)
+reader = Reader(db_connect_info)
+ai_int = AIIntegrator(db_connect_info, Path(f"{__file__}/../../models").resolve())
 last_weather_update: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
 last_electricity_update: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
 # S2S needs 10 minutes removed, because omsz is in delay (-> at 14:05:00 the update for 14:00:00 cannot happen)
