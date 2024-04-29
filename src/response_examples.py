@@ -341,7 +341,7 @@ response_examples = {
             "content": {
                 "application/json": {
                     "examples": {
-                        "non-aligned": {
+                        "unaligned": {
                             "value": {
                                 "data": {
                                     "2020-06-23T16:00:00": {
