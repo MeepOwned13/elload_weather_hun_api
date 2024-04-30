@@ -15,7 +15,9 @@ db_connect_info = {
 }
 
 
-class UtilTests(unittest.TestCase, DatabaseConnect):
+class DatabaseStructureTests(unittest.TestCase, DatabaseConnect):
+    # Tests for the existence of tables, views
+
     def setUp(self):
         # Set up new connection before test
         DatabaseConnect.__init__(self, db_connect_info, null_logger)

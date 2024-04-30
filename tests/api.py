@@ -9,6 +9,8 @@ sys.path.append("src/")  # this has to be before import main since it's a top le
 
 
 class ApiTests(unittest.TestCase):
+    # Test API responses, correct fields in responses
+
     def __init__(self, *args, **kwargs):
         # this import is moved here, because autoformatting tools put it at the top if it's not under anything
         # this has to be after sys.path.append("src/") since this is a top level module!!
