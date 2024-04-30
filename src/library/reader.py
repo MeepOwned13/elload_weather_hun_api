@@ -241,8 +241,8 @@ class Reader(DatabaseConnect):
     @DatabaseConnect._db_transaction
     def get_electricity_columns(self) -> list[str]:
         """
-                Retrieves columns for MAVIR_data: returns: list of columns
-                """
+        Retrieves columns for MAVIR_data: returns: list of columns
+        """
         self._curs.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='MAVIR_data'")
         table_cols = self._curs.fetchall()
         return [tc[0] for tc in table_cols]
@@ -346,7 +346,7 @@ class Reader(DatabaseConnect):
                 raise ValueError(f"Station {station} is invalid")
 
         columns = self._get_valid_cols("OMSZ_data", cols)
-        if columns:
+        if columns and "StationNumber" not in columns:
             columns = ["StationNumber"] + columns
 
         cached = self._cache["OMSZ_data"]
