@@ -11,21 +11,21 @@ reader_logger.addHandler(logging.NullHandler())
 
 
 class CacheEntry:
-    def __init__(self, df: pd.DataFrame, min_date: datetime | pd.Timestamp | None):
+    def __init__(self, df: pd.DataFrame, min_date: pd.Timestamp | datetime | None):
         """
         Init cache entry, empty min_date means the entire underlying table is cached
         :param df: pandas DataFrame to cache, gets copied
         :param min_date: start date for cache, if None then it's a full cache of the underlying table
         """
         self._df: pd.DataFrame = df.copy(deep=True)
-        self._min_date = copy(min_date)
+        self._min_date: pd.Timestamp | datetime | None = copy(min_date)
 
     @property
-    def df(self):
+    def df(self) -> pd.DataFrame:
         return self._df.copy()
 
     @property
-    def min_date(self):
+    def min_date(self) -> pd.Timestamp | datetime | None:
         return copy(self._min_date)
 
 
@@ -49,10 +49,10 @@ class Cache:
         """
         return self._entries.get(name, None)
 
-    def __getitem__(self, key) -> CacheEntry:
+    def __getitem__(self, key: str) -> CacheEntry:
         return self.get_entry(key)
 
-    def invalidate_entry(self, name: str):
+    def invalidate_entry(self, name: str) -> None:
         """
         Remove entry because data might have changed, no operation if entry is already removed
         :param name: entry to remove
@@ -73,10 +73,10 @@ class Reader(DatabaseConnect):
         :param db_connect_info: connection info for MySQL connector
         """
         super().__init__(db_connect_info, reader_logger)
-        self._SINGLE_TABLE_LIMIT = pd.Timedelta(weeks=52 * 4 + 1)  # 4 years
-        self._WEATHER_ALL_STATIONS_LIMIT = pd.Timedelta(days=7)
-        self._cache = Cache()
-        self._TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+        self._SINGLE_TABLE_LIMIT: pd.Timedelta = pd.Timedelta(weeks=52 * 4 + 1)  # 4 years
+        self._WEATHER_ALL_STATIONS_LIMIT: pd.Timedelta = pd.Timedelta(days=7)
+        self._cache: Cache = Cache()
+        self._TIME_FORMAT: str = "%Y-%m-%d %H:%M:%S"
 
     def __del__(self):
         super().__del__()
@@ -156,7 +156,7 @@ class Reader(DatabaseConnect):
             return '*'
 
     @DatabaseConnect._db_transaction
-    def refresh_caches(self, sections: list[str] | str):
+    def refresh_caches(self, sections: list[str] | str) -> None:
         """
         Refresh cache for given sections, partial cache gets refilled, others just removed
         :param sections: single str or list of sections to refresh cache for ("mavir", "omsz", "ai", "s2s")
@@ -320,7 +320,7 @@ class Reader(DatabaseConnect):
 
     @DatabaseConnect._db_transaction
     def get_weather_stations(self, start_date: pd.Timestamp | datetime, end_date: pd.Timestamp | datetime,
-                             cols: list[str] | None, stations: list[int] | None = None) -> dict:
+                             cols: list[str] | None, stations: list[int] | None = None) -> pd.DataFrame:
         """
         Get weather for all stations in given timeframe
         :param start_date: Date to start at in UTC
@@ -438,7 +438,7 @@ class Reader(DatabaseConnect):
 
     @DatabaseConnect._db_transaction
     def get_s2s_preds(self, start_date: pd.Timestamp | datetime | None,
-                      end_date: pd.Timestamp | datetime | None, aligned=False) -> pd.DataFrame:
+                      end_date: pd.Timestamp | datetime | None, aligned: bool = False) -> pd.DataFrame:
         """
         Get predictions of Seq2Seq model for given timeframe
         :param start_date: Date to start at in UTC

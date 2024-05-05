@@ -61,7 +61,7 @@ class OMSZDownloader(DatabaseConnect):
         self._UNITS: dict = {name: unit for _, name, unit in rename_and_unit}
 
     @property
-    def units(self):
+    def units(self) -> dict:
         """Get the units for column names."""
         return copy(self._UNITS)
 
@@ -69,7 +69,7 @@ class OMSZDownloader(DatabaseConnect):
         super().__del__()
 
     @DatabaseConnect._db_transaction
-    def _create_tables_views(self):
+    def _create_tables_views(self) -> None:
         """
         Creates necessary data, meta table and status view
         """
@@ -184,14 +184,14 @@ class OMSZDownloader(DatabaseConnect):
                                        parse_dates=["StartDate", "EndDate"], date_format="%Y%m%d")
         self._write_meta(self._format_meta(df))
 
-    def _format_prev_weather(self, df: pd.DataFrame):
+    def _format_prev_weather(self, df: pd.DataFrame) -> pd.DataFrame:
         df.columns = df.columns.str.strip()  # remove trailing whitespace
         df.drop(columns=[col for col in df if col not in self._RENAME.keys()], inplace=True)
         df.rename(columns=self._RENAME, inplace=True)
         df.set_index("Time", drop=True, inplace=True)  # Time is stored in UTC
         return df
 
-    def _download_prev_data(self, url: str) -> pd.DataFrame | None:
+    def _download_prev_weather(self, url: str) -> pd.DataFrame | None:
         """
         Downloads given historical/recent data at given url, gets DataFrame from csv inside a zip
         :param url: Url to ZIP
@@ -275,7 +275,7 @@ class OMSZDownloader(DatabaseConnect):
         return [f"{url}{file}" for file in file_downloads]
 
     @DatabaseConnect._db_transaction
-    def _write_prev_weather_data(self, df: pd.DataFrame) -> None:
+    def _write_prev_weather(self, df: pd.DataFrame) -> None:
         """
         Write historical/recent weather data to corresponding Table
         :param df: DataFrame to use
@@ -321,7 +321,7 @@ class OMSZDownloader(DatabaseConnect):
 
         return bool(self._curs.fetchone())
 
-    def update_hist_weather_data(self) -> None:
+    def update_hist_weather(self) -> None:
         """
         Update historical weather data
         :returns: None
@@ -332,16 +332,16 @@ class OMSZDownloader(DatabaseConnect):
             "https://odp.met.hu/climate/observations_hungary/10_minutes/historical/")
         for url in hist_urls:
             if self._is_hist_needed(url):
-                data = self._download_prev_data(url)
+                data = self._download_prev_weather(url)
                 if data is None:
                     continue
-                self._write_prev_weather_data(data)
+                self._write_prev_weather(data)
             else:
                 self._logger.debug(f"Historical data not needed at {url}")
 
         self._logger.info("Finished downloading and updating with historical weather data")
 
-    def update_rec_weather_data(self):
+    def update_rec_weather(self) -> None:
         """
         Update recent weather data
         :returns: None
@@ -351,14 +351,14 @@ class OMSZDownloader(DatabaseConnect):
         # Rec is always read, since it's in the between hist and curr, it's harder to validate if it's needed
         rec_urls = self._get_weather_downloads("https://odp.met.hu/climate/observations_hungary/10_minutes/recent/")
         for url in rec_urls:
-            data = self._download_prev_data(url)
+            data = self._download_prev_weather(url)
             if data is None or data.empty or len(tuple(data.columns)) == 0:
                 continue
-            self._write_prev_weather_data(data)
+            self._write_prev_weather(data)
 
         self._logger.info("Finished downloading and updating with recent weather data")
 
-    def _format_past24h_weather(self, df: pd.DataFrame):
+    def _format_past24h_weather(self, df: pd.DataFrame) -> pd.DataFrame:
         df.columns = df.columns.str.strip()  # remove trailing whitespace
         df.drop(columns=[col for col in df if col not in self._RENAME.keys()], inplace=True)
         df.rename(columns=self._RENAME, inplace=True)
@@ -366,7 +366,7 @@ class OMSZDownloader(DatabaseConnect):
         df.set_index("Time", drop=True, inplace=True)
         return df
 
-    def _download_curr_data(self, url: str) -> pd.DataFrame | None:
+    def _download_curr_weather(self, url: str) -> pd.DataFrame | None:
         """
         Downloads given current data at given url, gets DataFrame from csv inside a zip
         :param url: Url to ZIP
@@ -388,7 +388,7 @@ class OMSZDownloader(DatabaseConnect):
         return self._format_past24h_weather(df)
 
     @DatabaseConnect._assert_transaction
-    def _write_curr_weather_data(self, df: pd.DataFrame) -> None:
+    def _write_curr_weather(self, df: pd.DataFrame) -> None:
         """
         Write current weather data to corresponding Tables
         THIS FUNCTION ASSUMES THERE IS AN ONGOING TRANSACTION
@@ -403,7 +403,7 @@ class OMSZDownloader(DatabaseConnect):
         self._df_to_sql(df, "OMSZ_data")
 
     @DatabaseConnect._db_transaction
-    def update_past24h_weather_data(self) -> None:
+    def update_past24h_weather(self) -> None:
         """
         Updates weather data with the last 24 hours
         :returns: None
@@ -416,16 +416,16 @@ class OMSZDownloader(DatabaseConnect):
             "https://odp.met.hu/weather/weather_reports/synoptic/hungary/10_minutes/csv/", current=True)
 
         for url in curr_urls:
-            data = self._download_curr_data(url)
+            data = self._download_curr_weather(url)
             self._logger.debug(f"Past 24h of weather data recieved from '{url}'")
             if data is None:
                 continue
-            self._write_curr_weather_data(data)
+            self._write_curr_weather(data)
 
         self._logger.info("Finished downloading and updating with the past 24h of weather data")
 
     @DatabaseConnect._db_transaction
-    def update_curr_weather_data(self) -> None:
+    def update_curr_weather(self) -> None:
         """
         Updates weather data with the current LATEST entries
         Useful if data is being requested every time there are new entries
@@ -436,10 +436,10 @@ class OMSZDownloader(DatabaseConnect):
         # see also: self.update_past24h_weather_data()
         self._logger.info("Downloading and updating with the most recent weather data")
 
-        data = self._download_curr_data(
+        data = self._download_curr_weather(
             "https://odp.met.hu/weather/weather_reports/synoptic/hungary/10_minutes/csv/HABP_10M_SYNOP_LATEST.csv.zip")
         self._logger.info("Most recent weather data recieved")
-        self._write_curr_weather_data(data)
+        self._write_curr_weather(data)
 
         self._logger.info("Finished downloading and updating with the most recent weather data")
 
@@ -465,9 +465,9 @@ class OMSZDownloader(DatabaseConnect):
         if now > (end + pd.DateOffset(minutes=20, seconds=10)):
             self.update_meta()
             if now < (end + pd.DateOffset(minutes=30)):
-                self.update_curr_weather_data()
+                self.update_curr_weather()
             else:
-                self.update_past24h_weather_data()
+                self.update_past24h_weather()
             return True
         return False
 
@@ -481,13 +481,13 @@ class OMSZDownloader(DatabaseConnect):
         self.update_meta()
         # After tables are created it's time to update
         # Starting with historical since it doesn't affect any of the following ones and is a long running operation
-        self.update_hist_weather_data()
+        self.update_hist_weather()
         # Updating past24h first because data from 24h ago will be there
-        self.update_past24h_weather_data()
+        self.update_past24h_weather()
         # Recent comes next (current year)
         # Doing this after the past24h ensures that there are no gaps happening at the t-24h mark
         # (Theoretically reverse order could result in missing t-24h if it passes a 10 min mark during it)
-        self.update_rec_weather_data()
+        self.update_rec_weather()
         # Recent update could result in passingMAX a 10 min mark
         self.choose_curr_update()
 

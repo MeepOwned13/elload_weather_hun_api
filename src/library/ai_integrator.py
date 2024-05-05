@@ -26,7 +26,7 @@ class AIIntegrator(DatabaseConnect):
         :param db_connect_info: connection info for MySQL connector
         """
         super().__init__(db_connect_info, ai_integrator_logger)
-        self._model_dir = model_dir
+        self._model_dir: Path = model_dir
         self._wrapper: TSMWrapper = None
         self._model_year: int = None
         self._from_time = pd.Timestamp("2015-01-01 0:00:00")
@@ -50,7 +50,7 @@ class AIIntegrator(DatabaseConnect):
         super().__del__()
 
     @DatabaseConnect._db_transaction
-    def _create_tables_views_triggers(self):
+    def _create_tables_views_triggers(self) -> None:
         """
         Creates necessary data table, aggregate view and maintaning triggers
         """
@@ -203,7 +203,7 @@ class AIIntegrator(DatabaseConnect):
 
         self._logger.debug("Created tables, views, triggers that didn't exist")
 
-    def _load_model(self, year: int):
+    def _load_model(self, year: int) -> None:
         """
         Load model for given year prediction into self._wrapper
         :param year: year the model should predict
@@ -242,7 +242,7 @@ class AIIntegrator(DatabaseConnect):
         df.set_index("Time", inplace=True, drop=True)
         return make_ai_df(df)[start:]
 
-    def _predict_with_model(self, df: pd.DataFrame, year: int):
+    def _predict_with_model(self, df: pd.DataFrame, year: int) -> np.ndarray:
         """
         Predict from pandas.DataFrame with given model
         :param df: DataFrame with data ready for model
@@ -258,7 +258,7 @@ class AIIntegrator(DatabaseConnect):
         return preds
 
     @DatabaseConnect._assert_transaction
-    def _write_preds(self, preds: np.array, index: pd.Index):
+    def _write_preds(self, preds: np.ndarray, index: pd.Index) -> None:
         """
         Write predictions to table, uses given index for Time
         :param preds: numpy array of predictions
@@ -271,7 +271,7 @@ class AIIntegrator(DatabaseConnect):
         self._df_to_sql(pred_df, "S2S_raw_preds")
 
     @DatabaseConnect._assert_transaction
-    def _update_years(self, years: list[int]):
+    def _update_years(self, years: list[int]) -> None:
         """
         Updates S2S_raw_preds on given years
         :param years: list of years to consider, should be valid for AI_1hour

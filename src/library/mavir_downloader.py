@@ -81,7 +81,7 @@ class MAVIRDownloader(DatabaseConnect):
             """
         )
 
-    def _format_data(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _format_electricity(self, df: pd.DataFrame) -> pd.DataFrame:
         df.columns = df.columns.str.strip()  # remove trailing whitespace
         df.rename(columns=self._RENAME, inplace=True)
         df = df[self._RENAME.values()]  # Reordering, assumes all columns exist
@@ -94,7 +94,7 @@ class MAVIRDownloader(DatabaseConnect):
         df.drop(df.tail(1).index, inplace=True)
         return df
 
-    def _download_data(self, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame | None:
+    def _download_electricity(self, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame | None:
         """
         Download data based on timeframe
         Start and end time should result in at most 60_000 entries if period is 10 minutes
@@ -125,12 +125,12 @@ class MAVIRDownloader(DatabaseConnect):
             warnings.filterwarnings("ignore", category=UserWarning, module=re.escape('openpyxl.styles.stylesheet'))
             df = pd.read_excel(xlsx, skiprows=0, engine='openpyxl')
 
-        return self._format_data(df)
+        return self._format_electricity(df)
 
-    def _download_data_range(self, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame | None:
+    def _download_electricity_batched(self, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame | None:
         """
         Download data based on range, allows for any number of entries
-        WARNING: don't call this function in a loop, MAVIR API limits request amounts per minute
+        WARNING: don't call this function in a loop, MAVIR API limits request amounts
         :param start: Start time in UTC, inclusive
         :param end: End time in UTC, inclusive
         :returns: Downloaded DataFrame
@@ -143,13 +143,13 @@ class MAVIRDownloader(DatabaseConnect):
             new_start = start + pd.Timedelta(minutes=10 * 59_999)
             if new_start >= end:
                 new_start = end
-            ls_df.append(self._download_data(start, new_start))
+            ls_df.append(self._download_electricity(start, new_start))
             start = new_start
 
         return pd.concat(ls_df)
 
     @DatabaseConnect._db_transaction
-    def _write_electricity_data(self, df: pd.DataFrame) -> None:
+    def _write_electricity(self, df: pd.DataFrame) -> None:
         """
         Insert electricity data, doesn't update, only inserts Times that don't exist yet
         :param df: DataFrame to use
@@ -173,7 +173,7 @@ class MAVIRDownloader(DatabaseConnect):
         # Pandas.to_datetime becomes None if date is None
         return pd.to_datetime(date, format="%Y-%m-%d %H:%M:%S")
 
-    def update_electricity_data(self) -> None:
+    def update_electricity(self) -> None:
         """
         Update electricity data taking metadata into account
         Updates by using the minimal EndDate from the MAVIR_meta and replaces/inserts the downloaded data
@@ -181,7 +181,7 @@ class MAVIRDownloader(DatabaseConnect):
         """
         now: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
         # First available data is at 2007-01-01 00:00:00 UTC
-        self._write_electricity_data(self._download_data_range(
+        self._write_electricity(self._download_electricity_batched(
             self._get_min_end_date() or pd.to_datetime("2007-01-01 00:00:00", format="%Y-%m-%d %H:%M:%S"),
             now.round(freq="10min") + pd.Timedelta(hours=24)))
 
@@ -204,7 +204,7 @@ class MAVIRDownloader(DatabaseConnect):
         now: pd.Timestamp = pd.Timestamp.now("UTC").tz_localize(None)
         # MAVIR provides updates for ongoing 10 minute timeframes too (so at 14:41:00 -> 14:50:00 is already updated)
         if now > end:
-            self.update_electricity_data()
+            self.update_electricity()
             return True
         return False
 
@@ -213,5 +213,5 @@ class MAVIRDownloader(DatabaseConnect):
         Sets up tables, calls update
         """
         self._create_tables_views()
-        self.update_electricity_data()
+        self.update_electricity()
 
