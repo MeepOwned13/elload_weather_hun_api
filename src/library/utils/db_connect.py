@@ -85,19 +85,22 @@ class DatabaseConnect():
 
         return col_str
 
-    def _df_to_sql(self, df: pd.DataFrame, table: str, method: str = 'INSERT IGNORE'):
+    @_assert_transaction
+    def _df_to_sql(self, df: pd.DataFrame, table: str, method: str = 'INSERT IGNORE', unpack_index: bool = True):
         """
         Expects that df is indexed via datetime or timestamp
         Df is modified in this process
         :param df: DataFrame to insert
         :param table: table name to insert into
         :param method: INSERT, INSERT IGNORE or REPLACE
+        :param unpack_index: True if data in Index should be inserted into table
         """
         if method not in ('INSERT', 'INSERT IGNORE', 'REPLACE'):
             raise ValueError("method must be INSERT or REPLACE")
 
         df.replace({np.nan: None, pd.NaT: None}, inplace=True)
-        df.reset_index(inplace=True)
+        if unpack_index:
+            df.reset_index(inplace=True)
 
         cols = self._df_cols_to_sql_cols(df)
         marks = "%s," * len(df.columns)
