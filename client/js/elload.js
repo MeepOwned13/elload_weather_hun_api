@@ -63,16 +63,19 @@ class MavirController extends LinePlotController {
         this._dateInput.value = this._dateInput.max
         addMinutesToInputFloored(this._dateInput, this._stepSize, -60 * 24)
 
+        // logo request
         fetchData(this._apiUrl + "logo").then((resp) => {
             this.#logoImg.src = resp
         })
 
         await this.updatePlotAndDimensions() // this also calls updatePlot
 
+        // datetime-local event
         this._dateInput.addEventListener("change", async () => {
             await this.updatePlot()
         })
 
+        // button events
         addIntervalToButton(this._forwardButton, async () => {
             addMinutesToInputFloored(this._dateInput, this._stepSize, this._stepSize)
             await this.updatePlot()
@@ -83,12 +86,14 @@ class MavirController extends LinePlotController {
             await this.updatePlot()
         }, 100, "mavirBackward")
 
+        // legend checkbox event
         this.#legendCheckbox.checked = true
         this.#legendCheckbox.addEventListener("change", async () => {
             this._showLegend = this.#legendCheckbox.checked
             await this.updatePlot()
         })
 
+        // resize event
         window.addEventListener("resize", () => {
             clearTimeout(this._resizeTimeout)
             this._resizeTimeout = setTimeout(() => {

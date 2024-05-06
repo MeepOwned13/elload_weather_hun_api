@@ -32,7 +32,8 @@ class PlotController {
     * @param {number} maxWidth - CSS dependant maximal size of containers inside (excludes padding)
     */
     constructor(apiUrl, containerId, lastUpdateKey, stepSize = 10, maxWidth = 1080) {
-        // simulating abstract class/method
+        // simulating abstract class/method, doesn't limit arguments
+        // all arguments on the following functions should be optional, have default values
         if (this.display === undefined) {
             throw new TypeError("Must implement display method")
         }
