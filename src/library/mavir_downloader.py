@@ -81,6 +81,8 @@ class MAVIRDownloader(DatabaseConnect):
             """
         )
 
+        self._logger.info("Created tables/views that didn't exist")
+
     def _format_electricity(self, df: pd.DataFrame) -> pd.DataFrame:
         df.columns = df.columns.str.strip()  # remove trailing whitespace
         df.rename(columns=self._RENAME, inplace=True)
@@ -155,7 +157,7 @@ class MAVIRDownloader(DatabaseConnect):
         :param df: DataFrame to use
         :returns: None
         """
-        self._logger.info("Starting write to table MAVIR_data")
+        self._logger.debug("Starting write to table MAVIR_data")
 
         self._df_to_sql(df, "MAVIR_data", "REPLACE")
 
@@ -169,6 +171,8 @@ class MAVIRDownloader(DatabaseConnect):
         """
         self._curs.execute("SELECT MIN(EndDate) FROM MAVIR_status")
         date = self._curs.fetchone()[0]
+
+        self._logger.debug("Queried minimum EndDate from MAVIR_status")
 
         # Pandas.to_datetime becomes None if date is None
         return pd.to_datetime(date, format="%Y-%m-%d %H:%M:%S")
@@ -193,6 +197,8 @@ class MAVIRDownloader(DatabaseConnect):
         """
         self._curs.execute("SELECT MAX(Time) FROM MAVIR_data WHERE NetSystemLoad IS NOT NULL")
         date = self._curs.fetchone()[0]
+
+        self._logger.debug("Queried maximum date for NetSystemLoad from MAVIR_data")
         return pd.to_datetime(date, format="%Y-%m-%d %H:%M:%S")
 
     def choose_update(self) -> bool:

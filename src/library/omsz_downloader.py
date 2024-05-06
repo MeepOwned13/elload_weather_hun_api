@@ -221,6 +221,8 @@ class OMSZDownloader(DatabaseConnect):
         """
         # get all stations from metadata
         self._curs.execute("SELECT StationNumber FROM OMSZ_meta")
+        self._logger.debug("Queried all stations from OMSZ_meta for filtering")
+
         stations = self._curs.fetchall()
         stations = [s[0] for s in stations]  # remove them from tuples
 
@@ -289,8 +291,6 @@ class OMSZDownloader(DatabaseConnect):
         station = df["StationNumber"].iloc[0]
         self._logger.debug(f"Starting historical/recent write with {station} to OMSZ_data")
 
-        # Specifying column names to be safe from different orderings of columns
-
         self._df_to_sql(df, "OMSZ_data")
 
         self._logger.info(f"Updated OMSZ_data with historical/recent data for {station}")
@@ -318,6 +318,8 @@ class OMSZDownloader(DatabaseConnect):
                            f"WHERE StationNumber = {station} AND "
                            f"(StartDate IS NULL OR StartDate > \"{last_year}-12-31 23:50:00\") "
                            )
+
+        self._logger.debug(f"Queried station {station} from OMSZ_status to check is historical data is needed")
 
         return bool(self._curs.fetchone())
 
@@ -438,7 +440,7 @@ class OMSZDownloader(DatabaseConnect):
 
         data = self._download_curr_weather(
             "https://odp.met.hu/weather/weather_reports/synoptic/hungary/10_minutes/csv/HABP_10M_SYNOP_LATEST.csv.zip")
-        self._logger.info("Most recent weather data recieved")
+        self._logger.debug("Most recent weather data recieved")
         self._write_curr_weather(data)
 
         self._logger.info("Finished downloading and updating with the most recent weather data")
@@ -451,6 +453,8 @@ class OMSZDownloader(DatabaseConnect):
         """
         self._curs.execute("SELECT MAX(EndDate) FROM OMSZ_status")
         date = self._curs.fetchone()[0]
+
+        self._logger.debug("Queried maximum EndDate from OMSZ_status")
         return pd.to_datetime(date, format="%Y-%m-%d %H:%M:%S")
 
     def choose_curr_update(self) -> bool:

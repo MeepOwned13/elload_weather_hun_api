@@ -173,7 +173,7 @@ class Reader(DatabaseConnect):
 
         # MAVIR cache
         if "mavir" in sections:
-            self._logger.info("Refreshing MAVIR cache")
+            self._logger.debug("Refreshing MAVIR cache")
             self._cache.invalidate_entry("MAVIR_status")  # on-demand, done inside get_electricity_status
 
             from_date = now - pd.DateOffset(days=30)
@@ -182,9 +182,11 @@ class Reader(DatabaseConnect):
             df.set_index("Time", inplace=True, drop=True)
             self._cache.set_entry("MAVIR_data", df, from_date)  # pre-cache
 
+            self._logger.info("Refreshed MAVIR cache")
+
         # OMSZ cache
         if "omsz" in sections:
-            self._logger.info("Refreshing OMSZ cache")
+            self._logger.debug("Refreshing OMSZ cache")
             self._cache.invalidate_entry("OMSZ_meta")  # on-demand, done inside get_weather_meta
             self._cache.invalidate_entry("OMSZ_status")  # on-demand, done inside get_weather_status
 
@@ -196,9 +198,11 @@ class Reader(DatabaseConnect):
             df.set_index("Time", inplace=True, drop=True)
             self._cache.set_entry("OMSZ_data", df, from_date)  # pre-cache
 
+            self._logger.info("Refreshed OMSZ cache")
+
         # AI table cache
         if "ai" in sections:
-            self._logger.info("Refreshing AI cache")
+            self._logger.debug("Refreshing AI cache")
 
             df = pd.read_sql("SELECT * FROM AI_10min", con=self._con)
             df.set_index("Time", drop=True, inplace=True)
@@ -208,9 +212,11 @@ class Reader(DatabaseConnect):
             df.set_index("Time", drop=True, inplace=True)
             self._cache.set_entry("AI_1hour", df)  # pre-cache, because harder to calculate view
 
+            self._logger.info("Refreshed AI cache")
+
         # S2S preds cache
         if "s2s" in sections:
-            self._logger.info("Refreshing S2S cache")
+            self._logger.debug("Refreshing S2S cache")
             self._cache.invalidate_entry("S2S_status")  # on-demand, done inside get_s2s_status
 
             df = pd.read_sql("SELECT * FROM S2S_raw_preds s2s", con=self._con)
@@ -224,6 +230,8 @@ class Reader(DatabaseConnect):
                 con=self._con)
             df.set_index("Time", drop=True, inplace=True)
             self._cache.set_entry("S2S_aligned_preds", df)  # pre-cache, because harder to calculate view
+
+            self._logger.info("Refreshed S2S cache")
 
     @DatabaseConnect._db_transaction
     def get_electricity_status(self) -> pd.DataFrame:
@@ -243,6 +251,7 @@ class Reader(DatabaseConnect):
         """
         Retrieves columns for MAVIR_data: returns: list of columns
         """
+        self._logger.info("Reading columns of MAVIR_data")
         self._curs.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='MAVIR_data'")
         table_cols = self._curs.fetchall()
         return [tc[0] for tc in table_cols]
@@ -314,6 +323,7 @@ class Reader(DatabaseConnect):
         Retrieves columns for given station
         :returns: list of columns
         """
+        self._logger.info("Reading columns of OMSZ_data")
         self._curs.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='OMSZ_data'")
         table_cols = self._curs.fetchall()
         return [tc[0] for tc in table_cols]

@@ -206,13 +206,15 @@ class AIIntegrator(DatabaseConnect):
     def _load_model(self, year: int) -> None:
         """
         Load model for given year prediction into self._wrapper
+        Falls back to year-1 if model doesn't exist, in this case it will retry loading on future calls
         :param year: year the model should predict
+        :raises LookupError: if year-1 isn't available either
         """
         if self._model_year == year:
             return
         paths = list(self._model_dir.glob(f"*seq2seq_{year}.pth*"))
         if len(paths) != 1:
-            # This is here to allow a full training cycle if a new year rolls around
+            # This is here to allow a proper training cycle if a new year rolls around
             paths = list(self._model_dir.glob(f"*seq2seq_{year-1}.pth*"))
             if len(paths) != 1:
                 raise LookupError(f"Directory \"{self._model_dir}\" should include 1 file matching "
@@ -220,6 +222,7 @@ class AIIntegrator(DatabaseConnect):
             year -= 1
             self._logger.warning(f"Seq2Seq {year} model not found, falling back to Seq2Seq {year-1} model")
 
+        # Update internal state
         self._wrapper = S2STSWrapper(Seq2seq(11, 3, 10, 1, True, 0.5, 0.05), 24, 3)
         self._wrapper.load_state(paths[0])
         self._model_year = year
@@ -239,6 +242,8 @@ class AIIntegrator(DatabaseConnect):
         else:
             df: pd.DataFrame = pd.read_sql("SELECT Time, NetSystemLoad, Prec, GRad FROM AI_1hour ORDER BY Time ASC",
                                            con=self._con)
+        self._logger.debug(f"Queried AI_1hour starting at {start if start else 'the beginning of the table'}")
+
         df.set_index("Time", inplace=True, drop=True)
         return make_ai_df(df)[start:]
 
