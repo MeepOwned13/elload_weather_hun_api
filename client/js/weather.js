@@ -309,12 +309,18 @@ class OmszController extends PlotController {
         }
         this.#dropdown.innerHTML = dropdownOptions.join("\n")
 
+
         fetchData(this._apiUrl + "logo").then((resp) => {
             this.#logoImg.src = resp
         })
 
         this.updateMapDimensions()
         await this.updatePlot()
+
+        // Panning shouldn't move page
+        this._plotDiv.addEventListener("touchmove", (event) => {
+            event.preventDefault()
+        })
 
         this._dateInput.addEventListener("change", async () => {
             await this.updatePlot()
