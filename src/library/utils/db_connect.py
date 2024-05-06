@@ -12,6 +12,11 @@ class DatabaseConnect():
     """
 
     def __init__(self, db_connect_info: dict, logger: logging.Logger):
+        """
+        Tests database connection on init
+        :param db_connect_info: should contain "host", "user", "password", "database"
+        :param logger: logger to use
+        """
         self._con: connector.CMySQLConnection = connector.connect(**db_connect_info)
         self._curs: connector.cursor_cext.CMySQLCursor = None
         self._logger: logging.Logger = logger
@@ -33,15 +38,19 @@ class DatabaseConnect():
             if not self._con.is_connected():
                 self._con.reconnect(attempts=2, delay=5)
             try:
+                # Start transcation
                 self._in_transaction = True
                 self._curs = self._con.cursor()
                 self._curs.execute("BEGIN")
                 self._logger.debug("Database transaction begin")
+                # Execute decorated function
                 res = func(self, *args, **kwargs)
+                # Finish, commit transaction
                 self._curs.execute("COMMIT")
                 self._logger.debug("Database transaction commit")
             except Exception:
                 if self._curs:
+                    # If a cursor exits, roll back everything
                     self._curs.execute("ROLLBACK")
                     self._logger.debug("Database transaction rollback")
                 raise
@@ -78,7 +87,7 @@ class DatabaseConnect():
         if len(cols) < 1:
             raise ValueError("No columns")
 
-        # SQLite prefers " instead of ', also removing () after tuple->str
+        # " instead of ', also removing () after tuple->str
         col_str = str(cols).replace("'", "")[1:-1]
         if len(cols) == 1:
             col_str = col_str[:-1]  # tuple->str leaves a ',' if it has a single element
@@ -98,13 +107,16 @@ class DatabaseConnect():
         if method not in ('INSERT', 'INSERT IGNORE', 'REPLACE'):
             raise ValueError("method must be INSERT or REPLACE")
 
+        # executemany knows None, but won't recognize the others
         df.replace({np.nan: None, pd.NaT: None}, inplace=True)
         if unpack_index:
             df.reset_index(inplace=True)
 
         cols = self._df_cols_to_sql_cols(df)
+        # Executemany uses %s marks for placeholders
         marks = "%s," * len(df.columns)
         vals = df.values
+        # Batched insert
         for i in range(0, len(df), 4096):
             inserts = [(*elements,) for elements in vals[i:i + 4096]]
             self._curs.executemany(
