@@ -351,7 +351,7 @@ input[type="checkbox"]:checked+label {
     font-weight: 700;
 }
 
-@media screen and (max-width: 650px) {
+@media only screen and (max-width: 650px) {
     main {
         padding: 0;
     }
@@ -362,7 +362,7 @@ input[type="checkbox"]:checked+label {
     }
 }
 
-@media screen and (max-width: 530px) {
+@media only screen and (max-width: 530px) {
     h2 {
         font-size: 30px;
     }
