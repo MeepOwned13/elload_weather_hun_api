@@ -47,6 +47,7 @@ function addIntervalToButton(button, func, ms, intervalName) {
             return
         }
 
+        // call to func() is missed here because mousedown seems to be called even on phones
         _intervals[intervalName] = setInterval(() => {
             if (button.disabled) removeInterval()
             func()
