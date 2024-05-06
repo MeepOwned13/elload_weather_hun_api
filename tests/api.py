@@ -16,6 +16,7 @@ class ApiTests(unittest.TestCase):
         # this has to be after sys.path.append("src/") since this is a top level module!!
         import main as app
 
+        # Disable limiter for fast testing
         app.limiter.enabled = False
         app.DEV_MODE = True
         super().__init__(*args, **kwargs)

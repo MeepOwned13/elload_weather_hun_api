@@ -77,6 +77,11 @@ class DatabaseConnectTests(unittest.TestCase, DatabaseConnect):
         self._curs.execute(f"DROP TABLE IF EXISTS {test_table_name}")
 
     def create_delete_test_table(func):
+        """
+        Decorator to create test table and delete after function execution
+        Transaction COMMIT happens after creation and deletion
+        """
+
         def execute(self, *args, **kwargs):
             res = None
             try:
