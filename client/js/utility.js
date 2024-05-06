@@ -21,7 +21,7 @@ let _intervals = {}
 function addIntervalToButton(button, func, ms, intervalName) {
     _intervals[intervalName] = null
 
-    button.addEventListener("mousedown", () => {
+    let addInterval = () => {
         // just in case it gets stuck, another press will remove the interval
         if (_intervals[intervalName] !== null) {
             clearInterval(_intervals[intervalName])
@@ -32,9 +32,16 @@ function addIntervalToButton(button, func, ms, intervalName) {
             if (button.disabled) return
             func()
         }, ms)
-    })
-    button.addEventListener("mouseup", () => clearInterval(_intervals[intervalName]))
-    button.addEventListener("mouseleave", () => clearInterval(_intervals[intervalName]))
+    }
+
+    let removeInterval = () => clearInterval(_intervals[intervalName])
+
+    button.addEventListener("mousedown", addInterval)
+    button.addEventListener("touchstart", addInterval)
+    button.addEventListener("mouseup", removeInterval)
+    button.addEventListener("touchend", removeInterval)
+    button.addEventListener("mouseleave", removeInterval)
+    button.addEventListener("touchcancel", removeInterval)
 }
 
 /**
