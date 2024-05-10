@@ -319,7 +319,7 @@ async def get_electricity_load(request: Request, start_date: datetime, end_date:
     """
     try:
         result: pd.DataFrame = reader.get_electricity_load(start_date, end_date, cols=col)
-    except ValueError as error:
+    except (LookupError, ValueError) as error:
         raise HTTPException(status_code=400, detail=str(error))
     return df_json_resp(MAVIR_MESSAGE, result)
 
