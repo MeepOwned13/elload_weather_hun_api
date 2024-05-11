@@ -27,7 +27,7 @@ DB_NAME = hunelwapi
 ## Usage
 
 ```bash
-python src/main.py
+python src/main.py # API will start on localhost:8000
 ```
 
 Switches:
