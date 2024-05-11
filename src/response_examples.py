@@ -5,7 +5,7 @@ response_examples = {
             "content": {
                 "application/json": {
                     "example": {
-                        "Message": "message",
+                        "Message": "string",
                         "last_omsz_update": "2024-02-23T11:29:56.031130",
                         "last_mavir_update": "2024-02-23T11:29:56.031130",
                         "last_s2s_update": "2024-02-23T11:10:56.031130"
@@ -19,9 +19,7 @@ response_examples = {
             "description": "Succesful Response",
             "content": {
                 "application/json": {
-                    "example": {
-                        "https://www.met.hu/images/logo/omsz_logo_1362x492_300dpi.png"
-                    }
+                    "example": "https://www.met.hu/images/logo/omsz_logo_1362x492_300dpi.png"
                 }
             }
         }
@@ -34,14 +32,14 @@ response_examples = {
                     "example": {
                         "Message": "string",
                         "data": {
-                            13704: {
+                            "13704": {
                                 "Latitude": 47.6783,
                                 "Longitude": 16.6022,
                                 "Elevation": 232.8,
                                 "StationName": "Sopron Kuruc-domb",
                                 "RegioName": "Győr-Moson-Sopron"
                             },
-                            13711: {
+                            "13711": {
                                 "...": "..."
                             }
                         }
@@ -58,7 +56,7 @@ response_examples = {
                     "example": {
                         "Message": "string",
                         "data": {
-                            13704: {
+                            "13704": {
                                 "StartDate": "2005-07-27T18:10:00",
                                 "EndDate": "2024-02-21T18:30:00",
                                 "Latitude": 47.6783,
@@ -67,7 +65,7 @@ response_examples = {
                                 "StationName": "Sopron Kuruc-domb",
                                 "RegioName": "Győr-Moson-Sopron"
                             },
-                            13711: {
+                            "13711": {
                                 "...": "..."
                             }
                         }
@@ -127,11 +125,11 @@ response_examples = {
                                 }
                             }
                         },
-                        "Unspecified Station": {
+                        "Unspecified Station - Station first": {
                             "value": {
                                 "Message": "string",
                                 "data": {
-                                    13704: {
+                                    "13704": {
                                         "2024-02-18T15:00:00": {
                                             "Prec": 0,
                                             "Temp": 10.7,
@@ -141,7 +139,28 @@ response_examples = {
                                             "..."
                                         }
                                     },
-                                    13711: {
+                                    "13711": {
+                                        "..."
+                                    },
+                                    "...": "..."
+                                }
+                            }
+                        },
+                        "Unspecified Station - Date first": {
+                            "value": {
+                                "Message": "string",
+                                "data": {
+                                    "2024-02-18T15:00:00": {
+                                        "13704": {
+                                            "Prec": 0,
+                                            "Temp": 10.7,
+                                            "...": "..."
+                                        },
+                                        "13711": {
+                                            "..."
+                                        }
+                                    },
+                                    "2024-02-18T16:00:00": {
                                         "..."
                                     },
                                     "...": "..."
@@ -168,9 +187,7 @@ response_examples = {
             "description": "Succesful Response",
             "content": {
                 "application/json": {
-                    "example": {
-                        "https://www.mavir.hu/o/mavir-portal-theme/images/mavir_logo_white.png"
-                    }
+                    "example": "https://www.mavir.hu/o/mavir-portal-theme/images/mavir_logo_white.png"
                 }
             }
         }
@@ -343,6 +360,7 @@ response_examples = {
                     "examples": {
                         "unaligned": {
                             "value": {
+                                "Message": "string",
                                 "data": {
                                     "2020-06-23T16:00:00": {
                                         "NSLTplus1": 4982.53,
@@ -357,6 +375,7 @@ response_examples = {
                         },
                         "aligned": {
                             "value": {
+                                "Message": "string",
                                 "data": {
                                     "2020-06-23T17:00:00": {
                                         "NetSystemLoad": 4961.13,
