@@ -236,7 +236,7 @@ class ApiTests(unittest.TestCase):
         self.assertIsInstance(data, dict)
 
     def test_ai_table_10min(self):
-        # Test AI table 1 hour response
+        # Test AI table 1-hour response
         cols: list = list(self.data_get("/ai/columns").keys())
         data: dict = self.data_get("/ai/table?&start_date=2024-02-23T05:00:00&end_date=2024-02-27T15:09:00&which=10min")
 
@@ -246,7 +246,7 @@ class ApiTests(unittest.TestCase):
                 self.assertIn(col, cols)
 
     def test_ai_table_1hour(self):
-        # Test AI table 1 hour response
+        # Test AI table 1-hour response
         cols: list = list(self.data_get("/ai/columns").keys())
         data: dict = self.data_get("/ai/table?&start_date=2024-02-17T06:27:00&end_date=2024-02-20T17:13:00&which=1hour")
 

@@ -12,9 +12,9 @@ class MavirController extends LinePlotController {
     * @param {String} lastUpdateKey - key of update time in index given to setup(index)
     * @param {String} urlAId - id of <a> element to put data source url into
     * @param {String} dataReqName - data request name added after apiUrl, data comes from "{apiUrl}/{dataReqName}", allows base parameter definitions via ?name=val&...
-    * @param {number} maxViewRange - int specifing max range to display, goes negative and positive (=> double is displayed)
+    * @param {number} maxViewRange - int specifing max range to display, goes negative and positive (-> double is displayed)
     * @param {number} minViewRange - int specifing the min range the responsive layout should display
-    * @param {Object} plotFormat - object specifying col names from api as keys and objects as values that set => name, color, dash
+    * @param {Object} plotFormat - object specifying col names from api as keys and objects as values that set -> name, color, dash
     * @param {number} stepSize - stepSize for navigational buttons in minutes
     * @param {number} maxWidth - CSS dependant maximal size of containers inside (excludes padding)
     */

@@ -63,4 +63,3 @@ class DatabaseStructureTests(unittest.TestCase, DatabaseConnect):
         self.assertIn("s2s_status", data)
         self.assertIn("s2s_raw_preds", data)
         self.assertIn("s2s_aligned_preds", data)
-

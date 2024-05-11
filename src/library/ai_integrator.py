@@ -180,7 +180,7 @@ class AIIntegrator(DatabaseConnect):
         )
 
         # Adding 3 extra rows so we can see all the predictions even at the end
-        # where for example 1ago doesn't exits but 2ago does and so on...
+        # where for example 1ago doesn't exist but 2ago does and so on...
         self._curs.execute(
             """
             CREATE OR REPLACE VIEW S2S_aligned_preds AS
@@ -230,9 +230,9 @@ class AIIntegrator(DatabaseConnect):
     @DatabaseConnect._assert_transaction
     def _get_ai1hour_df(self, start: pd.Timestamp | None = None) -> pd.DataFrame:
         """
-        Query AI_1hour table and make ai ready pandas DataFrame
+        Query AI_1hour table and make AI ready pandas DataFrame
         :param start: optional start_time (inclusive)
-        :returns: ai ready pd.DataFrame
+        :returns: AI ready pd.DataFrame
         """
         if start:
             # Need to request 24 before, to have lag feature after make_ai_df
@@ -319,7 +319,7 @@ class AIIntegrator(DatabaseConnect):
         # from_time.year + 1 since we don't train models with less than 1 year of data
         years_to_update = [i for i in range(pred_from.year, pd.Timestamp.now().year + 1)]
         if start == pred_from:
-            # adding 1 hour to end here, if the data ends on year.12.31 23:00:00, that year don't needs predicting
+            # adding 1 hour to end here, if the data ends on year.12.31 23:00:00, that year doesn't need predicting
             end_plus_1h = end + pd.DateOffset(hours=1)
             years_to_update = [i for i in years_to_update if i >= end_plus_1h.year]
 
@@ -335,7 +335,7 @@ class AIIntegrator(DatabaseConnect):
         if end.floor(freq='h') != available.floor(freq='h'):
             self._update_curr_year(end + pd.DateOffset(hours=1))
             return True
-        # No update happens if everything was up to date
+        # No update happens if everything was up-to-date
         return False
 
     def startup_sequence(self):
@@ -345,4 +345,3 @@ class AIIntegrator(DatabaseConnect):
         """
         self._create_tables_views_triggers()
         self.choose_update()
-

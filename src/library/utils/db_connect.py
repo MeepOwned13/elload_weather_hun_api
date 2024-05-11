@@ -4,7 +4,7 @@ import mysql.connector as connector
 import numpy as np
 
 
-class DatabaseConnect():
+class DatabaseConnect:
     """
     Inherit this class to have Database Connection with custom transaction handling
     It also requires a logger, which can be used the child class
@@ -14,7 +14,7 @@ class DatabaseConnect():
     def __init__(self, db_connect_info: dict, logger: logging.Logger):
         """
         Tests database connection on init
-        :param db_connect_info: should contain "host", "user", "password", "database"
+        :param db_connect_info: should contain “host”, “user”, “password”, “database”
         :param logger: logger to use
         """
         self._con: connector.CMySQLConnection = connector.connect(**db_connect_info)
@@ -82,7 +82,7 @@ class DatabaseConnect():
         """
         cols = tuple(df.columns)
         if df.index.name:
-            cols = (df.index.name) + cols
+            cols = (df.index.name,) + cols
 
         if len(cols) < 1:
             raise ValueError("No columns")
@@ -121,4 +121,3 @@ class DatabaseConnect():
             inserts = [(*elements,) for elements in vals[i:i + 4096]]
             self._curs.executemany(
                 f"{method} INTO {table} ({cols}) VALUES ({marks[:-1]})", inserts)
-

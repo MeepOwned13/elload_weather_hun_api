@@ -34,7 +34,7 @@ db_connect_info = {
     "password": db_connect_info["PASW"],
     "database": db_connect_info["DBNM"]
 }
-# Setup DB, need to create DB with DBNM if it don't exist yet
+# Setup DB, need to create DB with DBNM if it doesn't exist yet
 try:
     conn = connector.connect(**db_connect_info)
 except connector.errors.ProgrammingError:
@@ -116,7 +116,7 @@ async def update_check():
     now = pd.Timestamp.now("UTC").tz_localize(None)
     try:
         global last_weather_update
-        # Check if we have updated in this 10 min time period
+        # Check if we have updated in this 10-min time period
         if now.floor('10min') != last_weather_update.floor('10min'):
             logger.info("Checking for updates to omsz sources")
             if omsz_dl.choose_curr_update():
@@ -128,7 +128,7 @@ async def update_check():
                      f"Make sure you are connected to the internet and https://odp.met.hu/ is available")
     try:
         global last_electricity_update
-        # Check if we have updated in this 10 min time period
+        # Check if we have updated in this 10-min time period
         if now.floor('10min') != last_electricity_update.floor('10min'):
             logger.info("Checking for updates to mavir sources")
             if mavir_dl.choose_update():
@@ -328,7 +328,7 @@ async def get_electricity_load(request: Request, start_date: datetime, end_date:
 @limiter.limit("1/second")
 async def get_ai_columns(request: Request):
     """
-    Retrieve the columns of ai table(s)
+    Retrieve the columns of AI table(s)
     """
     result = {name: ai_int.units[name] for name in reader.get_ai_table_columns()}
     return {"Message": f"{OMSZ_MESSAGE}, {MAVIR_MESSAGE}", "data": result}
@@ -432,4 +432,3 @@ if __name__ == "__main__":
     logging.config.fileConfig(log_config, disable_existing_loggers=False)
 
     main(args.skip_checks)
-

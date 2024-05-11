@@ -8,9 +8,9 @@ import pandas as pd
 
 def make_ai_df(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Construct ai ready DataFrame
+    Construct AI ready DataFrame
     :param df: pandas DataFrame that has Time index and NetSystemLoad, Prec, GRad columns and
-    :return: df ready for ai training as specified by my own TDK (Sebők Mátyás)
+    :return: df ready for AI training as specified by my own TDK (Sebők Mátyás)
     """
     import holidays
     holidays_hu = holidays.country_holidays('HU', years=list(range(df.index.min().year, df.index.max().year)))

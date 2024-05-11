@@ -67,8 +67,8 @@ class MAVIRDownloader(DatabaseConnect):
         )
         # PRIMARY KEYs are always indexed
 
-        # This statement isn't pretty, but it runs faster than selecting min, max time where columns is not null
-        #   since this uses that once a non null column is found
+        # This statement isn't pretty, but it runs faster than selecting min, max time where column is not null
+        #   since this uses that once a non-null column is found
         #   when selecting end we can also count on the fact that it's close to the last time entry (ordered)
         statements = [f"(SELECT * FROM (SELECT '{col}' `Column`, Time StartDate FROM MAVIR_data "
                       f"WHERE {col} IS NOT NULL ORDER BY Time ASC LIMIT 1) a NATURAL JOIN "

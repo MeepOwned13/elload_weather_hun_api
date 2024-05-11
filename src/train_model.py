@@ -82,4 +82,3 @@ if __name__ == '__main__':
     if not args.no_plot:
         print("Plotting losses for best training")
         wrapper.plot_losses([saved_losses[0]], [saved_losses[1]], [[]])
-

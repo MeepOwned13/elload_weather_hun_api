@@ -184,7 +184,7 @@ class OMSZDownloader(DatabaseConnect):
                                        parse_dates=["StartDate", "EndDate"], date_format="%Y%m%d")
         self._write_meta(self._format_meta(df))
 
-    def _format_prev_weather(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _format_weather(self, df: pd.DataFrame) -> pd.DataFrame:
         df.columns = df.columns.str.strip()  # remove trailing whitespace
         df.drop(columns=[col for col in df if col not in self._RENAME.keys()], inplace=True)
         df.rename(columns=self._RENAME, inplace=True)
@@ -210,7 +210,7 @@ class OMSZDownloader(DatabaseConnect):
                                            parse_dates=['Time'], date_format="%Y%m%d%H%M"
                                            )
 
-        return self._format_prev_weather(df)
+        return self._format_weather(df)
 
     @DatabaseConnect._db_transaction
     def _filter_stations_from_url(self, urls: list[str]) -> list[str]:
@@ -283,7 +283,7 @@ class OMSZDownloader(DatabaseConnect):
         :param df: DataFrame to use
         :returns: None
         """
-        # Check if DataFrame is empty or only has it's index
+        # Check if DataFrame is empty or only has its index
         if df.empty or len(tuple(df.columns)) == 0:
             self._logger.warning("Table writing was called with an empty DataFrame")
             return
@@ -360,14 +360,6 @@ class OMSZDownloader(DatabaseConnect):
 
         self._logger.info("Finished downloading and updating with recent weather data")
 
-    def _format_past24h_weather(self, df: pd.DataFrame) -> pd.DataFrame:
-        df.columns = df.columns.str.strip()  # remove trailing whitespace
-        df.drop(columns=[col for col in df if col not in self._RENAME.keys()], inplace=True)
-        df.rename(columns=self._RENAME, inplace=True)
-        # Time is in UTC
-        df.set_index("Time", drop=True, inplace=True)
-        return df
-
     def _download_curr_weather(self, url: str) -> pd.DataFrame | None:
         """
         Downloads given current data at given url, gets DataFrame from csv inside a zip
@@ -387,7 +379,7 @@ class OMSZDownloader(DatabaseConnect):
                                            parse_dates=['Time'], date_format="%Y%m%d%H%M"
                                            )
 
-        return self._format_past24h_weather(df)
+        return self._format_weather(df)
 
     @DatabaseConnect._assert_transaction
     def _write_curr_weather(self, df: pd.DataFrame) -> None:
@@ -397,7 +389,7 @@ class OMSZDownloader(DatabaseConnect):
         :param df: DataFrame to use
         :returns: None
         """
-        # Check if DataFrame is empty or only has it's index
+        # Check if DataFrame is empty or only has its index
         if df.empty or len(tuple(df.columns)) == 0:
             self._logger.warning("Table writing was called with an empty DataFrame")
             return
@@ -484,14 +476,14 @@ class OMSZDownloader(DatabaseConnect):
         self._create_tables_views()
         self.update_meta()
         # After tables are created it's time to update
-        # Starting with historical since it doesn't affect any of the following ones and is a long running operation
+        # Starting with historical since it doesn't affect any of the following ones and is a long-running operation
         self.update_hist_weather()
         # Updating past24h first because data from 24h ago will be there
         self.update_past24h_weather()
         # Recent comes next (current year)
         # Doing this after the past24h ensures that there are no gaps happening at the t-24h mark
-        # (Theoretically reverse order could result in missing t-24h if it passes a 10 min mark during it)
+        # (Theoretically reverse order could result in missing t-24h if it passes a 10-min mark during it)
         self.update_rec_weather()
-        # Recent update could result in passingMAX a 10 min mark
+        # Recent update could result in passingMAX a 10-min mark
         self.choose_curr_update()
 

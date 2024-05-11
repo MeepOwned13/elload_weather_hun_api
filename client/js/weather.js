@@ -24,7 +24,7 @@ class OmszController extends PlotController {
     * @param {String} containerId - id of container to add elements to
     * @param {String} lastUpdateKey - key of update time in index given to setup(index)
     * @param {String} urlAId - id of <a> element to put data source url into
-    * @param {Object} mapFormat - object specifying col names from api as keys and objects as values that set => name, min, max and gradient for colors, measurement and directionFeature if needed
+    * @param {Object} mapFormat - object specifying col names from api as keys and objects as values that set -> name, min, max and gradient for colors, measurement and directionFeature if needed
     * @param {number} stepSize - stepSize for navigational buttons in minutes
     * @param {number} maxWidth - CSS dependant maximal size of containers inside (excludes padding)
     */

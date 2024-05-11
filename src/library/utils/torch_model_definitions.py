@@ -43,7 +43,7 @@ class GRUEncoder(nn.Module):
         self.hidden_size = embedding_size
         self.num_layers = num_layers
         self.h_n_dim = 2 if bidirectional else 1
-        self.noise = GaussianNoise(0.0)
+        self.noise = GaussianNoise(noise)
         self.gru = nn.GRU(features, embedding_size, num_layers,
                           dropout=dropout, bidirectional=bidirectional, batch_first=True)
 

@@ -117,7 +117,7 @@ class Reader(DatabaseConnect):
 
     def _get_valid_cols(self, table: str, cols: list[str] | None) -> list[str] | None:
         """
-        Retrieve valid columns for given table, case insensitive
+        Retrieve valid columns for given table, case-insensitive
         THIS FUNCTION ASSUMES THERE IS AN ONGOING TRANSACTION
         :param table: Table to check for columns
         :param cols: List of columns, None -> returns None
@@ -486,4 +486,3 @@ class Reader(DatabaseConnect):
             df.set_index("Time", drop=True, inplace=True)
 
         return df
-

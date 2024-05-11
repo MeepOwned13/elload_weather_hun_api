@@ -157,9 +157,9 @@ class LinePlotController extends PlotController {
     * @param {String} containerId - id of container to add elements to
     * @param {String} lastUpdateKey - key of update time in index given to setup(index)
     * @param {String} dataReqName - data request name added after apiUrl, data comes from "{apiUrl}/{dataReqName}", allows base parameter definitions via ?name=val&...
-    * @param {number} maxViewRange - int specifing max range to display, goes negative and positive (=> double is displayed)
+    * @param {number} maxViewRange - int specifing max range to display, goes negative and positive (-> double is displayed)
     * @param {number} minViewRange - int specifing the min range the responsive layout should display
-    * @param {Object} plotFormat - object specifying col names from api as keys and objects as values that set => name, color, dash
+    * @param {Object} plotFormat - object specifying col names from api as keys and objects as values that set -> name, color, dash
     * @param {number} stepSize - stepSize for navigational buttons in minutes
     * @param {number} maxWidth - CSS dependant maximal size of containers inside (excludes padding)
     */
@@ -372,7 +372,7 @@ class LinePlotController extends PlotController {
 
 /**
 * Class wrapping multiple PlotControllers to call common functions together 
-* Should be used for PlotControllers on the same page in a multi page application
+* Should be used for PlotControllers on the same page in a multipage application
 * Any given controller can be freely retrieved from "controllers" via their name
 */
 class PageController {
