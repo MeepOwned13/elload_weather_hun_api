@@ -15,6 +15,7 @@ if __name__ == '__main__':
     # Known Warning with pd.read_sql, all cases that are required tested and working
     filterwarnings("ignore", category=UserWarning, message='.*pandas only supports SQLAlchemy connectable.*')
 
+    # Parse arguments
     parser = argparse.ArgumentParser(description="Train model for API's predictions")
     parser.add_argument("-y", "--year", help="Which year should the model be ready for?", type=int, required=True)
     parser.add_argument("-np", "--no_plot", help="Don't plot losses after training", action="store_true")
@@ -30,6 +31,7 @@ if __name__ == '__main__':
         "database": db_connect_info["DBNM"]
     }
 
+    # Connecting to Database
     try:
         con: connector.CMySQLConnection = connector.connect(**db_connect_info)
         df: pd.DataFrame = pd.read_sql("SELECT Time, NetSystemLoad, Prec, GRad FROM AI_1hour", con=con)
@@ -38,7 +40,7 @@ if __name__ == '__main__':
         if con:
             con.close()
 
-    min_year = df.index.min().year + 1
+    min_year = df.index.min().year + 2
     max_year = df.index.max().year +\
         (1 if df.index.max().month > 11 else 0)  # if next year is close enough we can train
     if args.year < min_year or args.year > max_year:
@@ -46,6 +48,7 @@ if __name__ == '__main__':
               file=sys.stderr)
         exit(1)
 
+    # Data prep, splitting
     df = make_ai_df(df)
 
     train = df[:f"{args.year-1}-09-30 23:00:00"]

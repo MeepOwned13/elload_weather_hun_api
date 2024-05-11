@@ -301,6 +301,7 @@ class OmszController extends PlotController {
         await this.updateStatus(index)
         this._dateInput.value = this._dateInput.max
 
+        // dropdown init
         let dropdownOptions = []
         for (let key in this.#mapFormat) {
             dropdownOptions.push(
@@ -309,6 +310,8 @@ class OmszController extends PlotController {
         }
         this.#dropdown.innerHTML = dropdownOptions.join("\n")
 
+
+        // logo request
         fetchData(this._apiUrl + "logo").then((resp) => {
             this.#logoImg.src = resp
         })
@@ -316,13 +319,22 @@ class OmszController extends PlotController {
         this.updateMapDimensions()
         await this.updatePlot()
 
+        // Panning shouldn't move page
+        this._plotDiv.addEventListener("touchmove", (event) => {
+            event.preventDefault()
+        })
+
+        // datetime-local event
         this._dateInput.addEventListener("change", async () => {
             await this.updatePlot()
         })
+
+        // dropdown event
         this.#dropdown.addEventListener("change", async () => {
             await this.updatePlot()
         })
 
+        // button events
         addIntervalToButton(this._forwardButton, async () => {
             addMinutesToInputFloored(this._dateInput, this._stepSize, this._stepSize)
             await this.updatePlot()
@@ -333,6 +345,7 @@ class OmszController extends PlotController {
             await this.updatePlot()
         }, 200, "omszBackward")
 
+        // resize event
         window.addEventListener("resize", () => {
             clearTimeout(this.#resizeTimeout)
             this.#resizeTimeout = setTimeout(() => {

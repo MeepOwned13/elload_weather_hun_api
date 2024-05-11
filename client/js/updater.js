@@ -155,6 +155,8 @@ const aiPlotFormat = {
     },
 }
 
+
+// init pages
 const pages = {
     omsz: new PageController("omszPageButton", "omszPage"),
     mavir: new PageController("mavirPageButton", "mavirPage")
@@ -168,6 +170,7 @@ pages.mavir.addController("mavir", new MavirController(apiUrl + "mavir/", "mavir
 pages.mavir.addController("s2s", new AIController(apiUrl + "ai/s2s/", "aiContainer", "last_s2s_update",
     "preds?aligned=True", 16, 6, aiPlotFormat, 60))
 
+// choose starting page, use remembered if exists
 if (localStorage.getItem("page") === null) {
     localStorage.setItem("page", "omsz")
 }
@@ -221,16 +224,20 @@ async function update() {
 * Hides current page and displays new one, calling necessary functions
 */
 function switchPage(event) {
+    // current page shouldn't trigger switching
     if (event.target === currentPage.button) return;
+    // switch away
     currentPage.button.classList.remove("onpage")
     currentPage.switchAway()
 
+    // go to new page
     currentPage = pages[event.target.value]
     currentPage.button.classList.add("onpage")
-    localStorage.setItem("page", currentPage.button.value)
+    localStorage.setItem("page", currentPage.button.value) // remember page
     currentPage.switchTo()
 }
 
+// Update loop
 setup().then(() => {
     setInterval(update, 10 * 1000)
 })

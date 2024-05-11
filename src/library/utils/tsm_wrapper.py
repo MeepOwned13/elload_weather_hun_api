@@ -15,6 +15,11 @@ if torch.cuda.is_available():
 
 
 class TSMWrapper(ABC):
+    """
+    Wrapper class to handle time-series data, model
+    Automatically does standardization, input and output is unstandardized
+    """
+
     def __init__(self, model: nn.Module, seq_len: int, pred_len: int):
         self._seq_len: int = seq_len
         self._pred_len: int = pred_len

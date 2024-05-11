@@ -21,20 +21,43 @@ let _intervals = {}
 function addIntervalToButton(button, func, ms, intervalName) {
     _intervals[intervalName] = null
 
+    let removeInterval = () => {
+        clearInterval(_intervals[intervalName])
+        _intervals[intervalName] = null
+    }
+
     button.addEventListener("mousedown", () => {
         // just in case it gets stuck, another press will remove the interval
         if (_intervals[intervalName] !== null) {
-            clearInterval(_intervals[intervalName])
+            removeInterval()
+            return
         }
 
         func()
         _intervals[intervalName] = setInterval(() => {
-            if (button.disabled) return
+            if (button.disabled) removeInterval()
             func()
         }, ms)
     })
-    button.addEventListener("mouseup", () => clearInterval(_intervals[intervalName]))
-    button.addEventListener("mouseleave", () => clearInterval(_intervals[intervalName]))
+
+    button.addEventListener("touchstart", () => {
+        // just in case it gets stuck, another press will remove the interval
+        if (_intervals[intervalName] !== null) {
+            removeInterval()
+            return
+        }
+
+        // call to func() is missed here because mousedown seems to be called even on phones
+        _intervals[intervalName] = setInterval(() => {
+            if (button.disabled) removeInterval()
+            func()
+        }, ms)
+    })
+
+    button.addEventListener("mouseup", removeInterval)
+    button.addEventListener("touchend", removeInterval)
+    button.addEventListener("mouseleave", removeInterval)
+    button.addEventListener("touchcancel", removeInterval)
 }
 
 /**

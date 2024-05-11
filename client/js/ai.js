@@ -13,10 +13,12 @@ class AIController extends LinePlotController {
 
         await this.updatePlotAndDimensions() // this also calls updatePlot
 
+        // datetime-local event
         this._dateInput.addEventListener("change", () => {
             this.updatePlot()
         })
 
+        // button events
         addIntervalToButton(this._forwardButton, async () => {
             addMinutesToInputFloored(this._dateInput, this._stepSize, this._stepSize)
             await this.updatePlot()
@@ -27,6 +29,7 @@ class AIController extends LinePlotController {
             await this.updatePlot()
         }, 150, "aiBackward")
 
+        // resize event
         window.addEventListener("resize", () => {
             clearTimeout(this._resizeTimeout)
             this._resizeTimeout = setTimeout(() => {

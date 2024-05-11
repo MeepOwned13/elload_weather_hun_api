@@ -26,7 +26,7 @@ class AIIntegrator(DatabaseConnect):
         :param db_connect_info: connection info for MySQL connector
         """
         super().__init__(db_connect_info, ai_integrator_logger)
-        self._model_dir = model_dir
+        self._model_dir: Path = model_dir
         self._wrapper: TSMWrapper = None
         self._model_year: int = None
         self._from_time = pd.Timestamp("2015-01-01 0:00:00")
@@ -50,7 +50,7 @@ class AIIntegrator(DatabaseConnect):
         super().__del__()
 
     @DatabaseConnect._db_transaction
-    def _create_tables_views_triggers(self):
+    def _create_tables_views_triggers(self) -> None:
         """
         Creates necessary data table, aggregate view and maintaning triggers
         """
@@ -203,16 +203,18 @@ class AIIntegrator(DatabaseConnect):
 
         self._logger.debug("Created tables, views, triggers that didn't exist")
 
-    def _load_model(self, year: int):
+    def _load_model(self, year: int) -> None:
         """
         Load model for given year prediction into self._wrapper
+        Falls back to year-1 if model doesn't exist, in this case it will retry loading on future calls
         :param year: year the model should predict
+        :raises LookupError: if year-1 isn't available either
         """
         if self._model_year == year:
             return
         paths = list(self._model_dir.glob(f"*seq2seq_{year}.pth*"))
         if len(paths) != 1:
-            # This is here to allow a full training cycle if a new year rolls around
+            # This is here to allow a proper training cycle if a new year rolls around
             paths = list(self._model_dir.glob(f"*seq2seq_{year-1}.pth*"))
             if len(paths) != 1:
                 raise LookupError(f"Directory \"{self._model_dir}\" should include 1 file matching "
@@ -220,6 +222,7 @@ class AIIntegrator(DatabaseConnect):
             year -= 1
             self._logger.warning(f"Seq2Seq {year} model not found, falling back to Seq2Seq {year-1} model")
 
+        # Update internal state
         self._wrapper = S2STSWrapper(Seq2seq(11, 3, 10, 1, True, 0.5, 0.05), 24, 3)
         self._wrapper.load_state(paths[0])
         self._model_year = year
@@ -239,10 +242,12 @@ class AIIntegrator(DatabaseConnect):
         else:
             df: pd.DataFrame = pd.read_sql("SELECT Time, NetSystemLoad, Prec, GRad FROM AI_1hour ORDER BY Time ASC",
                                            con=self._con)
+        self._logger.debug(f"Queried AI_1hour starting at {start if start else 'the beginning of the table'}")
+
         df.set_index("Time", inplace=True, drop=True)
         return make_ai_df(df)[start:]
 
-    def _predict_with_model(self, df: pd.DataFrame, year: int):
+    def _predict_with_model(self, df: pd.DataFrame, year: int) -> np.ndarray:
         """
         Predict from pandas.DataFrame with given model
         :param df: DataFrame with data ready for model
@@ -258,7 +263,7 @@ class AIIntegrator(DatabaseConnect):
         return preds
 
     @DatabaseConnect._assert_transaction
-    def _write_preds(self, preds: np.array, index: pd.Index):
+    def _write_preds(self, preds: np.ndarray, index: pd.Index) -> None:
         """
         Write predictions to table, uses given index for Time
         :param preds: numpy array of predictions
@@ -271,7 +276,7 @@ class AIIntegrator(DatabaseConnect):
         self._df_to_sql(pred_df, "S2S_raw_preds")
 
     @DatabaseConnect._assert_transaction
-    def _update_years(self, years: list[int]):
+    def _update_years(self, years: list[int]) -> None:
         """
         Updates S2S_raw_preds on given years
         :param years: list of years to consider, should be valid for AI_1hour
@@ -324,7 +329,8 @@ class AIIntegrator(DatabaseConnect):
         # At least 1 year always remains, the current year
 
         # This check should be enough, checking 10min since it is stored on disk -> faster
-        self._curs.execute("SELECT MAX(Time) FROM AI_10min WHERE NetSystemLoad IS NOT NULL AND Temp IS NOT NULL")
+        self._curs.execute("SELECT MAX(Time) FROM AI_10min WHERE NetSystemLoad IS NOT NULL AND GRad IS NOT NULL AND "
+                           "Prec IS NOT NULL")
         available = pd.Timestamp(self._curs.fetchone()[0])
         if end.floor(freq='h') != available.floor(freq='h'):
             self._update_curr_year(end + pd.DateOffset(hours=1))

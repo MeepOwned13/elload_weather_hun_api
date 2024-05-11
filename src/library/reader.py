@@ -11,21 +11,21 @@ reader_logger.addHandler(logging.NullHandler())
 
 
 class CacheEntry:
-    def __init__(self, df: pd.DataFrame, min_date: datetime | pd.Timestamp | None):
+    def __init__(self, df: pd.DataFrame, min_date: pd.Timestamp | datetime | None):
         """
         Init cache entry, empty min_date means the entire underlying table is cached
         :param df: pandas DataFrame to cache, gets copied
         :param min_date: start date for cache, if None then it's a full cache of the underlying table
         """
         self._df: pd.DataFrame = df.copy(deep=True)
-        self._min_date = copy(min_date)
+        self._min_date: pd.Timestamp | datetime | None = copy(min_date)
 
     @property
-    def df(self):
+    def df(self) -> pd.DataFrame:
         return self._df.copy()
 
     @property
-    def min_date(self):
+    def min_date(self) -> pd.Timestamp | datetime | None:
         return copy(self._min_date)
 
 
@@ -49,10 +49,10 @@ class Cache:
         """
         return self._entries.get(name, None)
 
-    def __getitem__(self, key) -> CacheEntry:
+    def __getitem__(self, key: str) -> CacheEntry:
         return self.get_entry(key)
 
-    def invalidate_entry(self, name: str):
+    def invalidate_entry(self, name: str) -> None:
         """
         Remove entry because data might have changed, no operation if entry is already removed
         :param name: entry to remove
@@ -73,10 +73,10 @@ class Reader(DatabaseConnect):
         :param db_connect_info: connection info for MySQL connector
         """
         super().__init__(db_connect_info, reader_logger)
-        self._SINGLE_TABLE_LIMIT = pd.Timedelta(weeks=52 * 4 + 1)  # 4 years
-        self._WEATHER_ALL_STATIONS_LIMIT = pd.Timedelta(days=7)
-        self._cache = Cache()
-        self._TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+        self._SINGLE_TABLE_LIMIT: pd.Timedelta = pd.Timedelta(weeks=52 * 4 + 1)  # 4 years
+        self._WEATHER_ALL_STATIONS_LIMIT: pd.Timedelta = pd.Timedelta(days=7)
+        self._cache: Cache = Cache()
+        self._TIME_FORMAT: str = "%Y-%m-%d %H:%M:%S"
 
     def __del__(self):
         super().__del__()
@@ -156,7 +156,7 @@ class Reader(DatabaseConnect):
             return '*'
 
     @DatabaseConnect._db_transaction
-    def refresh_caches(self, sections: list[str] | str):
+    def refresh_caches(self, sections: list[str] | str) -> None:
         """
         Refresh cache for given sections, partial cache gets refilled, others just removed
         :param sections: single str or list of sections to refresh cache for ("mavir", "omsz", "ai", "s2s")
@@ -173,7 +173,7 @@ class Reader(DatabaseConnect):
 
         # MAVIR cache
         if "mavir" in sections:
-            self._logger.info("Refreshing MAVIR cache")
+            self._logger.debug("Refreshing MAVIR cache")
             self._cache.invalidate_entry("MAVIR_status")  # on-demand, done inside get_electricity_status
 
             from_date = now - pd.DateOffset(days=30)
@@ -182,9 +182,11 @@ class Reader(DatabaseConnect):
             df.set_index("Time", inplace=True, drop=True)
             self._cache.set_entry("MAVIR_data", df, from_date)  # pre-cache
 
+            self._logger.info("Refreshed MAVIR cache")
+
         # OMSZ cache
         if "omsz" in sections:
-            self._logger.info("Refreshing OMSZ cache")
+            self._logger.debug("Refreshing OMSZ cache")
             self._cache.invalidate_entry("OMSZ_meta")  # on-demand, done inside get_weather_meta
             self._cache.invalidate_entry("OMSZ_status")  # on-demand, done inside get_weather_status
 
@@ -196,9 +198,11 @@ class Reader(DatabaseConnect):
             df.set_index("Time", inplace=True, drop=True)
             self._cache.set_entry("OMSZ_data", df, from_date)  # pre-cache
 
+            self._logger.info("Refreshed OMSZ cache")
+
         # AI table cache
         if "ai" in sections:
-            self._logger.info("Refreshing AI cache")
+            self._logger.debug("Refreshing AI cache")
 
             df = pd.read_sql("SELECT * FROM AI_10min", con=self._con)
             df.set_index("Time", drop=True, inplace=True)
@@ -208,9 +212,11 @@ class Reader(DatabaseConnect):
             df.set_index("Time", drop=True, inplace=True)
             self._cache.set_entry("AI_1hour", df)  # pre-cache, because harder to calculate view
 
+            self._logger.info("Refreshed AI cache")
+
         # S2S preds cache
         if "s2s" in sections:
-            self._logger.info("Refreshing S2S cache")
+            self._logger.debug("Refreshing S2S cache")
             self._cache.invalidate_entry("S2S_status")  # on-demand, done inside get_s2s_status
 
             df = pd.read_sql("SELECT * FROM S2S_raw_preds s2s", con=self._con)
@@ -224,6 +230,8 @@ class Reader(DatabaseConnect):
                 con=self._con)
             df.set_index("Time", drop=True, inplace=True)
             self._cache.set_entry("S2S_aligned_preds", df)  # pre-cache, because harder to calculate view
+
+            self._logger.info("Refreshed S2S cache")
 
     @DatabaseConnect._db_transaction
     def get_electricity_status(self) -> pd.DataFrame:
@@ -241,8 +249,9 @@ class Reader(DatabaseConnect):
     @DatabaseConnect._db_transaction
     def get_electricity_columns(self) -> list[str]:
         """
-                Retrieves columns for MAVIR_data: returns: list of columns
-                """
+        Retrieves columns for MAVIR_data: returns: list of columns
+        """
+        self._logger.info("Reading columns of MAVIR_data")
         self._curs.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='MAVIR_data'")
         table_cols = self._curs.fetchall()
         return [tc[0] for tc in table_cols]
@@ -314,13 +323,14 @@ class Reader(DatabaseConnect):
         Retrieves columns for given station
         :returns: list of columns
         """
+        self._logger.info("Reading columns of OMSZ_data")
         self._curs.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='OMSZ_data'")
         table_cols = self._curs.fetchall()
         return [tc[0] for tc in table_cols]
 
     @DatabaseConnect._db_transaction
     def get_weather_stations(self, start_date: pd.Timestamp | datetime, end_date: pd.Timestamp | datetime,
-                             cols: list[str] | None, stations: list[int] | None = None) -> dict:
+                             cols: list[str] | None, stations: list[int] | None = None) -> pd.DataFrame:
         """
         Get weather for all stations in given timeframe
         :param start_date: Date to start at in UTC
@@ -346,7 +356,7 @@ class Reader(DatabaseConnect):
                 raise ValueError(f"Station {station} is invalid")
 
         columns = self._get_valid_cols("OMSZ_data", cols)
-        if columns:
+        if columns and "StationNumber" not in columns:
             columns = ["StationNumber"] + columns
 
         cached = self._cache["OMSZ_data"]
@@ -438,7 +448,7 @@ class Reader(DatabaseConnect):
 
     @DatabaseConnect._db_transaction
     def get_s2s_preds(self, start_date: pd.Timestamp | datetime | None,
-                      end_date: pd.Timestamp | datetime | None, aligned=False) -> pd.DataFrame:
+                      end_date: pd.Timestamp | datetime | None, aligned: bool = False) -> pd.DataFrame:
         """
         Get predictions of Seq2Seq model for given timeframe
         :param start_date: Date to start at in UTC

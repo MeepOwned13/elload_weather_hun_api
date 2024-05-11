@@ -10,6 +10,10 @@ if torch.cuda.is_available():
 
 
 class GaussianNoise(nn.Module):
+    """
+    Simple Gaussian Noise layer that only activates in training
+    """
+
     def __init__(self, sigma=0.1, is_relative_detach=True):
         super(GaussianNoise, self).__init__()
         self.sigma = sigma
@@ -30,6 +34,10 @@ class GaussianNoise(nn.Module):
 # region Time-series Encoder-Decoder
 
 class GRUEncoder(nn.Module):
+    """
+    GRU based Encoder class
+    """
+
     def __init__(self, features, embedding_size, num_layers=1, bidirectional=False, dropout=0.0, noise=0.0):
         super(GRUEncoder, self).__init__()
         self.hidden_size = embedding_size
@@ -49,6 +57,10 @@ class GRUEncoder(nn.Module):
 
 
 class GRUDecoder(nn.Module):
+    """
+    GRU based Decoder class
+    """
+
     def __init__(self, features, embedded_size, num_layers=1, bidirectional=False, dropout=0.0, noise=0.0):
         super(GRUDecoder, self).__init__()
         self.h_n_dim = 2 if bidirectional else 1
@@ -72,6 +84,10 @@ class GRUDecoder(nn.Module):
 
 
 class Seq2seq(nn.Module):
+    """
+    GRU based Sequence to sequence model
+    """
+
     def __init__(self, features=11, pred_len=3, embedding_size=64, num_layers=1, bidirectional=False,
                  dropout=0.2, in_noise=0.0, out_noise=0.0, **kwargs):
         super(Seq2seq, self).__init__()
