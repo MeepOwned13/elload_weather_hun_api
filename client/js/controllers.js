@@ -200,7 +200,7 @@ class LinePlotController extends PlotController {
         if (addMinutesToISODate(rounded, this._viewRange * 60) > this._maxDate) {
             rounded = addMinutesToISODate(this._maxDate, -this._viewRange * 60)
         }
-        if (addMinutesToISODate(rounded, this._viewRange * 60) < this._minDate) {
+        if (addMinutesToISODate(rounded, -this._viewRange * 60) < this._minDate) {
             rounded = addMinutesToISODate(this._minDate, this._viewRange * 60)
         }
 

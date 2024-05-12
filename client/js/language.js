@@ -34,7 +34,7 @@ const langTexts = {
         eng: "Map of OMSZ stations",
     },
     omszDesc: {
-        hun: "Az alábbi oldalon láthatók az OMSZ állomásainak elhelyezkedése. A térkép alatti gombokkal megtekinthetők a korábbi mérések bármely elérhető időpontra.",
+        hun: "Az alábbi oldalon látható az OMSZ állomásainak elhelyezkedése. A térkép alatti gombokkal megtekinthetők a korábbi mérések bármely elérhető időpontra.",
         eng: "This page shows the location of OMSZ's weather stations. The buttons below the map allow You to view the measurements of each station at any historical time.",
     },
     omszMessage: { // link added after
