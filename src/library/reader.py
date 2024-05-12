@@ -130,8 +130,11 @@ class Reader(DatabaseConnect):
         self._curs.execute(f"SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='{table}'")
         table_cols = self._curs.fetchall()
         table_cols = {tc[0].lower(): tc[0] for tc in table_cols}
-        cols = list(set([c.lower() for c in cols]))
+        # dict.pop(key, None) -> pop if exists, do nothing if it doesn't
+        table_cols.pop("time", None)  # Remove time if exists, Time is used for grouping, shouldn't count here
+        table_cols.pop("stationnumber", None)  # Remove time if exists, Time is used for grouping, shouldn't count here
 
+        cols = list(set([c.lower() for c in cols]))
         valid = []
         for col in cols:
             if col in table_cols:
