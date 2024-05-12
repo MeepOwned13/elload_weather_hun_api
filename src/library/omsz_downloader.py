@@ -319,7 +319,7 @@ class OMSZDownloader(DatabaseConnect):
                            f"(StartDate IS NULL OR StartDate > \"{last_year}-12-31 23:50:00\") "
                            )
 
-        self._logger.debug(f"Queried station {station} from OMSZ_status to check is historical data is needed")
+        self._logger.debug(f"Queried station {station} from OMSZ_status to check if historical data is needed")
 
         return bool(self._curs.fetchone())
 
